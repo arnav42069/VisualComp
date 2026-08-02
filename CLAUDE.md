@@ -126,6 +126,23 @@ project name; that has not been renamed and doesn't need to be.
   `/package-release` is for an actual release cut.
 - Whenever a new `.cpp`/`.h` pair is added, update `CMakeLists.txt`'s `target_sources`.
 
+## Version control
+
+- As of 2026-08-02 this folder is a local git repo (no remote configured). Commit
+  history is how "versions" of the source are maintained going forward — commit when
+  the user asks, following the standard commit-hygiene rules (new commits over amends,
+  no `--no-verify`, never push without being asked).
+- `.gitignore` excludes: `build/`, `build-pkg/`, `build-macos/`, `Build Final/` (all
+  regenerable via CMake / `package.ps1` / `testbuild.ps1`), `*.zip` release archives,
+  `.claude/settings.local.json` (per-user, not shared config), and the older frozen
+  snapshot folders `VisualComp 2/`, `VisualComp 3/`, `VisualComp 2.1 - Win and Mac/`,
+  `VisualComp 2.1 - Win and Mac - Copy/` (one-off copies made on request, not the living
+  source tree — that's `src/` plus this file and the build/installer scripts at repo
+  root). Don't add these back without checking with the user first; they're large and/or
+  redundant with what's already tracked.
+- git identity is set locally (repo-level `user.name`/`user.email`, not `--global`) since
+  this machine had none configured.
+
 ## Screenshots & manual
 
 - Capture via the Standalone build + `PrintWindow` with flag `2` (`PW_RENDERFULLCONTENT`).
