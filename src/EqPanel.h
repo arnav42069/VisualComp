@@ -1,0 +1,121 @@
+#pragma once
+#include <JuceHeader.h>
+#include "PluginProcessor.h"
+#include "NodeIsland.h"
+#include <array>
+#include <functional>
+
+// Docked multi-node parametric EQ panel. Extends to the left of the main
+// plugin body when toggled from the header EQ button, matching the full
+// height of the rest of the interface.
+//
+// Interaction:
+//   - Double-click empty graph space -> activates the next free node at
+//     that frequency/gain.
+//   - Drag a node's centre ball -> left/right changes frequency (log
+//     scale), up/down changes gain. This node's detector edges (if linked)
+//     move with it, keeping their octave offsets from the new frequency.
+//   - Drag a linked node's low/high edge flag (top of the graph) -> resizes
+//     that side of the band's detector passband independently; the other
+//     edge and the centre frequency are untouched.
+//   - Right-click a node -> menu: filter type, Q preset, LINK TO COMPRESSOR
+//     toggle, remove.
+//   - Mouse wheel over a node -> adjusts Q (tone-shaping filter width;
+//     independent of the linked detector's low/high edges).
+//   - Ctrl/Cmd+Click a node -> toggles it into/out of a multi-selection
+//     (plain click resets the selection to just that node). Dragging the
+//     most-recently-clicked node's centre (freq/gain), or turning its Q via
+//     wheel/Dynamic Island, applies the same relative change (dB delta for
+//     gain, multiplicative ratio for freq/Q) to every other selected node,
+//     each clamped to its own valid range. Right-click actions (type/link/
+//     remove) always apply to just the clicked node.
+//   - Clicking a node shows a floating "Dynamic Island" (see NodeIsland.h)
+//     above it with an interactive Q knob, an Upward/Downward compression
+//     toggle, and a filter-type picker.
+
+// Draws its own vector X rather than relying on a Unicode glyph (Futura, the
+// UI font, has no glyph for U+2715 and would render an empty box).
+class EqCloseButton : public juce::TextButton
+{
+public:
+    void paintButton(juce::Graphics&, bool shouldDrawButtonAsHighlighted,
+                     bool shouldDrawButtonAsDown) override;
+};
+
+class EqPanel : public juce::Component, private juce::Timer
+{
+public:
+    explicit EqPanel(VisualCompProcessor& proc);
+    ~EqPanel() override;
+
+    void paint(juce::Graphics&) override;
+    void resized() override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseDrag(const juce::MouseEvent&) override;
+    void mouseUp(const juce::MouseEvent&) override;
+    void mouseDoubleClick(const juce::MouseEvent&) override;
+    void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+
+    static const juce::Colour kNodeColours[kMaxEqNodes];
+
+    std::function<void()>    onCloseRequested;
+    std::function<void(int)> onNodeSelected;   // fired when a node is clicked directly in the graph
+
+    // Mirrors the main editor's band-selector-row selection so a click on a
+    // numbered button (1-8) also highlights the corresponding node here.
+    // Resets any multi-selection down to just this one node.
+    void setSelectedNode(int i);
+
+private:
+    void timerCallback() override;
+
+    juce::Rectangle<float> graphArea() const;
+    float xToFreq(float x) const;
+    float freqToX(float freq) const;
+    float yToGainDb(float y) const;
+    float gainDbToY(float gainDb) const;
+    juce::Point<float> nodePos(int i) const;
+    // FabFilter Pro-MB-style threshold handle: a small "T" marker at the
+    // node's frequency but at thresholdDb's height on the gain axis, shown
+    // only for the selected node while it's linked and MULTIBAND COMP is
+    // on (i.e. while the Dynamics panel's Threshold knob is actually bound
+    // to it). Vertical-drag-only and two-way linked to that knob — see
+    // mouseDown/mouseDrag and PluginEditor::bandThresholdKnob.
+    juce::Point<float> thresholdMarkerPos(int i) const;
+    bool  thresholdMarkerActive(int i) const;
+    int   findNodeNear(juce::Point<float> p, float radius = 12.0f) const;
+    // Hit-tests the edge flags of linked nodes (see paint()). Returns the
+    // node index and sets whichEdge to 0 (low) or 1 (high), or -1/-1 if none hit.
+    int   findEdgeNear(juce::Point<float> p, int& whichEdge, float radius = 10.0f) const;
+    int   findFreeNode() const;
+    void  pushNode(int i);   // writes localNodes[i] to the processor's ParametricEq
+    void  showNodeMenu(int i);
+    void  createNodeAt(juce::Point<float> p);
+    float sampleRateForDisplay() const;   // processor's rate, or a sane default pre-prepare
+
+    // Multi-select helpers (see the class comment above for the Ctrl+Click
+    // and relative-edit model). applyRelativeGainFreq/applyRelativeQ
+    // propagate a change on node `anchor` to the rest of multiSelected.
+    void  selectOnly(int i);
+    void  toggleMultiSelect(int i);
+    void  applyRelativeGainFreq(int anchor, float deltaGainDb, float freqRatio);
+    void  applyRelativeQ(int anchor, float qRatio);
+    void  updateIslandBounds();
+
+    VisualCompProcessor& processor;
+    std::array<EqNodeState, kMaxEqNodes> localNodes;
+
+    int   dragIndex   = -1;
+    int   dragEdge    = -1;   // -1 = dragging centre (or nothing); 0/1 = low/high edge of dragIndex
+    bool  dragThreshold = false;   // dragging the "T" threshold marker for dragIndex
+    bool  dragMoved   = false;
+    int   hoverNode   = -1;
+    int   selectedNode = -1;   // primary/anchor node; set via setSelectedNode() or a click; -1 = none
+    std::array<bool, kMaxEqNodes> multiSelected {};   // Ctrl+Click multi-selection set
+
+    EqCloseButton    closeButton;
+    juce::TextButton multibandButton { "MULTIBAND COMP" };
+    NodeIsland       nodeIsland;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EqPanel)
+};

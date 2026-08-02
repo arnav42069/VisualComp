@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Visual Comp Pro — Technical Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.65;
+    color: #1a1a2e;
+    background: #fff;
+  }
+
+  /* ── Page breaks ── */
+  .page-break { page-break-after: always; break-after: page; }
+
+  /* ── Cover ── */
+  .cover {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #2c2c3e 50%, #16213e 100%);
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(77,144,224,0.18) 0%, transparent 70%);
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -150px; right: -150px;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(221,153,51,0.12) 0%, transparent 70%);
+  }
+  .cover-tag {
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #4d90e0;
+    margin-bottom: 24px;
+  }
+  .cover h1 {
+    font-size: 52pt;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+  .cover h1 span { color: #4d90e0; }
+  .cover-sub {
+    font-size: 14pt;
+    font-weight: 300;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 60px;
+    max-width: 480px;
+  }
+  .cover-divider {
+    width: 60px; height: 3px;
+    background: #4d90e0;
+    margin-bottom: 40px;
+  }
+  .cover-meta { font-size: 9pt; color: rgba(255,255,255,0.45); line-height: 2; }
+  .cover-meta strong { color: rgba(255,255,255,0.7); }
+
+  /* ── Layout ── */
+  .content { max-width: 720px; margin: 0 auto; padding: 60px 50px; }
+
+  /* ── TOC ── */
+  .toc-title {
+    font-size: 22pt; font-weight: 700;
+    margin-bottom: 32px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #4d90e0;
+    color: #1a1a2e;
+  }
+  .toc-section { margin-bottom: 6px; }
+  .toc-section a {
+    text-decoration: none;
+    color: #1a1a2e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px dashed #dde;
+    font-size: 10.5pt;
+  }
+  .toc-section a:hover { color: #4d90e0; }
+  .toc-num { color: #4d90e0; font-weight: 600; margin-right: 10px; }
+  .toc-page { color: #999; font-size: 9pt; }
+  .toc-sub { padding-left: 20px; }
+  .toc-sub a { font-size: 9.5pt; color: #555; }
+
+  /* ── Headings ── */
+  h2 {
+    font-size: 20pt; font-weight: 700;
+    color: #1a1a2e;
+    margin-top: 52px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #4d90e0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2 .sec-num {
+    font-size: 11pt;
+    background: #4d90e0;
+    color: #fff;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 13pt; font-weight: 600;
+    color: #1a1a2e;
+    margin-top: 32px;
+    margin-bottom: 12px;
+  }
+  h4 {
+    font-size: 10.5pt; font-weight: 600;
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  p { margin-bottom: 12px; }
+
+  /* ── Signal flow diagram ── */
+  .signal-flow {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 28px 24px;
+    margin: 24px 0;
+    color: #e0e0e0;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 8.5pt;
+    line-height: 1.8;
+    overflow: hidden;
+  }
+  .sf-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 4px;
+  }
+  .sf-box {
+    background: #2c2c3e;
+    border: 1px solid #4d90e0;
+    border-radius: 6px;
+    padding: 6px 12px;
+    white-space: nowrap;
+    font-size: 8pt;
+    color: #e0e0e0;
+    text-align: center;
+    min-width: 90px;
+  }
+  .sf-box.accent { border-color: #dd9933; background: #2e2516; color: #dd9933; }
+  .sf-box.green  { border-color: #44bb77; background: #162e22; color: #44bb77; }
+  .sf-box.red    { border-color: #dd4444; background: #2e1616; color: #dd4444; }
+  .sf-box.gray   { border-color: #666; background: #222; color: #999; opacity:0.6; }
+  .sf-arrow { color: #4d90e0; padding: 0 6px; font-size: 12pt; }
+  .sf-branch { color: #666; font-size: 8pt; padding: 0 6px; }
+
+  /* ── Parameter cards ── */
+  .param-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .param-card {
+    border: 1px solid #e8eaf0;
+    border-radius: 8px;
+    padding: 16px;
+    background: #f9fafc;
+  }
+  .param-card .param-name {
+    font-weight: 700;
+    font-size: 10pt;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .param-card .param-name .badge {
+    font-size: 7.5pt;
+    background: #4d90e0;
+    color: #fff;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .param-card .range {
+    font-size: 8.5pt;
+    color: #4d90e0;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 6px;
+  }
+  .param-card p {
+    font-size: 9pt;
+    color: #555;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .param-full {
+    border: 1px solid #e8eaf0;
+    border-radius: 8px;
+    padding: 16px 20px;
+    background: #f9fafc;
+    margin: 12px 0;
+  }
+  .param-full .param-name { font-weight: 700; font-size: 10.5pt; color: #1a1a2e; margin-bottom: 6px; }
+  .param-full .range { font-size: 9pt; color: #4d90e0; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+  .param-full p { font-size: 9.5pt; color: #444; margin: 0; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: #1e1e2e;
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 16px 0;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 8pt;
+    line-height: 1.7;
+    color: #cdd6f4;
+    overflow: hidden;
+  }
+  .code-block .kw  { color: #cba6f7; }
+  .code-block .fn  { color: #89b4fa; }
+  .code-block .cm  { color: #6c7086; font-style: italic; }
+  .code-block .nm  { color: #fab387; }
+  .code-block .st  { color: #a6e3a1; }
+  .code-block .op  { color: #89dceb; }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 9.5pt;
+  }
+  th {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 8.5pt;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f9fafc; }
+  td:first-child { font-weight: 500; }
+  td code {
+    background: #eef0f8;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8pt;
+  }
+
+  /* ── Info boxes ── */
+  .info-box {
+    border-left: 4px solid #4d90e0;
+    background: #f0f5ff;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 9.5pt;
+    color: #2a3a5e;
+  }
+  .info-box strong { color: #1a1a2e; }
+  .warn-box {
+    border-left: 4px solid #dd9933;
+    background: #fff8ec;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 9.5pt;
+    color: #5a3a00;
+  }
+  .tech-box {
+    border-left: 4px solid #44bb77;
+    background: #f0fff6;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 9.5pt;
+    color: #1a3a2e;
+  }
+
+  /* ── Lists ── */
+  ul, ol { padding-left: 22px; margin: 10px 0 14px; }
+  li { margin-bottom: 5px; font-size: 10pt; }
+  li strong { color: #1a1a2e; }
+
+  /* ── Math / formula ── */
+  .formula {
+    background: #f4f5ff;
+    border: 1px solid #d0d4f0;
+    border-radius: 6px;
+    padding: 12px 18px;
+    margin: 14px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9pt;
+    color: #1a1a2e;
+    text-align: center;
+  }
+  .formula-label { font-family: inherit; font-size: 8.5pt; color: #888; text-align: right; margin-top: 6px; }
+
+  /* ── Section label ── */
+  .section-intro {
+    font-size: 11pt;
+    color: #555;
+    margin-bottom: 24px;
+    line-height: 1.7;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid #dde;
+    font-size: 8.5pt;
+    color: #aaa;
+    text-align: center;
+  }
+
+  /* ── GUI section ── */
+  .gui-panel {
+    background: #2c2c2c;
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+    color: #e0e0e0;
+  }
+  .gui-panel h4 { color: #4d90e0; margin-top: 0; font-size: 9pt; }
+  .gui-panel p { font-size: 9pt; color: #bbb; margin: 0; }
+
+  .component-row {
+    display: flex;
+    gap: 12px;
+    margin: 12px 0;
+    align-items: flex-start;
+  }
+  .component-label {
+    background: #4d90e0;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 7.5pt;
+    font-weight: 700;
+    white-space: nowrap;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .component-desc { font-size: 9.5pt; color: #444; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ COVER ═══ -->
+<div class="cover">
+  <div class="cover-tag">Technical Documentation</div>
+  <h1>Visual Comp<span> Pro</span></h1>
+  <div class="cover-sub">A FET-modelled stereo compressor VST3/Standalone plugin with real-time visual feedback</div>
+  <div class="cover-divider"></div>
+  <div class="cover-meta">
+    <strong>Developer</strong> &nbsp; Brella Audio by Arnav Singh<br>
+    <strong>Plugin ID</strong> &nbsp; VCPr &nbsp;|&nbsp; Manufacturer: Arnv<br>
+    <strong>Formats</strong> &nbsp; VST3, Standalone (Windows)<br>
+    <strong>Framework</strong> &nbsp; JUCE 7.0.9 &nbsp;|&nbsp; C++17<br>
+    <strong>Version</strong> &nbsp; 1.0.0
+  </div>
+</div>
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════ TABLE OF CONTENTS ═══ -->
+<div class="content">
+  <div class="toc-title">Table of Contents</div>
+
+  <div class="toc-section"><a href="#overview"><span><span class="toc-num">1.</span> Overview &amp; Architecture</span><span class="toc-page">3</span></a></div>
+  <div class="toc-section toc-sub"><a href="#philosophy"><span>— Design Philosophy</span></a></div>
+  <div class="toc-section toc-sub"><a href="#tech-stack"><span>— Technology Stack</span></a></div>
+
+  <div class="toc-section"><a href="#signal-flow"><span><span class="toc-num">2.</span> Signal Flow</span><span class="toc-page">4</span></a></div>
+  <div class="toc-section toc-sub"><a href="#block-diagram"><span>— Block Diagram</span></a></div>
+  <div class="toc-section toc-sub"><a href="#processing-order"><span>— Processing Order</span></a></div>
+
+  <div class="toc-section"><a href="#dsp"><span><span class="toc-num">3.</span> DSP Algorithms</span><span class="toc-page">5</span></a></div>
+  <div class="toc-section toc-sub"><a href="#fet-saturation"><span>— FET Analog Saturation Model</span></a></div>
+  <div class="toc-section toc-sub"><a href="#gain-computer"><span>— Gain Computer (Soft Knee)</span></a></div>
+  <div class="toc-section toc-sub"><a href="#ballistics"><span>— Envelope Ballistics</span></a></div>
+  <div class="toc-section toc-sub"><a href="#gain-application"><span>— Gain Application &amp; Limiting</span></a></div>
+  <div class="toc-section toc-sub"><a href="#dry-wet"><span>— Dry/Wet Mix (Parallel Compression)</span></a></div>
+
+  <div class="toc-section"><a href="#parameters"><span><span class="toc-num">4.</span> Parameters Reference</span><span class="toc-page">8</span></a></div>
+  <div class="toc-section"><a href="#gui"><span><span class="toc-num">5.</span> GUI Components</span><span class="toc-page">11</span></a></div>
+  <div class="toc-section toc-sub"><a href="#waveform-display"><span>— Waveform Displays</span></a></div>
+  <div class="toc-section toc-sub"><a href="#vu-meter"><span>— Analogue VU Meter</span></a></div>
+  <div class="toc-section toc-sub"><a href="#transfer-curve"><span>— Transfer Curve Display</span></a></div>
+  <div class="toc-section toc-sub"><a href="#controls"><span>— Controls (Knobs, Faders, Limiter)</span></a></div>
+
+  <div class="toc-section"><a href="#threading"><span><span class="toc-num">6.</span> Threading &amp; Lock-Free Communication</span><span class="toc-page">14</span></a></div>
+  <div class="toc-section"><a href="#state"><span><span class="toc-num">7.</span> State Management &amp; Preset Recall</span><span class="toc-page">15</span></a></div>
+  <div class="toc-section"><a href="#specs"><span><span class="toc-num">8.</span> Technical Specifications</span><span class="toc-page">15</span></a></div>
+</div>
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════ 1. OVERVIEW ═══ -->
+<div class="content">
+  <h2 id="overview"><span class="sec-num">1</span> Overview &amp; Architecture</h2>
+
+  <p class="section-intro">
+    Visual Comp Pro (VCPro) is a stereo FET-modelled dynamic range compressor built as a VST3 and Standalone audio plugin using the JUCE C++ framework. It combines a musically transparent feed-forward compressor with analogue-inspired FET saturation, full real-time visual feedback, and parallel compression capability.
+  </p>
+
+  <h3 id="philosophy">Design Philosophy</h3>
+  <p>
+    VCPro is modelled after the character of JFET-based hardware compressors — particularly the gain-reduction path of the Universal Audio 1176 — which use Junction Field-Effect Transistors to produce musically pleasing odd-order harmonic distortion. Unlike purely transparent "clean" compressors, VCPro intentionally colours the signal with a subtle transformer-style saturation both at the input stage and (when the Limiter is engaged) at the output stage.
+  </p>
+  <p>
+    All metering and visual displays are driven by lock-free ring buffers and atomic variables shared between the real-time audio thread and the GUI message thread, ensuring no audio dropouts from GUI updates.
+  </p>
+
+  <h3 id="tech-stack">Technology Stack</h3>
+  <table>
+    <tr><th>Component</th><th>Technology</th><th>Notes</th></tr>
+    <tr><td>Framework</td><td>JUCE 7.0.9</td><td>Fetched via CMake FetchContent from GitHub</td></tr>
+    <tr><td>Build System</td><td>CMake 3.15+</td><td>Generates MSVC solution on Windows</td></tr>
+    <tr><td>Language</td><td>C++17</td><td>Standard library, no Boost or other deps</td></tr>
+    <tr><td>Plugin Format</td><td>VST3, Standalone</td><td>PLUGIN_CODE: <code>VCPr</code>, Manufacturer: <code>Arnv</code></td></tr>
+    <tr><td>Audio I/O</td><td>Stereo in/out</td><td>Mono input also supported</td></tr>
+    <tr><td>GUI Size</td><td>960 × 510 px</td><td>Fixed (not resizable)</td></tr>
+    <tr><td>Parameter State</td><td>APVTS (XML binary)</td><td>Saved/recalled via DAW project</td></tr>
+  </table>
+
+  <h3>Class Architecture</h3>
+  <ul>
+    <li><strong>VisualCompProcessor</strong> — <code>juce::AudioProcessor</code> subclass. Owns all DSP, parameters (APVTS), and ring buffers for metering.</li>
+    <li><strong>VisualCompEditor</strong> — <code>juce::AudioProcessorEditor</code> subclass. Owns all GUI components and APVTS attachments.</li>
+    <li><strong>ModernLookAndFeel</strong> — <code>juce::LookAndFeel_V4</code> subclass. Custom rendering for knobs, faders, toggle buttons, and labels.</li>
+    <li><strong>WaveformDisplay</strong> — <code>juce::Component + Timer</code>. Ring-buffer-backed scrolling oscilloscope.</li>
+    <li><strong>VuMeter</strong> — <code>juce::Component + Timer</code>. Analogue VU needle with ballistics.</li>
+    <li><strong>GrCurveDisplay</strong> — <code>juce::Component + Timer</code>. Live transfer-curve plot with operating-point dot.</li>
+    <li><strong>WaveformBuffer</strong> — Lock-free SPSC ring buffer (65536 floats) for audio-to-GUI waveform data.</li>
+  </ul>
+</div>
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════ 2. SIGNAL FLOW ═══ -->
+<div class="content">
+  <h2 id="signal-flow"><span class="sec-num">2</span> Signal Flow</h2>
+
+  <h3 id="block-diagram">Block Diagram</h3>
+
+  <div class="signal-flow">
+    <div style="text-align:center; color:#4d90e0; font-weight:600; margin-bottom:18px; font-size:9pt; letter-spacing:1px;">▶ AUDIO SIGNAL PATH (per block)</div>
+
+    <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+
+      <div style="display:flex; align-items:center; gap:0;">
+        <div class="sf-box" style="min-width:130px;">DAW / Host Input<br><span style="color:#666;font-size:7pt;">Stereo PCM</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box accent" style="min-width:130px;">Save Dry Buffer<br><span style="font-size:7pt;">for Mix blend</span></div>
+      </div>
+
+      <div style="color:#666; font-size:8pt; margin:2px 0;">↓</div>
+
+      <div style="display:flex; align-items:center; gap:0;">
+        <div class="sf-box" style="min-width:130px;">Gain In<br><span style="color:#666;font-size:7pt;">−24 to +24 dB</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box" style="min-width:180px;">FET Pre-Saturation<br><span style="color:#666;font-size:7pt;">drive = 0.18 + gainIn×0.003</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box green" style="min-width:110px;">Input Waveform<br><span style="font-size:7pt;">→ Ring Buffer</span></div>
+      </div>
+
+      <div style="color:#666; font-size:8pt; margin:2px 0;">↓</div>
+
+      <div style="display:flex; align-items:center; gap:0;">
+        <div class="sf-box" style="min-width:160px;">Peak Level Detection<br><span style="color:#666;font-size:7pt;">max(|L|, |R|) per sample</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box" style="min-width:160px;">Gain Computer<br><span style="color:#666;font-size:7pt;">Soft-knee transfer function</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box" style="min-width:120px;">Envelope Filter<br><span style="color:#666;font-size:7pt;">Attack / Release</span></div>
+      </div>
+
+      <div style="color:#666; font-size:8pt; margin:2px 0;">↓</div>
+
+      <div style="display:flex; align-items:center; gap:0;">
+        <div class="sf-box" style="min-width:140px;">Apply Comp Gain<br><span style="color:#666;font-size:7pt;">envelope → linear gain</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box" style="min-width:120px;">Gain Out<br><span style="color:#666;font-size:7pt;">Make-up gain</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box red" style="min-width:160px;">Limiter (optional)<br><span style="font-size:7pt;">FET sat + hard clip ≤ 0 dBFS</span></div>
+      </div>
+
+      <div style="color:#666; font-size:8pt; margin:2px 0;">↓</div>
+
+      <div style="display:flex; align-items:center; gap:0;">
+        <div class="sf-box accent" style="min-width:240px;">Dry/Wet Blend<br><span style="font-size:7pt;">out = wet×mix + dry×(1−mix)</span></div>
+        <div class="sf-arrow">→</div>
+        <div class="sf-box green" style="min-width:110px;">Output Waveform<br><span style="font-size:7pt;">→ Ring Buffer</span></div>
+      </div>
+
+      <div style="color:#666; font-size:8pt; margin:2px 0;">↓</div>
+
+      <div class="sf-box" style="min-width:130px; margin-bottom:4px;">DAW / Host Output</div>
+
+      <div style="display:flex; gap:20px; margin-top:10px;">
+        <div class="sf-box gray">GR dB → atomic&lt;float&gt;<br><span style="font-size:7pt;">VU Meter needle</span></div>
+        <div class="sf-box gray">Input peak → atomic&lt;float&gt;<br><span style="font-size:7pt;">Transfer curve dot</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="processing-order">Processing Order Detail</h3>
+  <p>Every call to <code>processBlock()</code> follows this strict order:</p>
+  <ol>
+    <li><strong>Guard</strong> — Check numSamples &gt; 0, numChannels &gt; 0; <code>ScopedNoDenormals</code> engaged.</li>
+    <li><strong>Read Mix</strong> — Load <code>mix</code> parameter once at block start to avoid per-sample APVTS reads.</li>
+    <li><strong>Copy Dry Buffer</strong> — If mix &lt; 1.0, copy raw input into <code>dryBuffer</code> before any modification.</li>
+    <li><strong>Input Display Capture</strong> — Scale input by <code>gainIn</code>, push to <code>inputWaveform</code> ring buffer (mono sum).</li>
+    <li><strong>Per-Sample Loop</strong> — Input gain → FET pre-saturation → peak detection → gain computer → envelope filter → compression gain → output gain → optional limiter.</li>
+    <li><strong>Dry/Wet Blend</strong> — Mix compressed buffer with saved dry buffer.</li>
+    <li><strong>Output Display Capture</strong> — Push final mixed buffer to <code>outputWaveform</code> ring buffer.</li>
+    <li><strong>Atomics Update</strong> — Write <code>gainReductionDb</code> and <code>currentInputLevelDb</code> for GUI metering.</li>
+  </ol>
+</div>
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════ 3. DSP ═══ -->
+<div class="content">
+  <h2 id="dsp"><span class="sec-num">3</span> DSP Algorithms</h2>
+
+  <h3 id="fet-saturation">3.1 FET Analog Saturation Model</h3>
+  <p>
+    VCPro models the soft-saturation behaviour of a 2N3819 N-channel JFET, the same transistor type used in the UA 1176's gain reduction path. The saturation is applied twice: at the input stage (with stronger drive proportional to Gain In) and at the output stage only when the Limiter is engaged (with a fixed gentle drive of 0.08).
+  </p>
+
+  <p>The <strong>fast tanh approximation</strong> uses a degree-3/3 Padé rational approximant, accurate to within 0.001 for |x| ≤ 3:</p>
+  <div class="formula">
+    tanh(x) ≈ x × (27 + x²) / (27 + 9x²)
+    <div class="formula-label">Padé [3/3] approximant — error &lt; 0.001 for |x| ≤ 3</div>
+  </div>
+
+  <p>The full FET saturation function combines an <strong>odd-order component</strong> (symmetric, produces 3rd harmonic) with an <strong>even-order asymmetric term</strong> (produces 2nd harmonic, models JFET bias-point coloration):</p>
+  <div class="formula">
+    k = 1 + drive × 2.2<br>
+    odd  = tanh(x × k) / k<br>
+    even = drive × 0.018 × odd × |odd|<br>
+    out  = odd + even
+    <div class="formula-label">FET soft saturation — drive ∈ [0.0, 1.0]</div>
+  </div>
+
+  <div class="code-block"><span class="kw">static inline</span> <span class="kw">float</span> <span class="fn">fastTanh</span>(<span class="kw">float</span> x) <span class="kw">noexcept</span> {
+    <span class="kw">const float</span> x2 = x * x;
+    <span class="kw">return</span> x * (<span class="nm">27.0f</span> + x2) / (<span class="nm">27.0f</span> + <span class="nm">9.0f</span> * x2);
+}
+
+<span class="kw">static inline</span> <span class="kw">float</span> <span class="fn">fetSaturate</span>(<span class="kw">float</span> x, <span class="kw">float</span> drive) <span class="kw">noexcept</span> {
+    <span class="kw">const float</span> k       = <span class="nm">1.0f</span> + drive * <span class="nm">2.2f</span>;
+    <span class="kw">const float</span> clipped = <span class="fn">fastTanh</span>(x * k) / k;       <span class="cm">// odd-order (3rd harmonic)</span>
+    <span class="kw">const float</span> asym    = drive * <span class="nm">0.018f</span> * clipped * std::<span class="fn">abs</span>(clipped); <span class="cm">// even-order (2nd harmonic)</span>
+    <span class="kw">return</span> clipped + asym;
+}</div>
+
+  <p><strong>Input drive scaling:</strong> <code>fetDrive = 0.18 + gainIn × 0.003</code>. At 0 dB Gain In the drive is a subtle 0.18; pushing Gain In to +24 dB raises drive to 0.252, increasing harmonic content naturally — just as an analogue transformer would saturate harder when driven hotter.</p>
+
+  <div class="info-box">
+    <strong>Why Padé instead of std::tanh?</strong> The standard library <code>std::tanh</code> uses a transcendental calculation that can be 5–10× slower than a rational polynomial. The Padé [3/3] approximant evaluates to effectively the same result in the audible range (error &lt; 0.001 for inputs up to 3× full scale) at a fraction of the CPU cost, making it suitable for per-sample processing inside the hot loop.
+  </div>
+
+  <h3 id="gain-computer">3.2 Gain Computer (Soft Knee)</h3>
+  <p>
+    The gain computer maps the input level (in dB) to a gain-reduction amount (in dB) using a piecewise function. When a non-zero knee is set, the hard threshold edge is replaced with a quadratic curve that smoothly blends from unity gain to full compression.
+  </p>
+
+  <div class="formula">
+    Below knee: &nbsp; GR = 0 dB &nbsp;&nbsp;&nbsp; (no reduction)<br><br>
+    In knee (thresh − knee/2 ≤ input ≤ thresh + knee/2):<br>
+    x = input − threshold + knee/2<br>
+    GR = x² × (1/ratio − 1) / (2 × knee)<br><br>
+    Above knee: &nbsp; GR = threshold + (input − threshold) / ratio − input
+    <div class="formula-label">Feed-forward soft-knee gain computer</div>
+  </div>
+
+  <div class="code-block"><span class="cm">// Gain computer — all values in dB</span>
+<span class="kw">float</span> grDb;
+<span class="kw">if</span> (kneeDb > <span class="nm">0.0f</span> && inputDb >= (thresholdDb - halfKnee) && inputDb <= (thresholdDb + halfKnee)) {
+    <span class="kw">const float</span> x = inputDb - thresholdDb + halfKnee;
+    grDb = x * x * (<span class="nm">1.0f</span> / ratio - <span class="nm">1.0f</span>) / (<span class="nm">2.0f</span> * kneeDb);
+} <span class="kw">else if</span> (inputDb > thresholdDb + halfKnee) {
+    grDb = thresholdDb + (inputDb - thresholdDb) / ratio - inputDb;
+} <span class="kw">else</span> {
+    grDb = <span class="nm">0.0f</span>;
+}</div>
+
+  <p>The level detector uses <strong>peak detection across all channels</strong>: <code>peakLevel = max(|L|, |R|)</code>. This is a true peak stereo compressor — both channels are reduced by the same gain amount calculated from whichever channel is loudest.</p>
+
+  <h3 id="ballistics">3.3 Envelope Ballistics</h3>
+  <p>
+    The gain reduction amount from the gain computer is smoothed over time by a first-order IIR (one-pole) lowpass filter. Attack and release have separate time constants, implementing the classic <em>asymmetric ballistics</em> of FET hardware — attack is faster (catches transients) while release is slower (avoids pumping).
+  </p>
+
+  <div class="formula">
+    attackCoeff  = e^(−1 / (sampleRate × attackMs  × 0.001))<br>
+    releaseCoeff = e^(−1 / (sampleRate × releaseMs × 0.001))<br><br>
+    if (GR_target &lt; envelope): &nbsp; envelope = α_atk × envelope + (1 − α_atk) × GR_target<br>
+    else: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; envelope = α_rel × envelope + (1 − α_rel) × GR_target
+    <div class="formula-label">One-pole IIR envelope follower with split attack/release</div>
+  </div>
+
+  <div class="tech-box">
+    <strong>Skewed parameter ranges:</strong> Attack (0.1–200 ms) and Release (1–2000 ms) both use a skew factor of <strong>0.3</strong> in their <code>NormalisableRange</code>, meaning the knob spends proportionally more travel in the low-millisecond region where audible differences are most dramatic. Similarly, Ratio uses a skew of <strong>0.4</strong> to give more resolution at the musical ratios (2:1–8:1) before reaching limiting territory.
+  </div>
+
+  <h3 id="gain-application">3.4 Gain Application &amp; Hard Limiter</h3>
+  <p>
+    The smoothed envelope (in dB) is converted to a linear gain multiplier and applied to both channels, along with the Gain Out make-up gain:
+  </p>
+  <div class="formula">
+    compGain = dBtoLinear(envelope) × dBtoLinear(gainOut)
+    <div class="formula-label">Combined compression + make-up gain</div>
+  </div>
+
+  <p>
+    When the <strong>Limiter</strong> toggle is <em>off</em> (default), the output stage is completely transparent — no saturation or clipping is applied. When the Limiter is <em>on</em>, the output FET saturation (drive = 0.08) followed by a hard clip at ±1.0 (0 dBFS) is engaged:
+  </p>
+
+  <div class="code-block"><span class="kw">const float</span> out = limiterOn
+    ? juce::<span class="fn">jlimit</span>(<span class="nm">-1.0f</span>, <span class="nm">1.0f</span>, <span class="fn">fetSaturate</span>(compressed, <span class="nm">0.08f</span>))
+    : compressed; <span class="cm">// clean pass-through when limiter off</span></div>
+
+  <h3 id="dry-wet">3.5 Dry/Wet Mix — Parallel Compression</h3>
+  <p>
+    The Mix knob enables <strong>parallel compression</strong> (also called New York compression): the fully processed wet signal is blended with the unprocessed dry signal captured before any gain or saturation was applied. This preserves the transient attack of the dry signal while adding the sustain and body of the compressed signal.
+  </p>
+  <div class="formula">
+    output = compressed × mix + rawInput × (1 − mix)
+    <div class="formula-label">Linear crossfade — mix ∈ [0.0, 1.0]</div>
+  </div>
+  <ul>
+    <li><strong>Mix = 0%</strong> — Fully dry. The plugin is effectively bypassed. Output equals the unprocessed input exactly.</li>
+    <li><strong>Mix = 50%</strong> — Classic New York compression. Transients punch through from the dry signal; compressed sustain adds density.</li>
+    <li><strong>Mix = 100%</strong> — Fully wet. 100% of the fully processed compressed signal.</li>
+  </ul>
+  <div class="warn-box">
+    The dry signal saved for the Mix blend is the raw pre-gainIn signal. This means at Mix = 0%, the output level matches the original input regardless of Gain In or Gain Out settings, which is standard plug-in bypass behaviour.
+  </div>
+</div>
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════ 4. PARAMETERS ═══ -->
+<div class="content">
+  <h2 id="parameters"><span class="sec-num">4</span> Parameters Reference</h2>
+  <p class="section-intro">All parameters are registered in JUCE's <code>AudioProcessorValueTreeState</code> (APVTS) and automatically saved/recalled by the host DAW. The APVTS uses a thread-safe atomic access model — the GUI thread writes via attachments and the audio thread reads via <code>getRawParameterValue()->load()</code>.</p>
+
+  <table>
+    <tr>
+      <th>Parameter</th>
+      <th>ID</th>
+      <th>Range</th>
+      <th>Default</th>
+      <th>Skew</th>
+    </tr>
+    <tr><td>Threshold</td><td><code>threshold</code></td><td>−60 to 0 dB</td><td>−20 dB</td><td>Linear</td></tr>
+    <tr><td>Knee</td><td><code>knee</code></td><td>0 to 20 dB</td><td>6 dB</td><td>Linear</td></tr>
+    <tr><td>Ratio</td><td><code>ratio</code></td><td>1 to 20 :1</td><td>4 :1</td><td>0.4 (log)</td></tr>
+    <tr><td>Attack</td><td><code>attack</code></td><td>0.1 to 200 ms</td><td>10 ms</td><td>0.3 (log)</td></tr>
+    <tr><td>Release</td><td><code>release</code></td><td>1 to 2000 ms</td><td>100 ms</td><td>0.3 (log)</td></tr>
+    <tr><td>Gain In</td><td><code>gainIn</code></td><td>−24 to +24 dB</td><td>0 dB</td><td>Linear</td></tr>
+    <tr><td>Gain Out</td><td><code>gainOut</code></td><td>−24 to +24 dB</td><td>0 dB</td><td>Linear</td></tr>
+    <tr><td>Mix</td><td><code>mix</code></td><td>0.0 to 1.0</td><td>1.0 (100%)</td><td>Linear</td></tr>
+    <tr><td>Limiter</td><td><code>limiter</code></td><td>on / off</td><td>off</td><td>—</td></tr>
+  </table>
+
+  <h3>Detailed Parameter Descriptions</h3>
+
+  <div class="param-full">
+    <div class="param-name">THRESHOLD <span style="font-size:9pt;font-weight:400;color:#888;">— Rotary knob</span></div>
+    <div class="range">−60.0 to 0.0 dB, step 0.1, default −20.0 dB</div>
+    <p>Sets the level above which gain reduction begins. Signal below the threshold passes through unaffected. With a non-zero Knee, gain reduction starts gradually at Threshold − Knee/2 and reaches full ratio at Threshold + Knee/2. Lower values compress more of the programme material; higher values only catch the loudest peaks.</p>
+  </div>
+
+  <div class="param-full">
+    <div class="param-name">KNEE <span style="font-size:9pt;font-weight:400;color:#888;">— Rotary knob</span></div>
+    <div class="range">0.0 to 20.0 dB, step 0.1, default 6.0 dB</div>
+    <p>Width of the soft-knee transition region centred on the threshold. At 0 dB, the compressor has a hard knee — gain reduction snaps on immediately at the threshold. Larger knee values produce a gradual quadratic curve through the transition, making the onset of compression less audible and more "transparent". A 6 dB knee is typical for bus compression.</p>
+  </div>
+
+  <div class="param-full">
+    <div class="param-name">RATIO <span style="font-size:9pt;font-weight:400;color:#888;">— Rotary knob</span></div>
+    <div class="range">1.0 to 20.0 :1, step 0.01, skew 0.4, default 4.0 :1</div>
+    <p>The compression ratio determines how much the output increases for each dB above the threshold. At 4:1, for every 4 dB the signal exceeds the threshold, the output only rises by 1 dB. At 20:1, the compressor approaches limiting territory. The logarithmic skew (0.4) concentrates knob resolution in the 1:1–8:1 range most used musically.</p>
+  </div>
+
+  <div class="param-full">
+    <div class="param-name">ATTACK <span style="font-size:9pt;font-weight:400;color:#888;">— Rotary knob</span></div>
+    <div class="range">0.1 to 200.0 ms, step 0.01, skew 0.3, default 10.0 ms</div>
+    <p>How quickly the compressor responds after a signal exceeds the threshold. Implemented as the time constant of a one-pole IIR lowpass filter on the gain-reduction envelope. Shorter attack times catch transients quickly (good for limiting snare hits) but can cause pumping artefacts. Longer attack times let transients pass through before compression engages, preserving "punch".</p>
+  </div>
+
+  <div class="param-full">
+    <div class="param-name">RELEASE <span style="font-size:9pt;font-weight:400;color:#888;">— Rotary knob</span></div>
+    <div class="range">1.0 to 2000.0 ms, step 0.1, skew 0.3, default 100.0 ms</div>
+    <p>How quickly gain reduction recovers after the signal falls below the threshold. Implemented as a separate one-pole IIR time constant applied when the computed GR target is rising (less negative) than the current envelope. Fast release can cause audible pumping on slow material. Slow release works well for transparent bus compression.</p>
+  </div>
+
+  <div class="param-grid">
+    <div class="param-card">
+      <div class="param-name">GAIN IN <span class="badge">Fader</span></div>
+      <div class="range">−24 to +24 dB</div>
+      <p>Input gain applied before compression. Driving the input hotter increases FET saturation drive (fetDrive = 0.18 + gainIn × 0.003), adding analogue warmth. Use to push signal into the compressor or increase headroom.</p>
+    </div>
+    <div class="param-card">
+      <div class="param-name">GAIN OUT <span class="badge">Fader</span></div>
+      <div class="range">−24 to +24 dB</div>
+      <p>Output make-up gain applied after compression. Compensates for the gain reduction introduced by the compressor. Increase after setting threshold and ratio to restore perceived loudness.</p>
+    </div>
+    <div class="param-card">
+      <div class="param-name">MIX <span class="badge">Knob</span></div>
+      <div class="range">0.0 to 1.0 (0–100%)</div>
+      <p>Parallel compression blend. 0% = fully dry (bypass), 100% = fully wet (full compression). 50% blends both for classic New York compression — transients from dry + density from compressed.</p>
+    </div>
+    <div class="param-card">
+      <div class="param-name">LIMITER <span class="badge">Toggle</span></div>
+      <div class="range">on / off, default off</div>
+      <p>When on: applies FET output saturation (drive 0.08) then hard clips at ±1.0 (0 dBFS). When off: output stage is completely transparent — no soft clipping. Useful as a safety ceiling on master bus.</p>
+    </div>
+  </div>
+</div>
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════ 5. GUI ═══ -->
+<div class="content">
+  <h2 id="gui"><span class="sec-num">5</span> GUI Components</h2>
+  <p class="section-intro">
+    The GUI is 960 × 510 pixels, fixed size, rendered entirely in JUCE's Graphics API at 60 Hz. All controls are JUCE Sliders or ToggleButtons with APVTS Attachments for two-way parameter binding. A custom <code>ModernLookAndFeel</code> overrides all drawing routines to produce the dark hardware-panel aesthetic.
+  </p>
+
+  <div class="gui-panel">
+    <h4>Layout Overview (960 × 510 px)</h4>
+    <pre style="font-size:8pt; line-height:1.6; color:#aaa; font-family:'JetBrains Mono',monospace;">
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Brella Audio by Arnav Singh   VISUAL COMP PRO            [MIX]         │ 36px Title
+├──────────────────────────────────────────────────────────┬──────────────┤
+│  ┌───────── INPUT ──────────┐  ┌──────── OUTPUT ────────┐│              │
+│  │    Scrolling Waveform    │  │   Scrolling Waveform   ││  VU METER   │ 198px
+│  │    (amber, with thresh)  │  │  (blue, mixed output)  ││  (GR needle)│
+│  └──────────────────────────┘  └────────────────────────┘│  294px tall │
+├──────────────────────────────────────────────────────────│             │
+│  GAIN IN  │ THRESH │  KNEE  │ RATIO │ATTACK│RELEASE│GAIN│─────────────│ 266px
+│  [Fader]  │ [Knob] │ [Knob] │[Knob] │[Knob]│[Knob] │OUT │ TRANSFER    │
+│           │        │        │       │      │       │[F] │ CURVE       │
+│           │        │        │       │  LIM │       │[L] │ 180px tall  │
+└───────────────────────────────────────────────────────────────────────-─┘
+    680px content area                                      280px column</pre>
+  </div>
+
+  <h3 id="waveform-display">5.1 Waveform Displays</h3>
+  <p>
+    Two <code>WaveformDisplay</code> components sit side-by-side in the upper-left area (each approximately 333 × 198 px). They run at <strong>120 Hz</strong> via JUCE's <code>Timer</code> mechanism and implement a lock-free scrolling oscilloscope backed by a 65,536-sample ring buffer.
+  </p>
+
+  <h4>Ring Buffer (WaveformBuffer)</h4>
+  <p>Each <code>WaveformBuffer</code> is a plain <code>std::array&lt;float, 65536&gt;</code> with a <code>std::atomic&lt;int&gt;</code> write position. The audio thread calls <code>push()</code> without locking; the GUI timer reads it without locking. SPSC (single-producer, single-consumer) semantics are safe because only the audio thread writes and only the GUI timer thread reads.</p>
+
+  <h4>Pre-computed Min/Max Display Buffer</h4>
+  <p>Rather than drawing from the raw ring buffer each frame, each <code>WaveformDisplay</code> maintains a <code>dispMin[]</code> and <code>dispMax[]</code> pixel-width vector. Every timer tick, this buffer is shifted left by the number of new pixel columns that correspond to the new audio samples, and only the new rightmost columns are filled from the ring buffer. This makes rendering O(newColumns) not O(bufferSize), enabling stable 120 Hz updates.</p>
+
+  <div class="component-row">
+    <div class="component-label">INPUT</div>
+    <div class="component-desc">Shows pre-compression signal (after Gain In is applied). Amber colour (<code>#dd9933</code>). The dashed red threshold lines show the current Threshold parameter value dynamically — the waveform pointer to the threshold in APVTS is passed directly to the <code>WaveformDisplay</code> constructor.</div>
+  </div>
+  <div class="component-row">
+    <div class="component-label">OUTPUT</div>
+    <div class="component-desc">Shows the final post-mix signal — exactly what is written to the audio output buffer, including the Dry/Wet blend. Blue colour (<code>#4488dd</code>). No threshold display.</div>
+  </div>
+
+  <h4>Rendering</h4>
+  <p>The waveform is rendered as a filled polygon (the envelope area between min and max) with alpha 0.42, plus two anti-aliased stroke paths: a brighter top-edge trace (1.5px) and a dimmer bottom-edge trace (1.0px). Grid lines at 0, −6, −12, −20 dB are drawn as white-on-dark horizontal lines with tick marks and dB labels.</p>
+
+  <h3 id="vu-meter">5.2 Analogue VU Meter</h3>
+  <p>
+    The <code>VuMeter</code> component (279 × 294 px) simulates a classic analogue VU needle movement, displaying Gain Reduction from 0 dB (needle far right) to −20 dB (needle far left).
+  </p>
+
+  <div class="component-row">
+    <div class="component-label">INPUT</div>
+    <div class="component-desc"><strong>Data source:</strong> <code>gainReductionDb</code> atomic float, written by the audio thread each block.</div>
+  </div>
+
+  <h4>Needle Ballistics</h4>
+  <p>The needle uses a two-speed exponential smoothing filter, inspired by the mechanical inertia of a real VU movement:</p>
+  <div class="formula">
+    α_attack = 0.42 &nbsp;&nbsp; (fast — needle snaps quickly toward higher GR)<br>
+    α_release = 0.09 &nbsp;&nbsp; (slow — needle returns lazily when GR reduces)<br><br>
+    needle += (target − needle) × α
+    <div class="formula-label">Asymmetric ballistics running at 60 Hz</div>
+  </div>
+
+  <h4>Proportional Geometry</h4>
+  <p>All meter geometry — pivot point, needle length, tick radii, font size — is derived proportionally from the component's width and height at paint time. The needle length is constrained by both the width (sin 35°) and the face height (cos 35°), then the minimum is taken and scaled by 0.93 to ensure the tip never clips the face border.</p>
+
+  <h3 id="transfer-curve">5.3 Transfer Curve Display</h3>
+  <p>
+    The <code>GrCurveDisplay</code> (279 × 180 px, below the VU meter) shows the static input/output transfer function of the compressor and a live operating point dot. It updates at <strong>30 Hz</strong>.
+  </p>
+  <ul>
+    <li><strong>X-axis:</strong> Input level, −60 to 0 dBFS</li>
+    <li><strong>Y-axis:</strong> Output level, −60 to 0 dBFS</li>
+    <li><strong>Blue curve:</strong> The transfer function calculated from Threshold, Ratio, and Knee parameters, redrawn each frame as parameters change.</li>
+    <li><strong>Red dashed line:</strong> Vertical line at current Threshold value.</li>
+    <li><strong>Grey shaded region:</strong> The knee transition zone.</li>
+    <li><strong>Amber dot:</strong> Live operating point — position on the curve corresponding to <code>currentInputLevelDb</code> (the block peak read from the atomic). The outer ring animates as a soft glow.</li>
+  </ul>
+
+  <h3 id="controls">5.4 Controls</h3>
+
+  <h4>Rotary Knobs (SnapKnob)</h4>
+  <p>
+    Five rotary knobs control Threshold, Knee, Ratio, Attack, and Release. A sixth compact knob in the title bar controls Mix. All use a custom <code>SnapKnob</code> class — a plain <code>juce::Slider</code> subclass with no <code>snapValue()</code> override, ensuring logarithmically skewed parameter ranges work without the knob getting stuck at the minimum value.
+  </p>
+  <ul>
+    <li><strong>Style:</strong> <code>RotaryVerticalDrag</code> — drag vertically to adjust.</li>
+    <li><strong>Drag sensitivity:</strong> 1100 px of mouse travel for full range on the 5 main knobs; 600 px for the Mix knob.</li>
+    <li><strong>Text box:</strong> <code>TextBoxBelow</code>, 94 × 38 px, 22pt Century Gothic bold, invisible border (background = panel colour), 1 decimal place.</li>
+    <li><strong>Visual:</strong> DJ-controller style. Wide black rubber grip ring (outer 30% of radius) with three concentric grip-ridge lines. Flat dark inner body. White indicator line extending from body centre through the grip ring to 88% of outer radius.</li>
+  </ul>
+
+  <h4>Vertical Faders (Gain In / Gain Out)</h4>
+  <p>
+    Two analogue mixer-style vertical faders flank the knob bank. Style: <code>LinearVertical</code>, drag sensitivity 600 px, small dB text box below.
+  </p>
+  <ul>
+    <li><strong>Track:</strong> 4px-wide rounded black rail with a subtle left-edge cylindrical highlight.</li>
+    <li><strong>Cap:</strong> Slim (≤38px tall) dark rectangular handle with symmetric downward shadow and a three-line centre detail: black groove → white centre line → black groove, all equidistant from the cap's vertical midpoint.</li>
+    <li><strong>Tick marks:</strong> dB positions at ±6, ±12, ±18, ±24 dB shown as short lines on the right of the track.</li>
+  </ul>
+
+  <h4>Limiter Toggle Button</h4>
+  <p>
+    A <code>ToggleButton</code> with custom rendering below the Gain Out fader. When <em>off</em>: rendered as a dark rounded pill. When <em>on</em>: filled with the accent blue (<code>#4d90e0</code>). The button text reads "LIM". When active it engages the output FET saturation and 0 dBFS hard clip on every sample.
+  </p>
+
+  <h4>Custom LookAndFeel — ModernLookAndFeel</h4>
+  <p>Overrides four JUCE rendering methods:</p>
+  <ul>
+    <li><code>drawRotarySlider()</code> — Entire knob rendered from scratch in C++: rubber ring, grip ridges, flat body, separator stroke, white indicator line with filled dot tip.</li>
+    <li><code>drawLinearSlider()</code> — Custom track + cap; falls back to default for non-vertical styles.</li>
+    <li><code>drawToggleButton()</code> — Pill shape with accent fill when on.</li>
+    <li><code>getLabelFont()</code> — Returns 22pt bold Century Gothic for slider text boxes (detected via <code>dynamic_cast&lt;Slider*&gt;(parent)</code>), 9.5pt for all other labels.</li>
+  </ul>
+</div>
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════ 6. THREADING ═══ -->
+<div class="content">
+  <h2 id="threading"><span class="sec-num">6</span> Threading &amp; Lock-Free Communication</h2>
+  <p class="section-intro">
+    Audio plugins must never block the real-time audio thread. VCPro uses three lock-free mechanisms to share data between the audio thread and the GUI message thread.
+  </p>
+
+  <h3>6.1 Waveform Ring Buffers (SPSC)</h3>
+  <p>
+    Two <code>WaveformBuffer</code> instances (<code>inputWaveform</code>, <code>outputWaveform</code>) are plain C arrays wrapped with a single <code>std::atomic&lt;int&gt;</code> write position. The audio thread is the sole writer; the GUI timer is the sole reader. No mutex or lock is needed because:
+  </p>
+  <ul>
+    <li>The array elements are aligned floats — writes are atomic on x86.</li>
+    <li>The <code>writePos</code> atomic is updated after all data is written, acting as a publication fence.</li>
+    <li>The reader observes stale data at worst — no corruption can occur.</li>
+  </ul>
+
+  <h3>6.2 Metering Atomics</h3>
+  <p>
+    Two <code>std::atomic&lt;float&gt;</code> members carry metering data from the audio thread to the GUI timer callbacks:
+  </p>
+  <table>
+    <tr><th>Atomic</th><th>Written by</th><th>Read by</th><th>Purpose</th></tr>
+    <tr><td><code>gainReductionDb</code></td><td>Audio thread (per block)</td><td>VuMeter timer (60 Hz)</td><td>Current envelope GR value in dB, drives VU needle</td></tr>
+    <tr><td><code>currentInputLevelDb</code></td><td>Audio thread (per block)</td><td>GrCurveDisplay timer (30 Hz)</td><td>Block peak input level in dB, positions operating-point dot</td></tr>
+  </table>
+  <p>
+    Both use <code>memory_order_relaxed</code> — correct on x86 where loads/stores are sequentially consistent for aligned values, and sufficient here since there is no dependency ordering requirement between the two atomics.
+  </p>
+
+  <h3>6.3 APVTS Parameter Access</h3>
+  <p>
+    The audio thread reads all parameters using <code>apvts.getRawParameterValue("id")->load()</code>. This returns a pointer to a <code>std::atomic&lt;float&gt;</code> maintained by JUCE's APVTS internals. Parameters are read at the start of each block (not per-sample), trading minor smoothing resolution for reduced atomic load overhead. The lone exception is the <code>limiter</code> boolean which is read inside the sample loop — this is acceptable because it is a boolean read with no arithmetic following it.
+  </p>
+
+  <div class="info-box">
+    <strong>Why no SmoothedValue?</strong> VCPro intentionally uses one-pole IIR ballistics for attack and release rather than JUCE's <code>SmoothedValue</code>. The IIR filter is sample-accurate (not block-accurate), meaning gain-reduction changes are interpolated continuously rather than linearly ramped once per block. This matches the behaviour of analogue hardware more closely.
+  </div>
+
+<!-- ═══════════════════════════════════════════ 7. STATE ═══ -->
+  <h2 id="state"><span class="sec-num">7</span> State Management &amp; Preset Recall</h2>
+  <p>
+    Plugin state is managed entirely by JUCE's <code>AudioProcessorValueTreeState</code>. <code>getStateInformation()</code> copies the ValueTree to XML and serialises it to a binary MemoryBlock for the host. <code>setStateInformation()</code> deserialises and replaces the ValueTree, which automatically pushes parameter values to all registered APVTS Attachments and triggers GUI updates.
+  </p>
+  <p>
+    No custom state beyond parameters is persisted (waveform history, VU needle position, etc. are purely transient display state and are discarded on plugin reload). The APVTS state ID is <code>"STATE"</code>.
+  </p>
+
+<!-- ═══════════════════════════════════════════ 8. SPECS ═══ -->
+  <h2 id="specs"><span class="sec-num">8</span> Technical Specifications</h2>
+
+  <table>
+    <tr><th>Property</th><th>Value</th></tr>
+    <tr><td>Plugin Name</td><td>VCPro</td></tr>
+    <tr><td>Plugin Code</td><td>VCPr (unique 4-char DAW registration ID)</td></tr>
+    <tr><td>Manufacturer Code</td><td>Arnv</td></tr>
+    <tr><td>Company</td><td>BrellaAudio</td></tr>
+    <tr><td>Formats</td><td>VST3, Standalone (Windows x64)</td></tr>
+    <tr><td>Latency</td><td>0 samples (no look-ahead)</td></tr>
+    <tr><td>Tail Length</td><td>0 seconds</td></tr>
+    <tr><td>MIDI</td><td>Not accepted / not produced</td></tr>
+    <tr><td>Supported Layouts</td><td>Mono→Mono, Stereo→Stereo</td></tr>
+    <tr><td>Min Sample Rate</td><td>Any (tested at 44.1, 48, 96 kHz)</td></tr>
+    <tr><td>GUI Size</td><td>960 × 510 px (fixed)</td></tr>
+    <tr><td>GUI Refresh</td><td>Waveforms 120 Hz · VU 60 Hz · Curve 30 Hz</td></tr>
+    <tr><td>Waveform History</td><td>65,536 samples per display (≈1.5 s at 44.1 kHz)</td></tr>
+    <tr><td>Attack Range</td><td>0.1 – 200 ms</td></tr>
+    <tr><td>Release Range</td><td>1 – 2000 ms</td></tr>
+    <tr><td>Threshold Range</td><td>−60 to 0 dBFS</td></tr>
+    <tr><td>Ratio Range</td><td>1:1 to 20:1</td></tr>
+    <tr><td>Knee Range</td><td>0 – 20 dB (soft)</td></tr>
+    <tr><td>Gain In/Out Range</td><td>±24 dB</td></tr>
+    <tr><td>DSP Saturation Model</td><td>JFET Padé-approximant tanh, odd+even harmonics</td></tr>
+    <tr><td>Build System</td><td>CMake 3.15+ / JUCE 7.0.9 (FetchContent)</td></tr>
+    <tr><td>Compiler</td><td>MSVC 2022 (C++17)</td></tr>
+    <tr><td>Source Files</td><td>PluginProcessor.cpp/h · PluginEditor.cpp/h · WaveformDisplay.cpp/h · VuMeter.cpp/h · GrCurveDisplay.cpp/h</td></tr>
+  </table>
+
+  <div class="footer">
+    Visual Comp Pro · Technical Documentation · Brella Audio by Arnav Singh · Built with JUCE 7.0.9
+  </div>
+</div>
+
+</body>
+</html>

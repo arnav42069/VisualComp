@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VisualComp 2.1 — User Manual | Azazel Audio</title>
+<style>
+  /* Zero printer margin so each sheet is filled edge to edge with the panel
+     black; the readable inset comes from padding inside .page. */
+  @page { size: A4; margin: 0; }
+
+  :root {
+    --bg:      #1d1d1b;
+    --panel:   #141412;
+    --raised:  #262624;
+    --accent:  #ff7a1f;
+    --accent2: #ffb257;
+    --dim:     #7a3910;
+    --text:    #e8dfd2;
+    --muted:   #9a9184;
+    --line:    #3a3733;
+    --warn:    #e63414;
+    --futura:  Futura, "Futura Md BT", "Futura PT", "Century Gothic", "Avenir Next", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    background: var(--bg);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--futura);
+    font-size: 9.9pt;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Each section is one full black sheet */
+  .page {
+    background: var(--bg);
+    padding: 14mm 15mm 12mm;
+    page-break-after: always;
+    break-after: page;
+    /* A4 is 1122.5px at 96dpi; stay a hair under so rounding never spills an
+       extra sheet. The sheet itself is black via the html canvas background. */
+    min-height: 1118px;
+  }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+
+  /* ── Cover ─────────────────────────────────────────────────────────── */
+  .cover { text-align: center; padding-top: 20mm; }
+  .cover img.logo { width: 96mm; display: block; margin: 0 auto 12mm; }
+  .cover h1 {
+    font-size: 40pt; letter-spacing: .10em; margin: 0 0 2mm;
+    font-weight: 700; color: var(--text);
+  }
+  .cover .tag {
+    color: var(--accent); font-size: 12pt; letter-spacing: .34em;
+    text-transform: uppercase; margin-bottom: 7mm;
+  }
+  .cover .rule { width: 66mm; height: 2px; background: var(--accent); margin: 0 auto 7mm; }
+  .cover .sub { color: var(--muted); font-size: 9.5pt; letter-spacing: .1em; }
+  .cover img.shot { width: 100%; border: 1px solid var(--line); margin-top: 12mm; }
+  .cover .foot { color: var(--muted); font-size: 8.5pt; letter-spacing: .16em; margin-top: 10mm; }
+
+  /* ── Structure ─────────────────────────────────────────────────────── */
+  h2 {
+    font-size: 17pt; margin: 0 0 5mm; padding-bottom: 2.5mm;
+    border-bottom: 1px solid var(--dim);
+    letter-spacing: .04em; color: var(--text); font-weight: 700;
+  }
+  h2 .num { color: var(--accent); font-family: Consolas, monospace; font-size: 13pt; margin-right: 3mm; }
+  h3 {
+    font-size: 11.5pt; margin: 6mm 0 2mm; color: var(--accent);
+    letter-spacing: .06em; text-transform: uppercase; font-weight: 700;
+  }
+  h4 { font-size: 10.5pt; margin: 4mm 0 1mm; color: var(--accent2); }
+  p { margin: 0 0 2.8mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5.5mm; }
+  li { margin-bottom: 1.4mm; }
+  strong { color: #fff; }
+  em { color: var(--accent2); font-style: normal; }
+  code, .mono {
+    font-family: Consolas, "DejaVu Sans Mono", monospace;
+    color: var(--accent2); font-size: 9.2pt;
+  }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* ── Figures ───────────────────────────────────────────────────────── */
+  figure {
+    margin: 4mm 0 5mm; page-break-inside: avoid;
+    border: 1px solid var(--line); background: var(--panel); padding: 3mm;
+  }
+  figure img { width: 100%; display: block; }
+  figcaption {
+    margin-top: 2.6mm; color: var(--muted); font-size: 8.6pt;
+    border-left: 2px solid var(--accent); padding-left: 2.8mm; line-height: 1.45;
+  }
+  figcaption b { color: var(--accent); }
+
+  /* ── Tables ────────────────────────────────────────────────────────── */
+  table {
+    width: 100%; border-collapse: collapse; margin: 2.5mm 0 4mm;
+    font-size: 9.1pt; page-break-inside: avoid;
+  }
+  th {
+    background: var(--raised); color: var(--accent);
+    text-align: left; padding: 2.2mm 2.6mm; font-size: 8.4pt;
+    letter-spacing: .1em; text-transform: uppercase;
+    border-bottom: 1px solid var(--dim);
+  }
+  td { padding: 1.6mm 2.4mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+  td.p { font-family: Consolas, monospace; color: var(--accent2); white-space: nowrap; }
+
+  /* ── Callouts ──────────────────────────────────────────────────────── */
+  .note, .tip, .warnbox {
+    border-left: 3px solid var(--accent); background: rgba(255,122,31,.08);
+    padding: 2.8mm 3.2mm; margin: 3mm 0 4mm; page-break-inside: avoid;
+  }
+  .tip { border-left-color: var(--accent2); background: rgba(255,178,87,.07); }
+  .warnbox { border-left-color: var(--warn); background: rgba(230,52,20,.09); }
+  .note .lbl, .tip .lbl, .warnbox .lbl {
+    display: block; font-size: 8pt; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 1mm;
+  }
+  .tip .lbl { color: var(--accent2); }
+  .warnbox .lbl { color: var(--warn); }
+
+  /* ── Numbered key list ─────────────────────────────────────────────── */
+  .keys { counter-reset: k; }
+  .keys div {
+    padding: 1.2mm 0 1.2mm 9.5mm; position: relative;
+    border-bottom: 1px solid var(--line); font-size: 9.2pt;
+  }
+  .keys div::before {
+    counter-increment: k; content: counter(k);
+    position: absolute; left: 0; top: 1.2mm;
+    width: 6.2mm; height: 6.2mm; line-height: 6.2mm; text-align: center;
+    background: var(--accent); color: #1d1d1b;
+    font-family: Consolas, monospace; font-weight: 700; font-size: 8.4pt;
+  }
+  .keys b { color: #fff; }
+
+  .toc td { border-bottom: 1px dotted var(--line); font-size: 10pt; }
+  .toc td.n { color: var(--accent); font-family: Consolas, monospace; width: 11mm; }
+  .toc td.pg { text-align: right; color: var(--muted); width: 14mm; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════ COVER ══════════════════════════ -->
+<div class="page cover">
+  <img class="logo" src="img/azazel-logo.svg" alt="Azazel Audio">
+  <h1>VISUALCOMP 2.1</h1>
+  <div class="tag">The Compressor You Can See</div>
+  <div class="rule"></div>
+  <div class="sub">USER MANUAL  /  VERSION 2.1  /  VST3 / STANDALONE  /  WINDOWS &amp; macOS</div>
+  <img class="shot" src="img/ui-full.png" alt="VisualComp 2.1 interface">
+  <div class="foot">AZAZEL AUDIO  /  DESIGNED AND BUILT BY ARNAV SINGH</div>
+</div>
+
+<!-- ══════════════════════════ CONTENTS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">00</span>Contents</h2>
+  <table class="toc">
+    <tr><td class="n">01</td><td>Welcome &amp; Design Philosophy</td><td class="pg">3</td></tr>
+    <tr><td class="n">02</td><td>Installation — Windows &amp; macOS</td><td class="pg">4</td></tr>
+    <tr><td class="n">03</td><td>The Guided Tour</td><td class="pg">5</td></tr>
+    <tr><td class="n">04</td><td>Interface Map</td><td class="pg">7</td></tr>
+    <tr><td class="n">05</td><td>The Header &amp; Preset Strip</td><td class="pg">8</td></tr>
+    <tr><td class="n">06</td><td>Using the Controls</td><td class="pg">9</td></tr>
+    <tr><td class="n">07</td><td>The Waveform Displays</td><td class="pg">10</td></tr>
+    <tr><td class="n">08</td><td>The Dynamics Section</td><td class="pg">11</td></tr>
+    <tr><td class="n">09</td><td>Detector Circuits</td><td class="pg">13</td></tr>
+    <tr><td class="n">10</td><td>Sidechain — Routing in Your DAW</td><td class="pg">14</td></tr>
+    <tr><td class="n">11</td><td>Metering</td><td class="pg">16</td></tr>
+    <tr><td class="n">12</td><td>Gain Staging, Auto Gain &amp; Limiter</td><td class="pg">17</td></tr>
+    <tr><td class="n">13</td><td>Preset Library — All 34 Presets</td><td class="pg">18</td></tr>
+    <tr><td class="n">14</td><td>Saving Your Own Presets</td><td class="pg">20</td></tr>
+    <tr><td class="n">15</td><td>Recipes</td><td class="pg">21</td></tr>
+    <tr><td class="n">16</td><td>Troubleshooting</td><td class="pg">22</td></tr>
+    <tr><td class="n">17</td><td>Version 2.1 — New Tools</td><td class="pg">23</td></tr>
+    <tr><td class="n">18</td><td>Specifications &amp; Credits</td><td class="pg">25</td></tr>
+  </table>
+
+  <div class="note">
+    <span class="lbl">Quick start</span>
+    Insert VisualComp 2.1 on a bus, leave the default <em>Mastering Glue</em> preset loaded, and play
+    your material. Lower <strong>THRESHOLD</strong> until the needle rests around −2 to −4 dB on
+    peaks. That is a finished mix-bus compressor setting — everything else in this manual is
+    refinement.
+  </div>
+
+  <div class="tip">
+    <span class="lbl">Two things worth knowing immediately</span>
+    <strong>Drag anywhere</strong> inside a control's box to change it — you do not have to hit the
+    knob itself. <strong>Hold Ctrl</strong> (Cmd on macOS) while dragging for fine adjustment, and
+    <strong>double-click</strong> any control to reset it.
+  </div>
+</div>
+
+<!-- ══════════════════════════ 01 WELCOME ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">01</span>Welcome &amp; Design Philosophy</h2>
+
+  <p>Compression is the most powerful process in mixing and the hardest to learn, because with most
+  compressors you cannot see what is happening. You turn a knob, something changes — maybe — and it
+  takes years to build the ear that connects a number to a result.</p>
+
+  <p><strong>VisualComp 2.1 is built on one idea: if you can see compression working, you can master
+  it.</strong> Two oscilloscope displays show your signal before and after processing, with the
+  threshold drawn straight across the waveform. Set the attack too slow and you will <em>see</em> the
+  transient escape. Set the release too fast and you will <em>see</em> the pumping.</p>
+
+  <h3>What VisualComp 2.1 is for</h3>
+  <ul>
+    <li><strong>Glue</strong> — bonding a mix or a bus into one coherent, finished-sounding whole.</li>
+    <li><strong>Control</strong> — evening out an inconsistent vocal, bass or drum performance.</li>
+    <li><strong>Character</strong> — four modelled detector circuits, each with its own timing
+        behaviour and saturation, from clean VCA to warm variable-mu tube.</li>
+    <li><strong>Rhythm</strong> — external sidechain ducking with a visual overlay, so a kick can
+        carve space in a bass line and you can see precisely how deep the duck goes.</li>
+    <li><strong>Learning</strong> — an honest, real-time picture of what dynamics processing does.</li>
+  </ul>
+
+  <h3>Signal flow</h3>
+  <p>Input Gain &rarr; detector (internal or external sidechain) &rarr; gain reduction with your
+  chosen circuit &rarr; dry/wet Mix &rarr; Auto Gain &rarr; Output Gain &rarr; optional 0 dB ceiling
+  limiter. Metering and both waveform displays are tapped after the wet/dry blend, so what you see is
+  what leaves the plugin.</p>
+
+  <div class="tip">
+    <span class="lbl">A note on the interface</span>
+    Everything is drawn as resolution-independent vector graphics — no bitmaps — so the panel stays
+    crisp at every zoom setting from 50 % to 200 %, on any display.
+  </div>
+</div>
+
+<!-- ══════════════════════════ 02 INSTALL ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">02</span>Installation</h2>
+
+  <h3>Windows — installer</h3>
+  <p>Open the <code>Windows</code> folder and run <strong>Install VisualComp 2.1.bat</strong>. Windows
+  will ask for administrator permission, which the installer needs in order to write to the shared
+  VST3 folder. It installs:</p>
+  <ul>
+    <li>the VST3 plugin into <code>C:\Program Files\Common Files\VST3\</code></li>
+    <li>the standalone application into <code>C:\Program Files\Azazel Audio\VisualComp 2\</code></li>
+    <li>a Start Menu shortcut for the standalone</li>
+  </ul>
+  <p>Then open your DAW and rescan plugins.<br>
+  <span class="mono">FL Studio:</span> Options &rarr; Manage plugins &rarr; Find more plugins.<br>
+  <span class="mono">Ableton / Cubase / Studio One / REAPER:</span> rescan in preferences.</p>
+  <p>The plugin appears as <strong>VisualComp 2</strong>, manufacturer <strong>Azazel Audio</strong>,
+  category Dynamics.</p>
+
+  <h4>Manual install</h4>
+  <p>If you prefer not to run the installer, copy the <code>VisualComp 2.1.vst3</code> folder from the
+  <code>Windows</code> folder into <code>C:\Program Files\Common Files\VST3\</code> yourself, and run
+  <code>VisualComp 2.1.exe</code> from wherever you like.</p>
+
+  <div class="warnbox">
+    <span class="lbl">If the plugin does not appear</span>
+    Custom plugin search paths in FL Studio apply to VST2 only. VST3 plugins are loaded exclusively
+    from the standard VST3 folder above — placing the file elsewhere will not work. Also close and
+    reopen any plugin instance after updating: DAWs keep the old binary in memory while it is loaded.
+  </div>
+</div>
+
+<div class="page">
+  <h2><span class="num">02</span>Installation <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>macOS</h3>
+  <p>macOS plugins must be compiled on a Mac. The <code>Mac</code> folder contains the complete
+  source and a one-command build script.</p>
+  <ol>
+    <li>Copy the <code>Mac</code> folder to your Mac.</li>
+    <li>Install the prerequisites, if you do not already have them:<br>
+        <code>xcode-select --install</code><br>
+        <code>brew install cmake</code></li>
+    <li>In Terminal:<br>
+        <code>cd Mac/Source/build-macos</code><br>
+        <code>chmod +x build.sh &amp;&amp; ./build.sh</code></li>
+    <li>The script builds a universal binary (Apple Silicon + Intel, macOS 10.13+) and installs it to
+        <code>~/Library/Audio/Plug-Ins/VST3/</code>. Rescan plugins in your DAW.</li>
+  </ol>
+  <p>The plugin is not code-signed. If your DAW refuses to load it, clear the quarantine flag:<br>
+  <code>xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.1.vst3"</code></p>
+
+  <h3>Where your files live</h3>
+  <table>
+    <tr><th>Item</th><th>Windows</th><th>macOS</th></tr>
+    <tr><td>Plugin</td>
+        <td class="p">C:\Program Files\Common Files\VST3\</td>
+        <td class="p">~/Library/Audio/Plug-Ins/VST3/</td></tr>
+    <tr><td>Standalone</td>
+        <td class="p">C:\Program Files\Azazel Audio\VisualComp 2\</td>
+        <td class="p">(built alongside the plugin)</td></tr>
+    <tr><td>User presets</td>
+        <td class="p">Documents\Azazel Audio\VisualComp 2\Presets\</td>
+        <td class="p">~/Documents/Azazel Audio/VisualComp 2/Presets/</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════ 03 TOUR ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">03</span>The Guided Tour</h2>
+
+  <p>The first time you open VisualComp 2.1, an eight-step tour walks you through the panel. Each step
+  dims the interface, spotlights one area and explains it in a sentence or two.</p>
+
+  <figure>
+    <img src="img/tour-1-welcome.png" alt="Tour step 1">
+    <figcaption><b>Figure 3.1</b> — Step one. <b>NEXT</b> (orange) advances, <b>SKIP</b> (charcoal)
+    dismisses the tour for good. Clicking anywhere on the dimmed area also advances.</figcaption>
+  </figure>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">03</span>The Guided Tour <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <figure>
+    <img src="img/tour-5-controls.png" alt="Tour step 5">
+    <figcaption><b>Figure 3.2</b> — Steps spotlight the area they describe. Here the dynamics row is
+    highlighted while the tour explains full-box dragging and the Ctrl fine-adjust modifier.</figcaption>
+  </figure>
+
+  <h3>Bringing the tour back</h3>
+  <p>If you skip the tour it will not appear again. To see it any time, <strong>click the Azazel
+  Audio logo</strong> in the top-left corner. The logo menu offers <strong>Show Help</strong>, which
+  restarts the tour from step one, and <strong>Visit azazelaudio.com</strong>. The "seen" flag is
+  stored per user, so the tour appears exactly once no matter how many instances you load.</p>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">03</span>The Guided Tour <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>What the tour covers</h3>
+  <table>
+    <tr><th>#</th><th>Step</th><th>In short</th></tr>
+    <tr><td class="p">1</td><td>Welcome</td><td>What the plugin is and how the tour works</td></tr>
+    <tr><td class="p">2</td><td>Presets</td><td>Browse, step through with the arrows, save your own</td></tr>
+    <tr><td class="p">3</td><td>Circuit</td><td>VCA, FET, Optical and Tube in one line each</td></tr>
+    <tr><td class="p">4</td><td>Displays</td><td>Input vs output, and the dashed threshold line</td></tr>
+    <tr><td class="p">5</td><td>Controls</td><td>Drag anywhere in a box; Ctrl for fine; double-click to reset</td></tr>
+    <tr><td class="p">6</td><td>Meter</td><td>Reading gain reduction, and how much to aim for</td></tr>
+    <tr><td class="p">7</td><td>Sidechain</td><td>Routing the key signal, including the FL Studio steps</td></tr>
+    <tr><td class="p">8</td><td>Help</td><td>Where to find the tour and the website again</td></tr>
+  </table>
+
+  <figure>
+    <img src="img/tour-7-sidechain.png" alt="Tour step 7">
+    <figcaption><b>Figure 3.3</b> — The sidechain step includes the exact FL Studio routing path,
+    since that is where most people get stuck. Section 10 covers every host in detail.</figcaption>
+  </figure>
+
+</div>
+
+<!-- ══════════════════════════ 04 INTERFACE MAP ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">04</span>Interface Map</h2>
+
+  <figure style="max-width:148mm;margin-left:auto;margin-right:auto;">
+    <img src="img/ui-full.png" alt="Full interface">
+    <figcaption><b>Figure 4.1</b> — The complete VisualComp 2.1 panel at 100 % zoom, showing the
+    default <em>Mastering Glue</em> preset.</figcaption>
+  </figure>
+
+  <div class="keys">
+    <div><b>Azazel logo</b> — click for Show Help and azazelaudio.com.</div>
+    <div><b>Zoom selector</b> — 50 %, 70 %, 100 %, 150 %, 200 %.</div>
+    <div><b>Mode selector</b> — the detector circuit: VCA, FET, Optical or Tube.</div>
+    <div><b>Preset browser</b> — click the name to browse; arrows step; SAVE stores your own.</div>
+    <div><b>Bypass</b> — lights red and passes audio through untouched.</div>
+    <div><b>Mix</b> — dry/wet blend for parallel compression, with a live percentage.</div>
+    <div><b>Input display</b> — incoming signal with the dashed red threshold line and, when SC is
+         on, the sidechain ducking overlay.</div>
+    <div><b>Output display</b> — the processed result, for direct visual comparison.</div>
+    <div><b>Gain In fader</b> — drive into the detector, ±24 dB.</div>
+    <div><b>Threshold, Knee, Ratio, Attack, Release</b> — the five core controls, each with a
+         graduated ring, an orange value arc and a position bar beneath its read-out.</div>
+    <div><b>Gain Out fader</b> — makeup and final level, ±24 dB.</div>
+    <div><b>Auto Gain</b> — automatic loudness-matched makeup gain.</div>
+    <div><b>LIM</b> — brickwall 0 dB output ceiling.</div>
+    <div><b>SC</b> — enables the external sidechain detector and its overlay.</div>
+    <div><b>Gain reduction meter</b> — analogue needle, 0 to −20 dB, with an activity lamp.</div>
+    <div><b>Transfer curve</b> — the in/out characteristic with a live operating-point dot.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ 05 HEADER ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">05</span>The Header &amp; Preset Strip</h2>
+
+  <figure>
+    <img src="img/header.png" alt="Header and preset strip">
+    <figcaption><b>Figure 5.1</b> — Header and preset strip. Left to right: logo, author credit,
+    zoom, product name, bypass and mix. The lower strip carries the mode selector and preset browser,
+    with the preset count and current sample rate on the right.</figcaption>
+  </figure>
+
+  <h3>Mode selector</h3>
+  <p>Click to choose the detector circuit. Each entry names its typical use. The choice is saved with
+  your project and with presets. See section 09.</p>
+
+  <h3>Preset browser</h3>
+  <ul>
+    <li><strong>Click the name field</strong> — opens the full library, organised into category
+        submenus, with your own presets listed below.</li>
+    <li><strong>&lsaquo; and &rsaquo;</strong> — step to the previous or next factory preset without
+        opening a menu. Ideal for auditioning quickly while audio plays.</li>
+    <li><strong>SAVE</strong> — writes the current settings to your personal preset folder.</li>
+  </ul>
+
+  <h3>Mix</h3>
+  <p>Blends the compressed signal against the untouched input. At <strong>100 %</strong> you hear
+  only compressed signal. Lowering it produces <em>parallel compression</em>: heavy compression
+  underneath the natural dynamics, which raises the quiet detail without flattening the peaks.</p>
+
+  <h3>Bypass</h3>
+  <p>Passes audio through untouched and resets metering. The button lights red so the panel state is
+  unambiguous at a glance.</p>
+
+  <h3>Zoom</h3>
+  <p>Scales the entire interface. The setting is remembered per instance and restored with your
+  project.</p>
+  <table>
+    <tr><th>Zoom</th><th>Panel size</th><th>Suited to</th></tr>
+    <tr><td class="p">50 %</td><td class="p">480 × 310</td><td>Small laptop screens, tight layouts</td></tr>
+    <tr><td class="p">70 %</td><td class="p">672 × 434</td><td>1080p with several plugins open</td></tr>
+    <tr><td class="p">100 %</td><td class="p">960 × 620</td><td>Default — designed size</td></tr>
+    <tr><td class="p">150 %</td><td class="p">1440 × 930</td><td>1440p and 4K displays</td></tr>
+    <tr><td class="p">200 %</td><td class="p">1920 × 1240</td><td>4K, or detailed waveform work</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════ 06 USING CONTROLS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">06</span>Using the Controls</h2>
+
+  <p>Every control in VisualComp 2.1 responds the same way, and the rules are worth learning once
+  because they make the plugin considerably faster to operate than a conventional interface.</p>
+
+  <h3>Drag anywhere in the box</h3>
+  <p>Each parameter owns the whole rectangular area around it — the label, the empty space and the
+  value read-out are all part of the same target. Click and drag <strong>anywhere inside a
+  parameter's box</strong> and it responds. You never have to aim precisely at the knob, which
+  matters at small zoom levels and on a trackpad.</p>
+  <p>Drag <strong>up</strong> to increase, <strong>down</strong> to decrease.</p>
+
+  <h3>Hold Ctrl for fine adjustment</h3>
+  <p>Hold <strong>Ctrl</strong> (<strong>Cmd</strong> on macOS) before you begin dragging and the
+  control becomes roughly eight times less sensitive. This is how you set an attack of 12.4 ms rather
+  than "somewhere near twelve", or trim a threshold by a few tenths of a decibel.</p>
+
+  <h3>Double-click to reset</h3>
+  <p>Double-clicking any knob or fader returns it to its default value. Useful when an experiment has
+  gone somewhere strange and you want a known starting point without reloading the preset.</p>
+
+  <table>
+    <tr><th>Gesture</th><th>Result</th></tr>
+    <tr><td>Drag anywhere in the box</td><td>Adjusts that parameter</td></tr>
+    <tr><td>Ctrl (Cmd) + drag</td><td>Fine adjustment, ~8× more precise</td></tr>
+    <tr><td>Double-click</td><td>Resets the parameter to its default</td></tr>
+    <tr><td>Mouse wheel over a control</td><td>Steps the value up or down</td></tr>
+  </table>
+
+  <h3>Reading the position bars</h3>
+  <p>Beneath each of the five main read-outs is a thin orange bar showing where that control sits in
+  its full range. It gives you an instant read of the whole panel's state from across the room —
+  useful when comparing presets, since the bar pattern is recognisable at a glance.</p>
+
+  <div class="tip">
+    <span class="lbl">Automation</span>
+    Every parameter is exposed to your DAW for automation, and the panel follows host automation in
+    real time — including the position bars and the transfer curve.
+  </div>
+</div>
+
+<!-- ══════════════════════════ 07 WAVEFORMS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">07</span>The Waveform Displays</h2>
+
+  <figure>
+    <img src="img/waves.png" alt="Input and output waveform displays">
+    <figcaption><b>Figure 7.1</b> — Input (left) and output (right) displays. Each shows about
+    1.3 seconds of scrolling audio with a mirrored dB scale. The dashed red line across the input is
+    the threshold; its exact value is printed in the chip at the right-hand end.</figcaption>
+  </figure>
+
+  <h3>Reading the displays</h3>
+  <ul>
+    <li>New audio enters at the <strong>right</strong> edge and scrolls left, like a DAW playhead
+        view.</li>
+    <li>The vertical scale is marked at <strong>0, −6, −12 and −20 dBFS</strong>, mirrored above and
+        below the centre line.</li>
+    <li>Each pixel column holds the true minimum and maximum of the samples it represents, so short
+        transients are never hidden by averaging.</li>
+    <li>The <strong>dashed red threshold line</strong> appears on the input display only. Anything
+        crossing it is being compressed.</li>
+  </ul>
+
+  <h3>How to use them</h3>
+  <table>
+    <tr><th>What you see</th><th>What it means</th><th>What to do</th></tr>
+    <tr><td>Peaks poking well above the dashed line</td><td>Working range is healthy</td><td>Nothing — normal operation</td></tr>
+    <tr><td>Nothing reaches the dashed line</td><td>No compression at all</td><td>Lower THRESHOLD or raise GAIN IN</td></tr>
+    <tr><td>Output looks like a flat sausage</td><td>Over-compression; dynamics gone</td><td>Raise THRESHOLD, lower RATIO, or reduce MIX</td></tr>
+    <tr><td>Sharp spikes survive on the output</td><td>Attack too slow to catch them</td><td>Shorten ATTACK, or engage LIM as a safety net</td></tr>
+    <tr><td>Output envelope visibly wobbling</td><td>Release chasing the material</td><td>Lengthen RELEASE</td></tr>
+  </table>
+
+  <p style="color:var(--accent2);margin-top:3mm;">Tip: toggle <strong>BYPASS</strong> while watching
+  the output display. The difference in envelope shape between the two states is the clearest
+  possible picture of what your settings are doing.</p>
+</div>
+
+<!-- ══════════════════════════ 08 DYNAMICS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">08</span>The Dynamics Section</h2>
+
+  <figure>
+    <img src="img/dynamics.png" alt="Dynamics controls">
+    <figcaption><b>Figure 8.1</b> — The dynamics row. Gain In on the left, the five core controls in
+    the centre, Gain Out with Auto Gain, LIM and SC on the right.</figcaption>
+  </figure>
+
+  <h3>Threshold</h3>
+  <p><span class="mono">−60 to 0 dB / default −10 dB</span></p>
+  <p>The level above which compression begins. Signal below it passes untouched; signal above it is
+  reduced according to the ratio. This is your primary control over <em>how much</em> compression
+  happens — watch the dashed line move across the input display as you turn it.</p>
+
+  <h3>Ratio</h3>
+  <p><span class="mono">1:1 to 20:1 / default 2:1</span></p>
+  <p>How firmly signal above the threshold is reduced. At 4:1, four decibels of input above the
+  threshold become one decibel of output.</p>
+  <table>
+    <tr><th>Ratio</th><th>Character</th><th>Typical use</th></tr>
+    <tr><td class="p">1.5:1 – 2:1</td><td>Gentle levelling, nearly transparent</td><td>Mastering, mix bus, glue</td></tr>
+    <tr><td class="p">3:1 – 4:1</td><td>Clear, musical control</td><td>Vocals, drum bus, guitars</td></tr>
+    <tr><td class="p">6:1 – 10:1</td><td>Firm, obvious compression</td><td>Bass, rap vocals, taming peaks</td></tr>
+    <tr><td class="p">12:1 – 20:1</td><td>Limiting territory</td><td>Parallel crush, safety, effects</td></tr>
+  </table>
+
+  <h3>Knee</h3>
+  <p><span class="mono">0 to 20 dB / default 6 dB</span></p>
+  <p>The width of the transition into compression. At <strong>0 dB</strong> (hard knee) compression
+  begins abruptly at the threshold — precise and obvious. Widening the knee makes the ratio increase
+  gradually either side of the threshold, so the onset is smooth and difficult to hear. Wide knees
+  suit vocals, buses and mastering; hard knees suit drums and deliberate pumping.</p>
+</div>
+
+<div class="page">
+  <h2><span class="num">08</span>The Dynamics Section <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>Attack</h3>
+  <p><span class="mono">0.1 to 200 ms / default 30 ms</span></p>
+  <p>How quickly gain reduction is applied once the threshold is crossed. Short attacks catch
+  transients and sound controlled but can dull the punch of a drum hit; longer attacks let the
+  initial transient through before clamping down, which is what makes a compressed drum bus sound
+  <em>punchier</em> rather than softer.</p>
+  <ul>
+    <li><span class="mono">0.1 – 3 ms</span> — catches everything. Peak control, limiting, aggressive effect.</li>
+    <li><span class="mono">5 – 15 ms</span> — general purpose. Vocals, guitars, snare body.</li>
+    <li><span class="mono">20 – 40 ms</span> — transient-preserving. Drum bus, mix bus, mastering.</li>
+    <li><span class="mono">50 – 200 ms</span> — slow and gentle. Level-riding under a performance.</li>
+  </ul>
+
+  <h3>Release</h3>
+  <p><span class="mono">1 to 2000 ms / default 100 ms</span></p>
+  <p>How quickly gain returns once the signal falls back below the threshold. Release is what makes
+  compression feel <em>rhythmic</em>: timed to recover just before the next beat, the compressor
+  breathes with the track. Too fast and you get audible pumping or distortion on bass material; too
+  slow and quiet passages stay suppressed.</p>
+  <ul>
+    <li><span class="mono">1 – 50 ms</span> — very fast. Aggressive, pumping, effect-oriented.</li>
+    <li><span class="mono">80 – 200 ms</span> — musical default for most sources and buses.</li>
+    <li><span class="mono">300 – 600 ms</span> — smooth level-riding for vocals and bass.</li>
+    <li><span class="mono">800 – 2000 ms</span> — very slow, effectively an automatic fader.</li>
+  </ul>
+
+  <div class="note">
+    <span class="lbl">The reliable order of operations</span>
+    Set <strong>RATIO</strong> for the character you want, lower <strong>THRESHOLD</strong> until the
+    needle shows the gain reduction you want, then shape <strong>ATTACK</strong> and
+    <strong>RELEASE</strong> while watching the output display. Finally match levels with
+    <strong>GAIN OUT</strong> or <strong>AUTO GAIN</strong> and A/B against bypass.
+  </div>
+</div>
+
+<!-- ══════════════════════════ 09 CIRCUITS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">09</span>Detector Circuits</h2>
+
+  <p>The mode selector changes the compressor's internal behaviour, not merely a label. Each circuit
+  imposes its own timing constraints on your knob settings and contributes its own saturation
+  character, so the same numbers genuinely sound different in different modes.</p>
+
+  <table>
+    <tr><th>Mode</th><th>Behaviour</th><th>Timing character</th><th>Best on</th></tr>
+    <tr>
+      <td><strong>VCA</strong></td>
+      <td>Clean, symmetrical, precise. Follows your settings exactly with no added colour.</td>
+      <td>Honours attack and release as set</td>
+      <td>Mix bus, drum bus, anything needing control without character</td>
+    </tr>
+    <tr>
+      <td><strong>FET</strong></td>
+      <td>Very fast detector with musical saturation that adds bite and forward presence.</td>
+      <td>Attack clamped to 2 ms or faster; release at least 20 ms</td>
+      <td>Drums, bass, rap and rock vocals, parallel crush</td>
+    </tr>
+    <tr>
+      <td><strong>Optical</strong></td>
+      <td>Photocell-style gain element with programme-dependent recovery. Leans on the signal rather
+          than grabbing it.</td>
+      <td>Attack at least 30 ms; release at least 100 ms</td>
+      <td>Lead vocals, acoustic guitar, bass, anything that must sound effortless</td>
+    </tr>
+    <tr>
+      <td><strong>Tube</strong></td>
+      <td>Variable-mu behaviour: the effective ratio deepens as the signal drives harder, plus gentle
+          harmonic warmth.</td>
+      <td>Attack at least 50 ms; release at least 200 ms</td>
+      <td>Lead vocals, mix bus, mastering, warmth and weight</td>
+    </tr>
+  </table>
+
+  <div class="note">
+    <span class="lbl">Why your knob values may not apply literally</span>
+    Real optical and tube compressors physically cannot react in a fraction of a millisecond, and a
+    FET unit cannot be slow. VisualComp 2.1 respects those limits: in Optical and Tube modes very short
+    attack settings are lengthened to the circuit's minimum, and in FET mode the attack is always
+    fast. The knobs remain fully useful — they simply operate within each circuit's real range.
+  </div>
+
+  <h3>Choosing a circuit quickly</h3>
+  <ul>
+    <li>Need it <strong>invisible and accurate</strong>? VCA.</li>
+    <li>Need it <strong>punchy and forward</strong>? FET.</li>
+    <li>Need it <strong>smooth and forgiving</strong>? Optical.</li>
+    <li>Need it <strong>warm and weighty</strong>? Tube.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════ 10 SIDECHAIN ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">10</span>Sidechain — Routing in Your DAW</h2>
+
+  <p>External sidechaining lets one signal control the compression applied to another — most commonly
+  a kick drum ducking a bass line or pad so the low end stays clear. VisualComp 2.1 exposes a second
+  stereo input bus named <strong>Sidechain</strong> for exactly this.</p>
+
+  <div class="warnbox">
+    <span class="lbl">The rule that trips everyone up</span>
+    Two things must both be true: the key track must be <strong>routed/sent to the track hosting
+    VisualComp 2</strong>, and the plugin must be told to <strong>listen to that external
+    input</strong>. Doing only one of them is the usual reason sidechain "does nothing".
+  </div>
+
+  <h3>FL Studio</h3>
+  <ol>
+    <li>Put VisualComp 2.1 on the mixer track you want ducked (for example, the bass).</li>
+    <li>Select the <strong>kick's mixer track</strong>, and at the bottom of the bass track's channel
+        click the small <strong>send arrow</strong> so the kick is routed to the bass track. The
+        arrow lights up to show the side-send is active.</li>
+    <li>Open the VisualComp 2.1 plugin window and click the <strong>wrapper menu</strong> (the arrow in
+        the plugin's title bar).</li>
+    <li>Go to <strong>Processing &rarr; Connections</strong>, find the input labelled
+        <em>External input</em> (or the sidechain pair) in the dropdown, and select the routed
+        source.</li>
+    <li>Press <strong>SC</strong> in the plugin. The <span class="mono">SC DUCKING</span> stamp
+        appears on the input display.</li>
+  </ol>
+
+  <h3>Ableton Live</h3>
+  <ol>
+    <li>Place VisualComp 2.1 on the target track.</li>
+    <li>Open the plugin's device panel and set the <strong>Sidechain</strong> input to the key track
+        using Live's plugin sidechain routing selector.</li>
+    <li>Press <strong>SC</strong>.</li>
+  </ol>
+
+  <h3>Cubase / Nuendo</h3>
+  <ol>
+    <li>Insert the plugin, then activate its <strong>sidechain</strong> button in the plugin header.</li>
+    <li>On the key track, add a <strong>send</strong> targeting the plugin's sidechain input.</li>
+    <li>Press <strong>SC</strong>.</li>
+  </ol>
+
+  <h3>REAPER</h3>
+  <ol>
+    <li>Send the key track to the target track, setting the send's destination channels to
+        <strong>3/4</strong>.</li>
+    <li>Set the target track's channel count to 4, then in the plugin's <strong>pin
+        connector</strong> map channels 3/4 to the plugin's sidechain inputs.</li>
+    <li>Press <strong>SC</strong>.</li>
+  </ol>
+
+  <h3>Studio One / Logic (AU build)</h3>
+  <ol>
+    <li>Choose the key track from the <strong>sidechain</strong> selector in the plugin header.</li>
+    <li>Press <strong>SC</strong>.</li>
+  </ol>
+</div>
+
+<div class="page">
+  <h2><span class="num">10</span>Sidechain <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>Reading the ducking overlay</h3>
+  <p>With SC engaged, a pale blue ceiling line and shaded region appear over the input waveform.
+  <strong>This is not the raw sidechain signal</strong> — it is the actual gain reduction the
+  compressor is applying, computed through your threshold, ratio, knee, attack and release. The
+  further the line pushes down into the waveform, the deeper the duck at that instant.</p>
+
+  <ul>
+    <li>The line staying flat at the top means the key signal never crosses the threshold — no
+        ducking is happening. Lower the threshold.</li>
+    <li>A slow <strong>attack</strong> shows as a visible delay before the line dives, so you can see
+        the kick's own transient escaping the duck.</li>
+    <li>The <strong>release</strong> tail is the slope as the line climbs back up. Match its length
+        to the space between beats and the groove locks in.</li>
+    <li>A deep, narrow dip is a tight rhythmic duck; a broad shallow dip is gentle level-sharing.</li>
+  </ul>
+
+  <div class="tip">
+    <span class="lbl">Classic EDM pump</span>
+    Load the <em>EDM Pump</em> preset, engage SC, and adjust RELEASE until the recovery slope on the
+    overlay finishes just as the next kick arrives. You are dialling groove by eye and confirming it
+    by ear.
+  </div>
+
+  <div class="note">
+    <span class="lbl">Good to know</span>
+    The sidechain envelope is captured continuously whether or not SC is engaged, so switching the
+    button on never shows stale data — the overlay is correct from the first instant.
+  </div>
+</div>
+
+<!-- ══════════════════════════ 11 METERING ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">11</span>Metering</h2>
+
+  <figure style="max-width:78mm;margin-left:auto;margin-right:auto;">
+    <img src="img/meters.png" alt="Gain reduction meter and transfer curve">
+    <figcaption><b>Figure 11.1</b> — The metering column: needle meter above, transfer curve
+    below.</figcaption>
+  </figure>
+
+  <h3>Gain reduction meter</h3>
+  <p>A ballistic needle showing gain reduction from 0 to −20 dB, with an orange arc tracing the
+  current value. The scale is linear in decibels, so the needle always points at the true figure.
+  Movement is deliberately weighted like a real meter: fast on attack, slower on release, so you read
+  the compressor's <em>character</em> and not just a number.</p>
+  <p>The numeric read-out below gives the exact value. The <strong>ACTIVE</strong> lamp lights
+  whenever more than 0.3 dB of reduction is occurring — an instant answer to "is this thing even
+  doing anything?"</p>
+
+  <table>
+    <tr><th>Reading</th><th>Application</th></tr>
+    <tr><td class="p">1 – 3 dB</td><td>Mastering, mix bus glue</td></tr>
+    <tr><td class="p">2 – 5 dB</td><td>Drum bus, instrument buses</td></tr>
+    <tr><td class="p">3 – 8 dB</td><td>Vocals, bass, individual tracks</td></tr>
+    <tr><td class="p">10 dB +</td><td>Parallel compression, deliberate effect</td></tr>
+  </table>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">11</span>Metering <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>Transfer curve</h3>
+  <p>A live plot of input level (horizontal) against output level (vertical), both −60 to 0 dBFS:</p>
+  <ul>
+    <li>The <strong>dotted diagonal</strong> is unity gain — where the curve follows it, nothing is
+        being changed.</li>
+    <li>The <strong>bend</strong> is your threshold; the <strong>slope after the bend</strong> is
+        your ratio. A shallower slope means firmer compression.</li>
+    <li>The <strong>shaded band</strong> shows the knee width, and the <strong>vertical red
+        line</strong> marks the threshold exactly.</li>
+    <li>The <strong>white dot</strong> is the live operating point. Watching where it spends its time
+        tells you whether your threshold is sensibly placed for the material.</li>
+    <li>Current attack and release values are printed beneath the title for reference.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════ 12 GAIN ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">12</span>Gain Staging, Auto Gain &amp; the Limiter</h2>
+
+  <h3>Gain In</h3>
+  <p><span class="mono">±24 dB</span> — applied before the detector. Raising it drives the signal
+  further past the threshold, producing more compression without moving the threshold itself. This is
+  how you push harder into a circuit to get more of its character, particularly in FET and Tube
+  modes.</p>
+
+  <h3>Gain Out</h3>
+  <p><span class="mono">±24 dB</span> — the final output level, applied after processing. Use it to
+  restore the loudness that compression removed (traditionally called makeup gain).</p>
+
+  <h3>Auto Gain</h3>
+  <p>Continuously measures the input and post-compression signal levels and applies matching makeup
+  gain automatically, up to 24 dB, smoothed over roughly 300 ms so it never audibly jumps.</p>
+  <p>Its real value is <strong>honest comparison</strong>. Louder almost always sounds better, which
+  makes judging compression by ear notoriously unreliable. With Auto Gain engaged, bypassing the
+  plugin compares processed and unprocessed signal at matched loudness — so you hear what the
+  compressor actually did, not simply that it got louder.</p>
+  <div class="note">
+    <span class="lbl">Implementation note</span>
+    Output level is measured <em>before</em> auto-gain is applied, which prevents the feedback loop
+    that would otherwise make the correction oscillate. Turning Auto Gain off resets its internal
+    measurement immediately.
+  </div>
+
+  <h3>LIM — 0 dB ceiling</h3>
+  <p>A brickwall limiter on the output, fixed at 0 dBFS. It is a safety net, not a mastering limiter:
+  leave it on to guarantee nothing clips downstream. If it is working hard, reduce
+  <strong>GAIN OUT</strong> rather than relying on it for level.</p>
+
+  <h3>A practical gain-staging routine</h3>
+  <ol>
+    <li>Start with both faders at 0 dB and note your normal playback level.</li>
+    <li>Set threshold and ratio for the gain reduction you want on the needle.</li>
+    <li>Engage <strong>AUTO GAIN</strong> and A/B against <strong>BYPASS</strong>. If the compressed
+        version does not clearly sound better, your settings need work — not more level.</li>
+    <li>When satisfied, either leave Auto Gain engaged or dial the same amount manually into
+        <strong>GAIN OUT</strong> for a fully static setting.</li>
+    <li>Enable <strong>LIM</strong> if the material needs a hard ceiling.</li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════ 13 PRESETS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">13</span>Preset Library</h2>
+
+  <p>Thirty-four factory presets, each setting all nine parameters plus the detector circuit, so
+  every one is a complete, usable starting point. Values follow long-established practice with
+  classic bus compressors, FET and optical units, and modern mastering workflows.</p>
+
+  <h3>Mastering &amp; Mix Bus</h3>
+  <table>
+    <tr><th>Preset</th><th>Thr</th><th>Knee</th><th>Ratio</th><th>Atk</th><th>Rel</th><th>Mode</th><th>Notes</th></tr>
+    <tr><td>Mastering Glue <em>(default)</em></td><td class="p">−10</td><td class="p">6</td><td class="p">2:1</td><td class="p">30</td><td class="p">100</td><td>VCA</td><td>Transparent bus glue</td></tr>
+    <tr><td>Mastering Warm Tube</td><td class="p">−8</td><td class="p">8</td><td class="p">1.5:1</td><td class="p">50</td><td class="p">300</td><td>Tube</td><td>Weight and warmth</td></tr>
+    <tr><td>Mastering Loud &amp; Proud</td><td class="p">−14</td><td class="p">4</td><td class="p">3:1</td><td class="p">10</td><td class="p">100</td><td>VCA</td><td>Limiter engaged</td></tr>
+    <tr><td>Mix Bus Punch</td><td class="p">−12</td><td class="p">3</td><td class="p">4:1</td><td class="p">30</td><td class="p">100</td><td>VCA</td><td>Transient-forward</td></tr>
+    <tr><td>Mix Bus Smooth</td><td class="p">−10</td><td class="p">10</td><td class="p">2:1</td><td class="p">30</td><td class="p">300</td><td>VCA</td><td>Wide knee, gentle</td></tr>
+    <tr><td>Gentle Tape Feel</td><td class="p">−6</td><td class="p">12</td><td class="p">1.5:1</td><td class="p">80</td><td class="p">400</td><td>Tube</td><td>Barely-there softening</td></tr>
+  </table>
+
+  <h3>Drums</h3>
+  <table>
+    <tr><th>Preset</th><th>Thr</th><th>Knee</th><th>Ratio</th><th>Atk</th><th>Rel</th><th>Mode</th><th>Notes</th></tr>
+    <tr><td>Drum Bus Glue</td><td class="p">−12</td><td class="p">4</td><td class="p">4:1</td><td class="p">30</td><td class="p">150</td><td>VCA</td><td>The everyday drum bus</td></tr>
+    <tr><td>Drum Bus Smash</td><td class="p">−30</td><td class="p">2</td><td class="p">10:1</td><td class="p">1</td><td class="p">100</td><td>FET</td><td>Mix at 35 % — parallel</td></tr>
+    <tr><td>Kick Punch</td><td class="p">−15</td><td class="p">2</td><td class="p">4:1</td><td class="p">30</td><td class="p">100</td><td>FET</td><td>Slow attack keeps the thump</td></tr>
+    <tr><td>Snare Crack</td><td class="p">−15</td><td class="p">2</td><td class="p">4:1</td><td class="p">10</td><td class="p">150</td><td>FET</td><td>Body without losing the hit</td></tr>
+    <tr><td>Room Crush</td><td class="p">−35</td><td class="p">0</td><td class="p">12:1</td><td class="p">0.5</td><td class="p">80</td><td>FET</td><td>Extreme; blend to taste</td></tr>
+    <tr><td>Overheads Tame</td><td class="p">−18</td><td class="p">8</td><td class="p">3:1</td><td class="p">30</td><td class="p">300</td><td>Optical</td><td>Controls cymbal wash</td></tr>
+    <tr><td>Percussion Control</td><td class="p">−18</td><td class="p">4</td><td class="p">4:1</td><td class="p">15</td><td class="p">120</td><td>VCA</td><td>Evens erratic hits</td></tr>
+  </table>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">13</span>Preset Library <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>Vocals</h3>
+  <table>
+    <tr><th>Preset</th><th>Thr</th><th>Knee</th><th>Ratio</th><th>Atk</th><th>Rel</th><th>Mode</th><th>Notes</th></tr>
+    <tr><td>Lead Vocal Smooth</td><td class="p">−18</td><td class="p">8</td><td class="p">3:1</td><td class="p">30</td><td class="p">500</td><td>Optical</td><td>Effortless levelling</td></tr>
+    <tr><td>Lead Vocal Upfront</td><td class="p">−20</td><td class="p">4</td><td class="p">4:1</td><td class="p">5</td><td class="p">200</td><td>FET</td><td>Presence and forwardness</td></tr>
+    <tr><td>Vocal Thickener</td><td class="p">−16</td><td class="p">6</td><td class="p">3:1</td><td class="p">50</td><td class="p">300</td><td>Tube</td><td>Adds body and warmth</td></tr>
+    <tr><td>Backing Vocals Tight</td><td class="p">−22</td><td class="p">6</td><td class="p">5:1</td><td class="p">10</td><td class="p">200</td><td>VCA</td><td>Sits stacks back</td></tr>
+    <tr><td>Rap Vocal In-Your-Face</td><td class="p">−24</td><td class="p">2</td><td class="p">6:1</td><td class="p">2</td><td class="p">150</td><td>FET</td><td>Aggressive and constant</td></tr>
+    <tr><td>Vocal Leveller</td><td class="p">−14</td><td class="p">10</td><td class="p">2.5:1</td><td class="p">40</td><td class="p">600</td><td>Optical</td><td>First stage of two</td></tr>
+    <tr><td>Whisper Boost</td><td class="p">−30</td><td class="p">8</td><td class="p">4:1</td><td class="p">20</td><td class="p">400</td><td>Optical</td><td>Rescues quiet delivery</td></tr>
+  </table>
+
+  <h3>Bass</h3>
+  <table>
+    <tr><th>Preset</th><th>Thr</th><th>Knee</th><th>Ratio</th><th>Atk</th><th>Rel</th><th>Mode</th><th>Notes</th></tr>
+    <tr><td>Bass Guitar Solid</td><td class="p">−18</td><td class="p">4</td><td class="p">5:1</td><td class="p">7</td><td class="p">600</td><td>FET</td><td>Consistent note-to-note</td></tr>
+    <tr><td>Bass Synth Flat</td><td class="p">−16</td><td class="p">2</td><td class="p">8:1</td><td class="p">5</td><td class="p">200</td><td>VCA</td><td>Rock-steady low end</td></tr>
+    <tr><td>Upright Warmth</td><td class="p">−14</td><td class="p">8</td><td class="p">3:1</td><td class="p">40</td><td class="p">300</td><td>Tube</td><td>Keeps acoustic character</td></tr>
+    <tr><td>808 Control</td><td class="p">−12</td><td class="p">4</td><td class="p">4:1</td><td class="p">30</td><td class="p">250</td><td>VCA</td><td>Tames sub weight</td></tr>
+  </table>
+
+  <h3>Guitar &amp; Keys</h3>
+  <table>
+    <tr><th>Preset</th><th>Thr</th><th>Knee</th><th>Ratio</th><th>Atk</th><th>Rel</th><th>Mode</th><th>Notes</th></tr>
+    <tr><td>Acoustic Guitar Even</td><td class="p">−16</td><td class="p">8</td><td class="p">3:1</td><td class="p">15</td><td class="p">250</td><td>Optical</td><td>Smooths strumming</td></tr>
+    <tr><td>Electric Rhythm Tight</td><td class="p">−18</td><td class="p">4</td><td class="p">4:1</td><td class="p">5</td><td class="p">200</td><td>VCA</td><td>Locks in the part</td></tr>
+    <tr><td>Funk Guitar Snap</td><td class="p">−20</td><td class="p">2</td><td class="p">6:1</td><td class="p">8</td><td class="p">120</td><td>FET</td><td>Emphasises the pluck</td></tr>
+    <tr><td>Piano Glue</td><td class="p">−14</td><td class="p">8</td><td class="p">2.5:1</td><td class="p">30</td><td class="p">300</td><td>VCA</td><td>Gentle, keeps dynamics</td></tr>
+    <tr><td>Synth Pad Smooth</td><td class="p">−16</td><td class="p">10</td><td class="p">2.5:1</td><td class="p">50</td><td class="p">400</td><td>Optical</td><td>Levels evolving textures</td></tr>
+  </table>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">13</span>Preset Library <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>Utility &amp; FX</h3>
+  <table>
+    <tr><th>Preset</th><th>Thr</th><th>Knee</th><th>Ratio</th><th>Atk</th><th>Rel</th><th>Mode</th><th>Notes</th></tr>
+    <tr><td>EDM Pump</td><td class="p">−25</td><td class="p">2</td><td class="p">8:1</td><td class="p">1</td><td class="p">200</td><td>VCA</td><td>Engage SC for ducking</td></tr>
+    <tr><td>Podcast Levelling</td><td class="p">−20</td><td class="p">10</td><td class="p">3:1</td><td class="p">20</td><td class="p">400</td><td>Optical</td><td>Speech; limiter on</td></tr>
+    <tr><td>Parallel Thickener</td><td class="p">−28</td><td class="p">4</td><td class="p">8:1</td><td class="p">3</td><td class="p">150</td><td>FET</td><td>Mix at 40 %</td></tr>
+    <tr><td>Brickwall Safety</td><td class="p">−6</td><td class="p">2</td><td class="p">10:1</td><td class="p">0.5</td><td class="p">80</td><td>VCA</td><td>Peak catcher; limiter on</td></tr>
+    <tr><td>Do Nothing (Reset)</td><td class="p">0</td><td class="p">0</td><td class="p">1:1</td><td class="p">30</td><td class="p">100</td><td>VCA</td><td>Neutral starting point</td></tr>
+  </table>
+
+  <p class="mono" style="color:var(--muted);font-size:8.4pt;">Threshold in dB / Knee in dB /
+  Attack and Release in milliseconds</p>
+</div>
+
+<!-- ══════════════════════════ 14 USER PRESETS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">14</span>Saving Your Own Presets</h2>
+
+  <h3>Saving</h3>
+  <ol>
+    <li>Dial in a sound you want to keep.</li>
+    <li>Click <strong>SAVE</strong> in the preset strip (or choose <em>Save Preset As…</em> from the
+        preset menu).</li>
+    <li>Name the preset and confirm. It is written as a <code>.vcpreset</code> file.</li>
+  </ol>
+  <p>The saved name appears in the preset field, and your preset is listed under
+  <strong>MY PRESETS</strong> at the bottom of the browser from then on.</p>
+
+  <h3>What gets stored</h3>
+  <p>All nine parameters — threshold, knee, ratio, attack, release, input gain, output gain, mix and
+  limiter state — plus the detector circuit.</p>
+
+  <h3>Where they live</h3>
+  <table>
+    <tr><th>Windows</th><td class="p">Documents\Azazel Audio\VisualComp 2\Presets\</td></tr>
+    <tr><th>macOS</th><td class="p">~/Documents/Azazel Audio/VisualComp 2/Presets/</td></tr>
+  </table>
+  <p>Choose <em>Open Presets Folder</em> from the preset menu to jump straight there. The files are
+  plain XML, so you can back them up, rename them, or share them with collaborators by copying them
+  into the same folder on another machine.</p>
+
+  <div class="tip">
+    <span class="lbl">Tip</span>
+    Prefix related presets with a common word — <span class="mono">MyVox Verse</span>,
+    <span class="mono">MyVox Chorus</span> — and they sort together in the browser.
+  </div>
+
+  <h3>Project state</h3>
+  <p>Independently of the preset system, your full settings, circuit mode, preset name and zoom level
+  are saved inside your DAW project and restored exactly when you reopen it.</p>
+</div>
+
+<!-- ══════════════════════════ 15 RECIPES ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">15</span>Recipes</h2>
+
+  <h3>Mix bus glue</h3>
+  <p>Load <em>Mastering Glue</em>. Lower the threshold until the needle reads 1–3 dB on the loudest
+  passages. If it feels stiff, widen the knee or lengthen the release. The output waveform should
+  look like the input with the peaks gently rounded — not flattened.</p>
+
+  <h3>Punchy drum bus</h3>
+  <p><em>Drum Bus Glue</em> in VCA, attack 20–30 ms so the stick attack escapes before compression
+  bites, release around 150 ms so the compressor recovers between hits. Aim for 3–5 dB of reduction.
+  If the kick is dominating the detector, raise the threshold slightly and accept less reduction.</p>
+
+  <h3>Vocal that sits without effort</h3>
+  <p>Two gentle stages beat one aggressive one. Start with <em>Vocal Leveller</em> (Optical, 2.5:1,
+  slow) to even out the performance, then a second instance with <em>Lead Vocal Upfront</em> (FET,
+  4:1, fast) for presence. Each doing 3–4 dB is far more natural than one doing 8 dB.</p>
+
+  <h3>Parallel (New York) compression</h3>
+  <p>Load <em>Parallel Thickener</em> or <em>Drum Bus Smash</em>. These crush deliberately — 10:1,
+  very fast attack — then sit at 35–40 % mix. The compressed layer raises the quiet detail while the
+  dry signal preserves every transient. Increase the mix until it feels solid, then back off
+  slightly.</p>
+
+  <h3>Kick-ducked bass</h3>
+  <p>Route the kick to the sidechain input (section 10), load <em>EDM Pump</em>, engage
+  <strong>SC</strong>. Watch the ducking overlay: the dip should begin exactly on the kick and
+  recover just before the next one. Threshold sets depth, release sets groove.</p>
+
+  <h3>Taming an unpredictable performance</h3>
+  <p><em>Whisper Boost</em> or <em>Vocal Leveller</em> in Optical mode, with a long release. Engage
+  <strong>AUTO GAIN</strong> so the quiet passages come up to meet the loud ones, and add
+  <strong>LIM</strong> to stop the occasional shout from clipping.</p>
+
+  <h3>Learning what attack really does</h3>
+  <p>On a drum loop, set ratio 6:1 and threshold for 6 dB of reduction. Now sweep the attack from
+  0.1 ms to 100 ms while watching the output display — hold <strong>Ctrl</strong> for a slow, precise
+  sweep. You will see the transients reappear as the attack lengthens, and hear the loop change from
+  soft to punchy. This single exercise teaches more than any explanation.</p>
+</div>
+
+<!-- ══════════════════════════ 16 TROUBLESHOOTING ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">16</span>Troubleshooting</h2>
+
+  <table>
+    <tr><th>Symptom</th><th>Cause and remedy</th></tr>
+    <tr><td>Plugin does not appear in the DAW</td>
+        <td>Confirm the <code>.vst3</code> is in the standard VST3 folder (section 02) and rescan.
+        Custom search paths do not apply to VST3 in FL Studio. On macOS, clear the quarantine flag.</td></tr>
+    <tr><td>Updated the plugin but nothing changed</td>
+        <td>DAWs keep the loaded binary in memory. Remove the plugin instance (or close the project),
+        then re-add it.</td></tr>
+    <tr><td>No gain reduction; needle never moves</td>
+        <td>Signal is not reaching the threshold. Lower <strong>THRESHOLD</strong> or raise
+        <strong>GAIN IN</strong>. Check <strong>BYPASS</strong> is off and, if <strong>SC</strong> is
+        engaged, that the sidechain bus is actually receiving audio.</td></tr>
+    <tr><td>Sidechain does nothing</td>
+        <td>Both halves of the routing must be done: the key track sent to this track, <em>and</em>
+        the plugin's external input selected (section 10). In FL Studio the wrapper path is
+        Processing &rarr; Connections.</td></tr>
+    <tr><td>Compression sounds harsh or grainy</td>
+        <td>Attack and release are too fast for the material, especially on bass content. Lengthen
+        both, widen the <strong>KNEE</strong>, or switch to Optical or Tube mode.</td></tr>
+    <tr><td>Audible pumping or breathing</td>
+        <td>Release is fighting the programme. Lengthen it, reduce the ratio, or lower
+        <strong>MIX</strong> so dry signal masks the movement.</td></tr>
+    <tr><td>Everything sounds lifeless</td>
+        <td>Over-compression. Raise the threshold, lengthen the attack to restore transients, and A/B
+        with <strong>AUTO GAIN</strong> engaged so loudness is not fooling you.</td></tr>
+    <tr><td>Hard to set an exact value</td>
+        <td>Hold <strong>Ctrl</strong> (Cmd on macOS) while dragging for fine adjustment, or
+        double-click to reset and start again.</td></tr>
+    <tr><td>Output clipping downstream</td>
+        <td>Reduce <strong>GAIN OUT</strong> and enable <strong>LIM</strong> for a hard 0 dB
+        ceiling.</td></tr>
+    <tr><td>Interface too large or too small</td>
+        <td>Use the zoom selector in the header (50 %–200 %). The setting persists with the
+        project.</td></tr>
+    <tr><td>Want the tour again</td>
+        <td>Click the Azazel logo in the top-left corner and choose <strong>Show Help</strong>.</td></tr>
+    <tr><td>A saved preset is missing</td>
+        <td>Choose <em>Open Presets Folder</em> from the preset menu and confirm the
+        <code>.vcpreset</code> file is present. Files must sit directly in that folder, not in
+        subfolders.</td></tr>
+  </table>
+
+  <div class="tip">
+    <span class="lbl">Still stuck?</span>
+    Click the Azazel logo and choose <strong>Visit azazelaudio.com</strong>.
+  </div>
+</div>
+
+<!-- ══════════════════════════ 17 V2.1 FEATURES ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">17</span>Version 2.1 — New Tools</h2>
+
+  <p>Version 2.1 adds a parametric EQ, an output clipping stage, level metering,
+  an Auto-Analyze preset wizard, and two small interface refinements. This
+  section documents each one, including the relocated zoom control covered
+  in item 17.1 below.</p>
+
+  <h3>17.1 — The invisible zoom control</h3>
+  <p>The header no longer carries a separate, visible zoom button. Instead,
+  <strong>zoom now lives at the very top of the Azazel logo menu</strong> —
+  click the logo (top-left corner; it has no visible border or highlight of
+  its own, but the cursor changes to a hand when it is hovered) and the first
+  entry is <strong>Zoom (current %)</strong>, opening the same 50–200% choices
+  as before. This keeps the header uncluttered: the logo is the single
+  interactive mark there, and everything else — zoom, Show Help, and the
+  link to azazelaudio.com — is one click behind it.</p>
+
+  <div class="tip">
+    <span class="lbl">Why "invisible"</span>
+    The logo hot-spot deliberately draws no highlight, outline or background
+    tint at rest or on hover — only the pointing-hand cursor gives away that
+    it is clickable. This was a specific design request: the mark should look
+    like branding, not a button, until the moment you actually use it.
+  </div>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">17</span>Version 2.1 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>17.2 — Parametric EQ</h3>
+  <figure style="max-width:52mm;margin-left:auto;margin-right:auto;">
+    <img src="img/eq-panel-v3.png" alt="Docked parametric EQ panel">
+    <figcaption><b>Figure 17.1</b> — The docked EQ panel, opened with the new
+    <b>EQ</b> button (left of the Mode selector). It extends to the left of the
+    main interface at full height and does not resize or crop anything else.</figcaption>
+  </figure>
+  <p>Up to <strong>8 nodes</strong>, each independently a Bell, Low Shelf, High
+  Shelf, High Pass or Low Pass filter:</p>
+  <ul>
+    <li><strong>Click empty graph space</strong> to activate the next free node
+        at that frequency and gain.</li>
+    <li><strong>Drag a node</strong> — left/right changes frequency, up/down
+        changes gain.</li>
+    <li><strong>Mouse wheel over a node</strong> adjusts its Q (bandwidth).</li>
+    <li><strong>Right-click a node</strong> for its menu: filter type, link to
+        the compressor, or remove it.</li>
+  </ul>
+  <p>Each node is numbered and colour-coded (1–8); the row list below the
+  graph shows every node's type, frequency and gain, with a <strong>LINK</strong>
+  toggle per row — the same colour and number appear in the Dynamics pane
+  (17.3) when that node is the one currently driving the compressor.</p>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">17</span>Version 2.1 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>17.3 — Multiband-aware detection</h3>
+  <p>Any EQ node marked <strong>LINK</strong> feeds an independent band-energy
+  detector into the compressor, in addition to the normal broadband level —
+  so a hot linked band can trigger compression even when the overall signal
+  is under threshold. The small numbered box at the top-left of the Dynamics
+  pane (where the knob labels used to start; they are now one row lower)
+  shows which linked node is currently dominant, in that node's colour, or a
+  dash when none is active.</p>
+  <div class="note">
+    <span class="lbl">What this is, and isn't</span>
+    This is a single compressor whose detector can be made sensitive to
+    specific frequency bands you choose in the EQ — not eight independent
+    per-band compressors summed back together. It is the simpler, more
+    transparent design, and it is what the on-screen "one active band"
+    indicator actually shows.
+  </div>
+
+  <h3>17.4 — Output clipping modes</h3>
+  <p>A button beside Bypass (labelled with the current mode) cycles the
+  final output stage through three options, all sharing one fixed 3 ms
+  lookahead so switching between them live never causes a click or a
+  latency jump:</p>
+  <table>
+    <tr><th>Mode</th><th>Behaviour</th><th>Use for</th></tr>
+    <tr><td><strong>Soft Clip</strong></td><td>tanh-style saturation with an audible, deliberate character as it nears 0 dBFS</td><td>Colour, glue, drum/parallel crush</td></tr>
+    <tr><td><strong>Brickwall</strong></td><td>lookahead limiter, transparent, hard 0 dB ceiling</td><td>Mastering, safety on any loud bus</td></tr>
+    <tr><td><strong>Off</strong></td><td>no processing at all</td><td>Serial/gain-staging presets that must stay clean</td></tr>
+  </table>
+  <p>All 34 factory presets now set a clip mode that matches their intent —
+  mastering and "loud" presets default to Brickwall; tape/tube/parallel-crush
+  presets default to Soft; clean gain-staging presets default to Off.</p>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">17</span>Version 2.1 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>17.5 — Level metering</h3>
+  <figure style="max-width:60mm;margin-left:auto;margin-right:auto;">
+    <img src="img/meters-v3.png" alt="Right-hand meter column with level meter strip">
+    <figcaption><b>Figure 17.2</b> — The narrow strip at the far right of the
+    GR meter / transfer curve column is the new level meter.</figcaption>
+  </figure>
+  <p>A colour-coded vertical dB meter (green/yellow/red, peak + RMS) sits at
+  the right edge of the meter column. <strong>Click it</strong> to slide out a
+  second bar showing an approximate LUFS reading (momentary and short-term).
+  This is a K-weighting-style approximation using continuous smoothing
+  rather than the discrete gated blocks of the ITU-R BS.1770 standard — close
+  enough to gauge loudness while mixing, but not a certified delivery-spec
+  measurement.</p>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">17</span>Version 2.1 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>17.6 — Auto-Analyze wizard</h3>
+  <p>Next to the preset controls, the <strong>AUTO</strong> button starts a
+  two-step wizard:</p>
+  <ol>
+    <li><strong>Genre</strong> — choose the closest match from Pop, Hip-Hop /
+        Trap, EDM / Dance, Rock / Metal, Acoustic / Folk, Classical /
+        Orchestral, or Podcast / Spoken Word.</li>
+    <li><strong>Target LUFS</strong> — a numeric field, pre-filled with a
+        sensible default for the chosen genre.</li>
+  </ol>
+  <p>On confirmation, it measures the crest factor and level of the material
+  already in the plugin's input buffer, chooses ratio/attack/release/circuit/
+  clip-mode from a per-genre character table, sets the threshold at the
+  midpoint between the measured peak and RMS, and trims output gain toward
+  your target using the plugin's own LUFS estimate — then applies the result
+  as a new preset named <em>"Auto: &lt;genre&gt; &lt;LUFS&gt; LU"</em>.</p>
+  <div class="warnbox">
+    <span class="lbl">What Auto-Analyze is not</span>
+    This is a heuristic starting point built from a real measurement of your
+    audio, not a trained mastering AI. Treat the result the same as any
+    factory preset: a considered starting point to refine by ear, not a
+    finished master.
+  </div>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">17</span>Version 2.1 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>17.7 — Reactive header glow</h3>
+  <p>The orange accent line beneath the plugin name idles with a slow random
+  shimmer and flares briefly whenever the plugin window is dragged to a new
+  position on screen — a small piece of visual polish with no effect on
+  audio or parameters.</p>
+
+  <h3>17.8 — Rebranded mark</h3>
+  <p>The Azazel logo now shows the wordmark alone; the "Audio" script that
+  previously sat beneath it has been removed for a cleaner, more compact
+  mark at small sizes.</p>
+</div>
+
+<!-- ══════════════════════════ 18 SPECS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">18</span>Specifications &amp; Credits</h2>
+
+  <h3>Parameters</h3>
+  <table>
+    <tr><th>Parameter</th><th>Range</th><th>Default</th></tr>
+    <tr><td>Threshold</td><td class="p">−60 to 0 dB</td><td class="p">−10 dB</td></tr>
+    <tr><td>Knee</td><td class="p">0 to 20 dB</td><td class="p">6 dB</td></tr>
+    <tr><td>Ratio</td><td class="p">1:1 to 20:1</td><td class="p">2:1</td></tr>
+    <tr><td>Attack</td><td class="p">0.1 to 200 ms</td><td class="p">30 ms</td></tr>
+    <tr><td>Release</td><td class="p">1 to 2000 ms</td><td class="p">100 ms</td></tr>
+    <tr><td>Gain In / Gain Out</td><td class="p">−24 to +24 dB</td><td class="p">0 dB</td></tr>
+    <tr><td>Mix</td><td class="p">0 to 100 %</td><td class="p">100 %</td></tr>
+    <tr><td>Limiter</td><td class="p">Off / 0 dB ceiling</td><td class="p">Off</td></tr>
+    <tr><td>Detector circuit</td><td class="p">VCA / FET / Optical / Tube</td><td class="p">VCA</td></tr>
+  </table>
+
+  <h3>Technical</h3>
+  <ul>
+    <li>Formats: VST3 and Standalone application</li>
+    <li>Windows 10 / 11 (64-bit); macOS 10.13 or later, universal binary (Apple Silicon + Intel)</li>
+    <li>Channels: mono or stereo main bus, plus an optional stereo sidechain bus</li>
+    <li>Sample-accurate envelope detection with per-circuit ballistics</li>
+    <li>Soft-knee transfer function with fully variable knee width</li>
+    <li>Lock-free visualisation pipeline — the audio thread never waits on the interface</li>
+    <li>Auto-gain measured pre-makeup to avoid feedback artefacts</li>
+    <li>Full parameter automation; complete state saved with the host project</li>
+    <li>Interface rendered as vector graphics at every zoom level</li>
+  </ul>
+
+  <h3>Credits</h3>
+  <p>VisualComp 2.1 was designed, programmed and voiced by <strong>Arnav Singh</strong> for
+  <strong>Azazel Audio</strong>. Built with the JUCE framework.</p>
+  <p>Preset values were informed by long-documented practice around the SSL G-Series bus compressor,
+  FET and optical studio units, and contemporary mastering technique — then verified by ear on real
+  material.</p>
+
+  <div class="note">
+    <span class="lbl">Thank you</span>
+    Thank you for using VisualComp 2.1. If it helps you understand compression a little better, it has
+    done its job. — <a href="https://azazelaudio.com">azazelaudio.com</a>
+  </div>
+
+  <p style="margin-top:8mm;text-align:center;color:var(--muted);font-size:8.6pt;letter-spacing:.18em;">
+    AZAZEL AUDIO  /  VISUALCOMP 2.1  /  USER MANUAL  /  VERSION 2.1
+  </p>
+</div>
+
+</body>
+</html>
+

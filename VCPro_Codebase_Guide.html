@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Visual Comp Pro — Complete Codebase Guide</title>
+<style>
+  /* ── Print / PDF settings ── */
+  @page { size: A4; margin: 18mm 20mm 18mm 20mm; }
+  @media print {
+    .no-print { display: none; }
+    h2 { page-break-before: always; }
+    h2:first-of-type { page-break-before: avoid; }
+    pre, .code-block { page-break-inside: avoid; }
+  }
+
+  /* ── Base typography ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.70;
+    color: #1e1e1e;
+    background: #f8f8f8;
+    padding: 28px 0 60px;
+  }
+  .page { max-width: 820px; margin: 0 auto; background: #fff;
+          padding: 44px 52px; box-shadow: 0 2px 16px rgba(0,0,0,.12); border-radius: 6px; }
+
+  /* ── Cover ── */
+  .cover { text-align: center; padding: 40px 0 32px; border-bottom: 3px solid #2d6bae; margin-bottom: 36px; }
+  .cover .plugin-name { font-size: 38px; font-weight: 800; color: #2d6bae; letter-spacing: 2px; }
+  .cover .subtitle { font-size: 17px; color: #555; margin-top: 6px; }
+  .cover .meta { font-size: 12px; color: #888; margin-top: 18px; }
+
+  /* ── Headings ── */
+  h1 { font-size: 26px; color: #2d6bae; margin: 36px 0 10px; border-bottom: 2px solid #dde8f5; padding-bottom: 6px; }
+  h2 { font-size: 21px; color: #1a4a80; margin: 30px 0 8px; padding-top: 8px; }
+  h3 { font-size: 16px; color: #2d6bae; margin: 20px 0 6px; }
+  h4 { font-size: 14px; color: #444; margin: 14px 0 4px; font-weight: 700; }
+
+  /* ── Paragraphs & lists ── */
+  p { margin: 8px 0 12px; }
+  ul, ol { margin: 6px 0 12px 22px; }
+  li { margin-bottom: 4px; }
+  strong { color: #1a1a1a; }
+
+  /* ── Code blocks ── */
+  code { font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12.5px;
+         background: #f0f4fb; border: 1px solid #d0dced; border-radius: 3px;
+         padding: 1px 5px; color: #1a3a6e; }
+  pre { background: #1e1e2e; color: #cdd6f4; border-radius: 6px;
+        padding: 16px 18px; overflow-x: auto; font-size: 12px; line-height: 1.55;
+        margin: 12px 0 18px; font-family: 'Cascadia Code', 'Consolas', monospace; }
+  pre .kw  { color: #cba6f7; }   /* keyword */
+  pre .ty  { color: #89dceb; }   /* type */
+  pre .fn  { color: #89b4fa; }   /* function */
+  pre .cm  { color: #585b70; }   /* comment */
+  pre .st  { color: #a6e3a1; }   /* string */
+  pre .nm  { color: #fab387; }   /* number */
+
+  /* ── Callout boxes ── */
+  .note   { background: #eaf3ff; border-left: 4px solid #2d6bae; padding: 10px 14px; margin: 14px 0; border-radius: 0 4px 4px 0; }
+  .warn   { background: #fff8e1; border-left: 4px solid #f0a500; padding: 10px 14px; margin: 14px 0; border-radius: 0 4px 4px 0; }
+  .tip    { background: #e9fbe9; border-left: 4px solid #2da02d; padding: 10px 14px; margin: 14px 0; border-radius: 0 4px 4px 0; }
+  .dsp    { background: #fdf0ff; border-left: 4px solid #a040c0; padding: 10px 14px; margin: 14px 0; border-radius: 0 4px 4px 0; }
+
+  /* ── File cards ── */
+  .file-card { border: 1px solid #d4e0f0; border-radius: 6px; margin: 18px 0;
+               overflow: hidden; }
+  .file-card .fc-header { background: #2d6bae; color: #fff; padding: 8px 16px;
+                           display: flex; align-items: center; gap: 12px; }
+  .file-card .fc-header .filename { font-family: 'Consolas', monospace; font-size: 14px; font-weight: 700; }
+  .file-card .fc-header .role { font-size: 12px; opacity: .8; }
+  .file-card .fc-body { padding: 14px 18px; }
+
+  /* ── Data flow diagram (ASCII) ── */
+  .diagram { background: #1e1e2e; color: #a6e3a1; font-family: 'Consolas', monospace;
+             font-size: 12px; padding: 18px 22px; border-radius: 6px;
+             line-height: 1.5; margin: 14px 0 20px; white-space: pre; }
+
+  /* ── Parameter table ── */
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 18px; font-size: 13px; }
+  th { background: #2d6bae; color: #fff; padding: 7px 10px; text-align: left; }
+  td { border-bottom: 1px solid #e0e8f5; padding: 6px 10px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f3f7fd; }
+
+  /* ── TOC ── */
+  .toc { background: #f3f7fd; border: 1px solid #cdd9ee; border-radius: 6px;
+         padding: 18px 24px; margin: 0 0 32px; }
+  .toc h2 { font-size: 17px; margin: 0 0 10px; border: none; padding: 0; }
+  .toc ol { margin-left: 18px; }
+  .toc li { margin-bottom: 3px; }
+  .toc a  { color: #2d6bae; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Section dividers ── */
+  hr { border: none; border-top: 1px solid #dde8f5; margin: 28px 0; }
+
+  /* ── Print button ── */
+  .no-print { text-align: center; margin-bottom: 20px; }
+  .no-print button { background: #2d6bae; color: #fff; border: none; border-radius: 4px;
+                     padding: 10px 24px; font-size: 15px; cursor: pointer; }
+  .no-print button:hover { background: #1a4a80; }
+</style>
+</head>
+<body>
+
+<div class="no-print">
+  <button onclick="window.print()">&#128438; Save / Print as PDF</button>
+</div>
+
+<div class="page">
+
+<!-- ══════════════════════════════════════════════════════════
+     COVER
+═══════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="plugin-name">VISUAL COMP PRO</div>
+  <div class="subtitle">Complete Codebase Guide — Step-by-Step Learning Reference</div>
+  <div class="meta">Brella Audio · by Arnav Singh &nbsp;|&nbsp; JUCE C++ Audio Plugin &nbsp;|&nbsp; 2025</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TABLE OF CONTENTS
+═══════════════════════════════════════════════════════════ -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#overview">Project Overview — What this plugin is and does</a></li>
+    <li><a href="#architecture">Architecture — How all files connect</a></li>
+    <li><a href="#threading">Threading Model — Audio thread vs. GUI thread</a></li>
+    <li><a href="#processor-h">PluginProcessor.h — Data structures &amp; declarations</a></li>
+    <li><a href="#processor-cpp">PluginProcessor.cpp — Audio DSP explained line by line</a></li>
+    <li><a href="#editor-h">PluginEditor.h — GUI class declarations</a></li>
+    <li><a href="#editor-cpp">PluginEditor.cpp — UI layout, drawing, and controls</a></li>
+    <li><a href="#waveform">WaveformDisplay — Ring-buffer oscilloscope</a></li>
+    <li><a href="#vumeter">VuMeter — Ballistic gain-reduction meter</a></li>
+    <li><a href="#grcurve">GrCurveDisplay — Live transfer curve</a></li>
+    <li><a href="#dsp-theory">DSP Deep-Dive — Compression math explained</a></li>
+    <li><a href="#signal-flow">Full Signal Flow — End-to-end walkthrough</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+  </ol>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     1. OVERVIEW
+═══════════════════════════════════════════════════════════ -->
+<h1 id="overview">1. Project Overview</h1>
+
+<p>
+  <strong>Visual Comp Pro</strong> is a professional-grade audio compressor plug-in built with
+  the <strong>JUCE</strong> C++ framework. It loads inside a Digital Audio Workstation (DAW) such
+  as Ableton Live, Logic Pro, or FL Studio.
+</p>
+
+<h3>What it does for the listener</h3>
+<ul>
+  <li>Reduces the dynamic range of audio — loud parts get quieter so quiet parts feel louder.</li>
+  <li>Adds analogue character through <em>four vintage-modelled circuit types</em> (VCA, FET, Optical, Tube).</li>
+  <li>Provides rich real-time visuals: dual oscilloscope, VU needle meter, and a live transfer-curve graph.</li>
+</ul>
+
+<h3>What the codebase contains — 10 source files</h3>
+<table>
+  <tr><th>File</th><th>Role</th></tr>
+  <tr><td><code>PluginProcessor.h / .cpp</code></td><td>All audio DSP: compression, saturation, metering</td></tr>
+  <tr><td><code>PluginEditor.h / .cpp</code></td><td>Main GUI window: knobs, faders, buttons, layout</td></tr>
+  <tr><td><code>WaveformDisplay.h / .cpp</code></td><td>Scrolling oscilloscope widget (INPUT and OUTPUT)</td></tr>
+  <tr><td><code>VuMeter.h / .cpp</code></td><td>Vintage analogue needle meter for gain reduction</td></tr>
+  <tr><td><code>GrCurveDisplay.h / .cpp</code></td><td>Transfer curve graph (input dB → output dB)</td></tr>
+</table>
+
+<div class="note">
+  <strong>Key vocabulary:</strong>
+  JUCE is an open-source C++ framework for building audio plugins. It handles the host integration,
+  parameter management, graphics, and timer callbacks so you can focus on DSP and UI.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     2. ARCHITECTURE
+═══════════════════════════════════════════════════════════ -->
+<h1 id="architecture">2. Architecture — How All Files Connect</h1>
+
+<div class="diagram">
+┌──────────────────────────────────────────────────────────────────────┐
+│                         DAW / HOST                                   │
+│   calls prepareToPlay()  ──►  processBlock()  ──►  getStateInfo()   │
+└────────────────────────────────┬─────────────────────────────────────┘
+                                 │ audio buffers
+                                 ▼
+┌────────────────────────── PluginProcessor ───────────────────────────┐
+│  createParameterLayout()  →  APVTS (9 parameters)                    │
+│  processBlock()                                                       │
+│    ├── reads APVTS params (attack, release, threshold, ratio …)      │
+│    ├── applies input gain + saturation (FET / Tube modes)            │
+│    ├── computes detection peak (or sidechain peak)                   │
+│    ├── applies knee / threshold → gainReduction dB                   │
+│    ├── smooths GR with mode-specific envelope follower               │
+│    ├── applies GR + output gain + limiter                            │
+│    ├── dry/wet parallel mix                                           │
+│    ├── pushes samples → inputWaveform / outputWaveform buffers       │
+│    └── stores gainReductionDb, currentInputLevelDb (atomics)         │
+└──────┬───────────────────────────────────────────────────────────────┘
+       │ shared data (atomics + WaveformBuffers)
+       ▼
+┌────────────────────────── PluginEditor ──────────────────────────────┐
+│  ModernLookAndFeel (custom knob / fader / button rendering)          │
+│  Controls: threshold, knee, ratio, attack, release knobs             │
+│            gainIn/gainOut faders   mix knob                          │
+│            limiter toggle  sidechain toggle  mode dropdown           │
+│                                                                       │
+│  Visual widgets  ────────────────────────────────────────────────    │
+│    WaveformDisplay (INPUT)  — reads inputWaveform ring-buffer        │
+│    WaveformDisplay (OUTPUT) — reads outputWaveform ring-buffer       │
+│    VuMeter                  — reads gainReductionDb atomic           │
+│    GrCurveDisplay           — reads APVTS + currentInputLevelDb      │
+└──────────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>The JUCE plugin entry point</h3>
+<p>At the very bottom of <code>PluginProcessor.cpp</code> is this one-liner that every JUCE plugin must have:</p>
+<pre><span class="ty">juce::AudioProcessor</span>* <span class="fn">JUCE_CALLTYPE</span> <span class="fn">createPluginFilter</span>() {
+    <span class="kw">return new</span> <span class="ty">VisualCompProcessor</span>();  <span class="cm">// the DAW calls this to make your plugin</span>
+}</pre>
+<p>The DAW loads your DLL/VST3/AU, finds this symbol, calls it, and receives your processor object.</p>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     3. THREADING MODEL
+═══════════════════════════════════════════════════════════ -->
+<h1 id="threading">3. Threading Model</h1>
+
+<p>
+  This is the most important concept in audio plugin programming.
+  The DAW runs two separate threads that <strong>must never block each other</strong>.
+</p>
+
+<table>
+  <tr><th>Thread</th><th>Who runs it</th><th>What happens here</th><th>Rule</th></tr>
+  <tr>
+    <td><strong>Audio Thread</strong></td>
+    <td>DAW / OS audio driver</td>
+    <td><code>processBlock()</code> — runs every ~5 ms at 44100 Hz</td>
+    <td>No allocation, no locks, no GUI calls</td>
+  </tr>
+  <tr>
+    <td><strong>Message Thread</strong></td>
+    <td>JUCE message loop</td>
+    <td>All GUI painting, timer callbacks, user input</td>
+    <td>No blocking, no direct audio buffer access</td>
+  </tr>
+</table>
+
+<h3>How this plugin crosses the thread boundary safely</h3>
+
+<div class="diagram">
+   AUDIO THREAD                         MESSAGE THREAD
+   ─────────────                        ──────────────
+   processBlock()                       Timer::timerCallback()  (every 8–33 ms)
+       │                                       │
+       │  writes atomically                    │  reads atomically
+       ▼                                       ▼
+   gainReductionDb (std::atomic&lt;float&gt;) ──► VuMeter reads needle target
+   currentInputLevelDb (atomic)         ──► GrCurveDisplay shows live dot
+       │                                       │
+       │  lock-free ring-buffer push           │  lock-free ring-buffer read
+       ▼                                       ▼
+   WaveformBuffer::push()               WaveformDisplay::timerCallback()
+   (writes writePos last)               (reads writePos first — acquire fence)
+</div>
+
+<p>
+  <code>std::atomic</code> operations and the acquire/release memory ordering on
+  <code>writePos</code> are the <em>only</em> synchronisation primitives used.
+  There are no mutexes, which means the audio thread can never stall waiting for the GUI.
+</p>
+
+<div class="warn">
+  <strong>Why no mutex?</strong>
+  If a mutex is held by the GUI thread when the audio thread needs it, the audio thread blocks.
+  Even a 1 ms block causes an audible dropout. <code>std::atomic</code> operations are wait-free
+  and never cause stalls.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     4. PluginProcessor.h
+═══════════════════════════════════════════════════════════ -->
+<h1 id="processor-h">4. PluginProcessor.h — Data Structures &amp; Declarations</h1>
+
+<div class="file-card">
+  <div class="fc-header">
+    <span class="filename">PluginProcessor.h</span>
+    <span class="role">Declares the processor class and the lock-free ring buffer</span>
+  </div>
+  <div class="fc-body">
+
+<h3>CompMode enum (line 6)</h3>
+<pre><span class="kw">enum class</span> <span class="ty">CompMode</span> { VCA = <span class="nm">0</span>, FET, Optical, Tube };</pre>
+<p>
+  This C++11 scoped enum names the four compressor circuit emulations.
+  It is stored as an <code>std::atomic&lt;int&gt;</code> in the processor so the GUI can set it
+  from the message thread and the audio thread reads it safely.
+</p>
+
+<h3>WaveformBuffer struct (lines 8–24)</h3>
+<pre><span class="kw">struct</span> <span class="ty">WaveformBuffer</span> {
+    <span class="kw">static constexpr int</span> size = <span class="nm">65536</span>;         <span class="cm">// must be a power of 2!</span>
+    std::array&lt;<span class="kw">float</span>, size&gt; data {};
+    std::<span class="ty">atomic</span>&lt;<span class="kw">int</span>&gt; writePos { <span class="nm">0</span> };
+
+    <span class="kw">void</span> <span class="fn">push</span>(<span class="kw">const float</span>* samples, <span class="kw">int</span> numSamples) <span class="kw">noexcept</span> {
+        <span class="kw">int</span> pos = writePos.load(memory_order_relaxed);
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; numSamples; ++i) {
+            data[pos] = samples[i];
+            pos = (pos + <span class="nm">1</span>) &amp; (size - <span class="nm">1</span>);  <span class="cm">// power-of-2 modulo: wrap around</span>
+        }
+        writePos.store(pos, memory_order_relaxed);
+    }
+};</pre>
+
+<ul>
+  <li><strong>Ring buffer / circular buffer:</strong> a fixed-size array where the write pointer
+      wraps around to the start when it reaches the end. This gives you a rolling window of the
+      most recent 65,536 samples (~1.5 seconds at 44.1 kHz) without ever allocating memory.</li>
+  <li><strong>Power-of-2 size trick:</strong> <code>(pos + 1) &amp; (size - 1)</code> is a
+      fast modulo operation that only works when <code>size</code> is a power of 2
+      (65536 = 2¹⁶). It replaces the slower <code>% size</code>.</li>
+  <li><strong>noexcept:</strong> guarantees the function never throws an exception.
+      Required for anything called on the audio thread.</li>
+</ul>
+
+<h3>VisualCompProcessor class — key members</h3>
+<table>
+  <tr><th>Member</th><th>Type</th><th>Purpose</th></tr>
+  <tr><td><code>apvts</code></td><td><code>AudioProcessorValueTreeState</code></td><td>JUCE's parameter manager — stores all 9 parameters, handles automation, state save/load, and connects controls to audio</td></tr>
+  <tr><td><code>inputWaveform</code></td><td><code>WaveformBuffer</code></td><td>Ring buffer of pre-compression samples → feeds INPUT oscilloscope</td></tr>
+  <tr><td><code>outputWaveform</code></td><td><code>WaveformBuffer</code></td><td>Ring buffer of post-compression samples → feeds OUTPUT oscilloscope</td></tr>
+  <tr><td><code>gainReductionDb</code></td><td><code>atomic&lt;float&gt;</code></td><td>Current GR value in dB (negative = compression happening) → feeds VU meter needle</td></tr>
+  <tr><td><code>currentInputLevelDb</code></td><td><code>atomic&lt;float&gt;</code></td><td>Current block peak in dBFS → feeds GrCurveDisplay live dot</td></tr>
+  <tr><td><code>sidechainEnabled</code></td><td><code>atomic&lt;bool&gt;</code></td><td>Set by GUI; read by audio thread — use external sidechain for detection?</td></tr>
+  <tr><td><code>compMode</code></td><td><code>atomic&lt;int&gt;</code></td><td>Current circuit mode (0=VCA, 1=FET, 2=Optical, 3=Tube)</td></tr>
+  <tr><td><code>envelope</code></td><td><code>float</code></td><td>Smoothed GR value (in dB) — the main envelope follower state</td></tr>
+  <tr><td><code>opticalState</code></td><td><code>float</code></td><td>Optical photocell state (0–1) — used only in Optical mode</td></tr>
+  <tr><td><code>tubeMu</code></td><td><code>float</code></td><td>Variable-mu ratio multiplier — used only in Tube mode</td></tr>
+</table>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     5. PluginProcessor.cpp
+═══════════════════════════════════════════════════════════ -->
+<h1 id="processor-cpp">5. PluginProcessor.cpp — Audio DSP Line by Line</h1>
+
+<div class="file-card">
+  <div class="fc-header">
+    <span class="filename">PluginProcessor.cpp</span>
+    <span class="role">All audio processing — the heart of the plugin</span>
+  </div>
+  <div class="fc-body">
+
+<h3>Saturation helper functions (lines 4–22)</h3>
+
+<h4>fastTanh(x) — line 4</h4>
+<pre><span class="kw">static inline float</span> <span class="fn">fastTanh</span>(<span class="kw">float</span> x) <span class="kw">noexcept</span> {
+    <span class="kw">const float</span> x2 = x * x;
+    <span class="kw">return</span> x * (<span class="nm">27.0f</span> + x2) / (<span class="nm">27.0f</span> + <span class="nm">9.0f</span> * x2);
+}</pre>
+<p>
+  A rational polynomial approximation of <code>tanh(x)</code> that is faster than the
+  <code>std::tanh</code> library function. <code>tanh</code> is used as a soft-clipping
+  function — it smoothly rounds off the peaks of audio without the harshness of hard clipping.
+  The approximation error is under 0.5% across the audio range.
+</p>
+
+<h4>fetSaturate(x, drive) — line 10</h4>
+<pre><span class="kw">static inline float</span> <span class="fn">fetSaturate</span>(<span class="kw">float</span> x, <span class="kw">float</span> drive) <span class="kw">noexcept</span> {
+    <span class="kw">const float</span> k       = <span class="nm">1.0f</span> + drive * <span class="nm">2.2f</span>;
+    <span class="kw">const float</span> clipped = <span class="fn">fastTanh</span>(x * k) / k;        <span class="cm">// symmetric soft clip</span>
+    <span class="kw">const float</span> asym    = drive * <span class="nm">0.018f</span> * clipped * std::<span class="fn">abs</span>(clipped); <span class="cm">// even-harmonic bias</span>
+    <span class="kw">return</span> clipped + asym;
+}</pre>
+<p>
+  Models an FET (Field-Effect Transistor) input stage.
+  The <code>asym</code> term adds even-order harmonics (2nd, 4th…), giving the characteristic
+  "punchy" tone of an 1176-style compressor. More <code>drive</code> = more saturation.
+</p>
+
+<h4>tubeSaturate(x, drive) — line 18</h4>
+<pre><span class="kw">static inline float</span> <span class="fn">tubeSaturate</span>(<span class="kw">float</span> x, <span class="kw">float</span> drive) <span class="kw">noexcept</span> {
+    <span class="kw">const float</span> k   = <span class="nm">1.0f</span> + drive * <span class="nm">1.6f</span>;
+    <span class="kw">const float</span> sat = std::<span class="fn">tanh</span>(x * k) / k;         <span class="cm">// smooth symmetry</span>
+    <span class="kw">return</span> sat + drive * <span class="nm">0.025f</span> * sat * sat;         <span class="cm">// even-harmonic glow</span>
+}</pre>
+<p>
+  Models a vacuum tube triode. Uses the standard <code>std::tanh</code> (slightly slower
+  but tube DSP is applied less per sample than FET, so it's fine).
+  The <code>sat * sat</code> term adds warm 2nd-harmonic distortion — the "glow" of tube gear.
+</p>
+
+<hr/>
+
+<h3>Constructor (lines 25–32)</h3>
+<pre><span class="ty">VisualCompProcessor</span>::<span class="fn">VisualCompProcessor</span>()
+    : <span class="fn">AudioProcessor</span>(BusesProperties()
+          .<span class="fn">withInput</span> (<span class="st">"Input"</span>,     stereo(), <span class="kw">true</span>)   <span class="cm">// main stereo in (required)</span>
+          .<span class="fn">withInput</span> (<span class="st">"Sidechain"</span>, stereo(), <span class="kw">false</span>)  <span class="cm">// sidechain in (optional)</span>
+          .<span class="fn">withOutput</span>(<span class="st">"Output"</span>,    stereo(), <span class="kw">true</span>)),  <span class="cm">// main stereo out</span>
+      <span class="fn">apvts</span>(*<span class="kw">this</span>, <span class="kw">nullptr</span>, <span class="st">"STATE"</span>, <span class="fn">createParameterLayout</span>())
+{}</pre>
+<p>
+  Declares <strong>three buses</strong>: a required stereo input, an optional sidechain input, and
+  a required stereo output. The sidechain bus is used when the user enables the "SC" button —
+  compression then responds to a different audio source than the one being compressed.
+</p>
+
+<hr/>
+
+<h3>createParameterLayout() — lines 36–67</h3>
+<p>
+  Registers all 9 automatable parameters with JUCE's <code>AudioProcessorValueTreeState</code>
+  (APVTS). Each parameter gets:
+</p>
+<ul>
+  <li>a string ID (<code>"attack"</code>, <code>"threshold"</code>, etc.)</li>
+  <li>a range (min, max, step, <em>skew factor</em>)</li>
+  <li>a default value</li>
+</ul>
+
+<div class="dsp">
+  <strong>What is a skew factor?</strong>
+  When <code>skew = 0.3</code>, the knob is heavily logarithmic — most of the rotation
+  covers small values (e.g. 0.1–20 ms for attack), giving you fine control at short times.
+  A skew of 1.0 would be linear. This matches how humans hear time-based parameters.
+</div>
+
+<table>
+  <tr><th>ID</th><th>Range</th><th>Default</th><th>Why this range</th></tr>
+  <tr><td><code>attack</code></td><td>0.1 – 200 ms</td><td>80 ms</td><td>Covers from "catch every transient" to "let transients through"</td></tr>
+  <tr><td><code>release</code></td><td>1 – 2000 ms</td><td>40 ms</td><td>Short snappy to slow breathing</td></tr>
+  <tr><td><code>threshold</code></td><td>−60 – 0 dBFS</td><td>0 dBFS</td><td>Full range of usable signal levels</td></tr>
+  <tr><td><code>knee</code></td><td>0 – 20 dB</td><td>0 dB</td><td>0 = hard knee; 20 dB = very gentle onset</td></tr>
+  <tr><td><code>ratio</code></td><td>1:1 – 20:1</td><td>4:1</td><td>1:1 = no compression; 20:1 ≈ limiting</td></tr>
+  <tr><td><code>gainIn</code></td><td>−24 – +24 dB</td><td>0 dB</td><td>Pre-compression input trim / drive</td></tr>
+  <tr><td><code>gainOut</code></td><td>−24 – +24 dB</td><td>0 dB</td><td>Make-up gain after compression</td></tr>
+  <tr><td><code>limiter</code></td><td>off / on</td><td>off</td><td>Hard ceiling at 0 dBFS</td></tr>
+  <tr><td><code>mix</code></td><td>0 – 1</td><td>1.0</td><td>Parallel compression (0 = fully dry, 1 = fully wet)</td></tr>
+</table>
+
+<hr/>
+
+<h3>prepareToPlay() — lines 69–76</h3>
+<pre><span class="kw">void</span> <span class="fn">prepareToPlay</span>(<span class="kw">double</span> sampleRate, <span class="kw">int</span> samplesPerBlock) {
+    currentSampleRate = sampleRate;
+    envelope = <span class="nm">0.0f</span>;  opticalState = <span class="nm">0.0f</span>;  tubeMu = <span class="nm">1.0f</span>;
+    monoMixBuffer.<span class="fn">setSize</span>(<span class="nm">1</span>, samplesPerBlock * <span class="nm">2</span>);
+}</pre>
+<p>
+  Called by the DAW before audio starts (or when sample rate/block size changes).
+  Resets all stateful DSP variables and pre-allocates the mono mixing scratch buffer.
+  Allocation is safe here because this is <em>not</em> the audio thread yet.
+</p>
+
+<hr/>
+
+<h3>processBlock() — lines 96–286 — The Core DSP</h3>
+
+<p>This is called by the DAW for every block of audio (~128–512 samples). Here is what happens in order:</p>
+
+<h4>Step 1 — Read parameters (lines 104–112)</h4>
+<pre>
+<span class="kw">const float</span> mixAmt      = apvts.<span class="fn">getRawParameterValue</span>(<span class="st">"mix"</span>)-&gt;<span class="fn">load</span>();
+<span class="kw">const float</span> attackMs    = apvts.<span class="fn">getRawParameterValue</span>(<span class="st">"attack"</span>)-&gt;<span class="fn">load</span>();
+<span class="cm">// … etc for all 9 params</span></pre>
+<p>
+  <code>getRawParameterValue()</code> returns a pointer to a <code>std::atomic&lt;float&gt;</code>
+  that JUCE updates whenever the user moves a knob or the DAW sends automation.
+  Calling <code>.load()</code> is a thread-safe read — no locking needed.
+</p>
+
+<h4>Step 2 — Mode-specific time constant clamping (lines 121–138)</h4>
+<pre>
+<span class="kw">switch</span> (mode) {
+    <span class="kw">case</span> FET:     effAttack  = jmin(attackMs, <span class="nm">2.0f</span>);   <span class="cm">// FET is ultra-fast</span>
+                  effRelease = jmax(releaseMs, <span class="nm">20.0f</span>);
+    <span class="kw">case</span> Optical: effAttack  = jmax(attackMs, <span class="nm">30.0f</span>);  <span class="cm">// Optical is programme-dependent</span>
+                  effRelease = jmax(releaseMs, <span class="nm">100.0f</span>);
+    <span class="kw">case</span> Tube:    effAttack  = jmax(attackMs, <span class="nm">50.0f</span>);  <span class="cm">// Tube is inherently slow</span>
+                  effRelease = jmax(releaseMs, <span class="nm">200.0f</span>);
+}</pre>
+<p>
+  Each hardware compressor type has a characteristic speed range.
+  This enforces those ranges so that, for example, you can't accidentally make an Optical
+  compressor act like a limiter (which would be unrealistic).
+</p>
+
+<h4>Step 3 — Compute attack / release coefficients (lines 140–141)</h4>
+<pre>
+<span class="kw">const float</span> attackCoeff  = std::<span class="fn">exp</span>(-<span class="nm">1.0f</span> / (sampleRate * attackMs  * <span class="nm">0.001f</span>));
+<span class="kw">const float</span> releaseCoeff = std::<span class="fn">exp</span>(-<span class="nm">1.0f</span> / (sampleRate * releaseMs * <span class="nm">0.001f</span>));</pre>
+
+<div class="dsp">
+  <strong>Why exp()?</strong>
+  Envelope followers use a one-pole IIR (infinite impulse response) filter:
+  <code>env = coeff * env + (1 - coeff) * target</code>.
+  The coefficient is derived from the RC time constant formula where
+  <code>τ = attack_seconds</code> and <code>coeff = e^(−1/τ·fs)</code>.
+  A coefficient close to 1.0 = slow response; close to 0.0 = fast response.
+  At 44100 Hz with a 10 ms attack: <code>coeff = e^(−1/(441)) ≈ 0.9977</code>.
+</div>
+
+<h4>Step 4 — Save dry buffer for parallel mix (lines 146–151)</h4>
+<pre>
+<span class="kw">if</span> (mixAmt &lt; <span class="nm">0.9999f</span>) {
+    dryBuffer.<span class="fn">setSize</span>(numChannels, numSamples, <span class="kw">false</span>, <span class="kw">false</span>, <span class="kw">true</span>); <span class="cm">// keep existing data</span>
+    <span class="kw">for</span> (<span class="kw">int</span> ch …) dryBuffer.<span class="fn">copyFrom</span>(ch, <span class="nm">0</span>, buffer …);
+}</pre>
+<p>
+  Only saves a copy of the input signal when mix is less than 100%.
+  The <code>0.9999f</code> threshold avoids the copy when it's not needed (saves CPU).
+</p>
+
+<h4>Step 5 — Push input to oscilloscope buffer (lines 153–158)</h4>
+<pre>
+monoMixBuffer.<span class="fn">clear</span>();
+<span class="kw">for</span> (<span class="kw">int</span> ch …) monoMixBuffer.<span class="fn">addFrom</span>(<span class="nm">0</span>, <span class="nm">0</span>, buffer, ch, <span class="nm">0</span>, numSamples, inScale);
+inputWaveform.<span class="fn">push</span>(monoMixBuffer.<span class="fn">getReadPointer</span>(<span class="nm">0</span>), numSamples);</pre>
+<p>
+  Mixes all channels to mono (averaging), scales by input gain, and pushes to
+  the <code>inputWaveform</code> ring buffer so the oscilloscope can display it.
+</p>
+
+<h4>Step 6 — Per-sample processing loop (lines 165–265)</h4>
+<p>This is the innermost loop — it processes every single sample individually:</p>
+
+<ol>
+  <li><strong>Apply input gain + saturation</strong> (FET/Tube modes add harmonic colour here)</li>
+  <li><strong>Compute peak level</strong> from all channels (or sidechain)</li>
+  <li><strong>Convert peak to dBFS</strong> for comparison against threshold</li>
+  <li><strong>Compute raw gain reduction</strong> using threshold/ratio/knee formula</li>
+  <li><strong>Smooth GR through the mode-specific envelope follower</strong></li>
+  <li><strong>Apply smoothed GR + output gain</strong> to all channels</li>
+  <li><strong>Apply limiter / output saturation</strong> if enabled</li>
+</ol>
+
+<h4>Step 6a — Gain reduction computation (lines 196–210)</h4>
+<pre>
+<span class="kw">if</span> (kneeDb &gt; <span class="nm">0.0f</span> &amp;&amp; detDb &gt;= thresh - halfKnee &amp;&amp; detDb &lt;= thresh + halfKnee) {
+    <span class="cm">// Soft knee — quadratic interpolation in the knee region</span>
+    <span class="kw">const float</span> x = detDb - thresh + halfKnee;
+    grDb = x * x * (<span class="nm">1.0f</span> / ratio - <span class="nm">1.0f</span>) / (<span class="nm">2.0f</span> * kneeDb);
+} <span class="kw">else if</span> (detDb &gt; thresh + halfKnee) {
+    <span class="cm">// Above threshold — standard compression formula</span>
+    grDb = thresh + (detDb - thresh) / ratio - detDb;
+} <span class="kw">else</span> {
+    grDb = <span class="nm">0.0f</span>;  <span class="cm">// below threshold — no compression</span>
+}</pre>
+
+<div class="dsp">
+  <strong>The compression formula explained:</strong>
+  When signal <em>detDb</em> is above threshold: <br/>
+  <code>output_dB = threshold + (input_dB − threshold) / ratio</code><br/>
+  Gain reduction = <code>output_dB − input_dB</code> = <code>threshold + (input_dB − threshold)/ratio − input_dB</code><br/>
+  At ratio 4:1 with threshold −20 dB and input −10 dB:<br/>
+  GR = −20 + (−10 − (−20))/4 − (−10) = −20 + 2.5 + 10 = <strong>−7.5 dB</strong>
+</div>
+
+<h4>Step 6b — Envelope follower per mode (lines 212–240)</h4>
+
+<table>
+  <tr><th>Mode</th><th>Envelope behaviour</th><th>Hardware it models</th></tr>
+  <tr>
+    <td><strong>VCA</strong></td>
+    <td>Classic one-pole IIR: attack coeff when GR is increasing, release coeff when recovering</td>
+    <td>SSL 4000G, API 2500, dbx 160</td>
+  </tr>
+  <tr>
+    <td><strong>FET</strong></td>
+    <td>Same as VCA but clamped to ultra-fast attack (≤ 2 ms) — very aggressive</td>
+    <td>Urei 1176, Purple MC77</td>
+  </tr>
+  <tr>
+    <td><strong>Optical</strong></td>
+    <td>
+      Maintains a separate <code>opticalState</code> (0–1) representing the photocell brightness.
+      GR = <code>-opticalState × 20 dB × (1 + opticalState × 0.5)</code> — non-linear release
+      that gets slower as the compressor recovers, mimicking real photocell persistence.
+    </td>
+    <td>Teletronix LA-2A, Universal Audio LA-3A</td>
+  </tr>
+  <tr>
+    <td><strong>Tube</strong></td>
+    <td>
+      Computes a variable-mu ratio <code>tubeMu = 1 + depth × 1.8</code> where depth = GR/20.
+      Applies extra GR, making the ratio <em>increase</em> as the signal gets louder — classic
+      variable-mu behaviour. Also the slowest attack and release.
+    </td>
+    <td>Vari-Mu, Manley Variable Mu</td>
+  </tr>
+</table>
+
+<h4>Step 7 — Apply compression gain + limiter (lines 242–264)</h4>
+<pre>
+<span class="kw">const float</span> compGain = Decibels::<span class="fn">decibelsToGain</span>(envelope) * outputLinear;
+<span class="kw">for</span> (<span class="kw">int</span> ch …) {
+    <span class="kw">const float</span> compressed = buffer.<span class="fn">getSample</span>(ch, i) * compGain;
+    <span class="kw">float</span> out;
+    <span class="kw">if</span> (limiterOn)
+        out = jlimit(-<span class="nm">1.0f</span>, <span class="nm">1.0f</span>, tubeSaturate/fetSaturate(compressed, <span class="nm">0.08f</span>));
+    <span class="kw">else</span>
+        <span class="cm">// gentle output saturation by mode (adds character)</span>
+        out = fetSaturate / tubeSaturate(compressed, <span class="nm">0.06-0.10f</span>);
+    buffer.<span class="fn">setSample</span>(ch, i, out);
+}</pre>
+
+<p>
+  When the hard limiter is ON: the signal is saturated and then hard-clipped to ±1.0
+  (0 dBFS), preventing digital clipping in the DAW.
+  When OFF: a very gentle output saturation (drive 0.06–0.10) adds warmth without clipping.
+</p>
+
+<h4>Step 8 — Parallel mix blend (lines 267–274)</h4>
+<pre>
+<span class="kw">const float</span> wet = mixAmt, dry = <span class="nm">1.0f</span> - mixAmt;
+<span class="kw">for</span> (ch, i)
+    buffer[ch][i] = buffer[ch][i] * wet + dryBuffer[ch][i] * dry;</pre>
+<p>
+  <strong>Parallel compression:</strong> blends the fully compressed signal (wet) with the
+  uncompressed original (dry). At 50% mix you get a punchy blend of dynamics.
+  This is the classic "New York compression" trick.
+</p>
+
+<h4>Steps 9–10 — Output oscilloscope + metering (lines 276–285)</h4>
+<p>
+  Mixes down to mono and pushes to <code>outputWaveform</code> for the OUTPUT oscilloscope.
+  Atomically stores the current block's <code>gainReductionDb</code> (= <code>envelope</code>)
+  and <code>currentInputLevelDb</code> for the GUI widgets.
+</p>
+
+<hr/>
+
+<h3>getStateInformation / setStateInformation (lines 288–300)</h3>
+<pre>
+<span class="kw">void</span> <span class="fn">getStateInformation</span>(MemoryBlock&amp; destData) {
+    <span class="kw">auto</span> state = apvts.<span class="fn">copyState</span>();
+    <span class="kw">if</span> (<span class="kw">auto</span> xml = state.<span class="fn">createXml</span>())
+        <span class="fn">copyXmlToBinary</span>(*xml, destData);
+}</pre>
+<p>
+  JUCE calls these when saving/loading the DAW project file.
+  The APVTS state is serialised to XML, then to a binary blob that the DAW stores in the session.
+  On load, the process reverses: binary → XML → APVTS → all parameter values restored.
+</p>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     6. PluginEditor.h
+═══════════════════════════════════════════════════════════ -->
+<h1 id="editor-h">6. PluginEditor.h — GUI Class Declarations</h1>
+
+<div class="file-card">
+  <div class="fc-header">
+    <span class="filename">PluginEditor.h</span>
+    <span class="role">Declares the editor (GUI window) and custom Look-and-Feel</span>
+  </div>
+  <div class="fc-body">
+
+<h3>SnapKnob (line 8)</h3>
+<pre><span class="kw">class</span> <span class="ty">SnapKnob</span> : <span class="kw">public</span> <span class="ty">juce::Slider</span> {};</pre>
+<p>
+  An empty subclass of <code>juce::Slider</code>. Its purpose is to give the knobs a distinct
+  type so that <code>getLabelFont()</code> in <code>ModernLookAndFeel</code> can tell the difference
+  between a knob's value label and a standalone caption label.
+</p>
+
+<h3>ModernLookAndFeel (lines 10–29)</h3>
+<p>
+  Subclasses JUCE's built-in <code>LookAndFeel_V4</code> and overrides four drawing methods to
+  give every widget a custom dark-theme appearance:
+</p>
+<ul>
+  <li><code>drawRotarySlider()</code> — draws the layered concentric-ring knob design</li>
+  <li><code>drawLinearSlider()</code> — draws the slim dark-track vertical fader with tick marks</li>
+  <li><code>drawToggleButton()</code> — draws pill-shaped ON/OFF buttons with accent colour</li>
+  <li><code>drawLabel()</code> / <code>getLabelFont()</code> — sets Century Gothic font at two sizes</li>
+</ul>
+
+<h3>VisualCompEditor members</h3>
+<table>
+  <tr><th>Member</th><th>Type</th><th>What it is</th></tr>
+  <tr><td><code>inputDisplay</code> / <code>outputDisplay</code></td><td><code>WaveformDisplay</code></td><td>Scrolling oscilloscope panels</td></tr>
+  <tr><td><code>vuMeter</code></td><td><code>VuMeter</code></td><td>Analogue needle gain-reduction meter</td></tr>
+  <tr><td><code>curveDisplay</code></td><td><code>GrCurveDisplay</code></td><td>Transfer curve with live dot</td></tr>
+  <tr><td><code>gainInFader</code> / <code>gainOutFader</code></td><td><code>juce::Slider</code></td><td>Vertical faders for input/output gain</td></tr>
+  <tr><td><code>limiterButton</code></td><td><code>juce::ToggleButton</code></td><td>"LIM" on/off toggle</td></tr>
+  <tr><td><code>sidechainButton</code></td><td><code>juce::ToggleButton</code></td><td>"SC" on/off toggle</td></tr>
+  <tr><td><code>modeButton</code></td><td><code>juce::TextButton</code></td><td>Dropdown trigger for VCA/FET/Optical/Tube</td></tr>
+  <tr><td><code>thresholdKnob</code> … <code>releaseKnob</code></td><td><code>SnapKnob</code></td><td>Five main compressor parameter knobs</td></tr>
+  <tr><td><code>mixKnob</code></td><td><code>SnapKnob</code></td><td>Parallel mix knob in title bar</td></tr>
+  <tr><td><code>gainInAtt</code> … <code>limiterAtt</code></td><td><code>SliderAttachment</code> / <code>ButtonAttachment</code></td><td>APVTS attachments — automatically sync control ↔ parameter</td></tr>
+</table>
+
+<div class="note">
+  <strong>What is an APVTS Attachment?</strong>
+  A <code>SliderAttachment</code> connects a <code>juce::Slider</code> to a named APVTS parameter.
+  When you drag the knob, the attachment updates the parameter; when the DAW sends automation,
+  the attachment moves the knob. It also handles undo/redo and thread safety automatically.
+</div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     7. PluginEditor.cpp
+═══════════════════════════════════════════════════════════ -->
+<h1 id="editor-cpp">7. PluginEditor.cpp — UI Layout, Drawing, and Controls</h1>
+
+<div class="file-card">
+  <div class="fc-header">
+    <span class="filename">PluginEditor.cpp</span>
+    <span class="role">All UI rendering, layout constants, control wiring</span>
+  </div>
+  <div class="fc-body">
+
+<h3>Layout constants (lines 4–37)</h3>
+<pre>
+<span class="kw">constexpr int</span> kWidth    = <span class="nm">960</span>;   kHeight  = <span class="nm">510</span>;  kTitleH = <span class="nm">36</span>;
+<span class="kw">constexpr int</span> kRightColW = <span class="nm">280</span>;  kVUH     = <span class="nm">294</span>;
+<span class="kw">constexpr int</span> kContentW  = kWidth - kRightColW;  <span class="cm">// = 680 px — left panel</span>
+<span class="kw">constexpr int</span> kWaveY     = kTitleH + <span class="nm">4</span>;        kWaveH  = <span class="nm">198</span>;
+<span class="kw">constexpr int</span> kCtrlY     = kWaveY + kWaveH + <span class="nm">6</span>;</pre>
+
+<p>The plugin window is divided into regions:</p>
+
+<div class="diagram">
+ ┌──────────────────── 960 px ─────────────────────────────┐
+ │  Title bar (36 px)  [VCA ▾]  VISUAL COMP PRO    MIX ⊙  │
+ ├─────────────── 680 px ──────────┬──── 280 px ───────────┤
+ │  INPUT waveform  │OUTPUT waveform│                       │
+ │     (198 px tall)│              │     VU METER           │
+ ├────────┬──────────────────┬─────┤   (294 px tall)       │
+ │GAIN IN │ 5 knobs (Thresh, │GAIN │                       │
+ │ fader  │ Knee, Ratio,     │ OUT ├───────────────────────┤
+ │        │ Attack, Release) │fader│  TRANSFER CURVE       │
+ │  (LIM) │                  │(SC) │  (remaining height)   │
+ └────────┴──────────────────┴─────┴───────────────────────┘</div>
+
+<h3>Colour palette (lines 29–37)</h3>
+<table>
+  <tr><th>Constant</th><th>Hex</th><th>Used for</th></tr>
+  <tr><td><code>kBg</code></td><td>#2c2c2c</td><td>Main background</td></tr>
+  <tr><td><code>kPanelBg</code></td><td>#222222</td><td>Controls area behind knobs</td></tr>
+  <tr><td><code>kBorder</code></td><td>#484848</td><td>Divider lines, inactive buttons</td></tr>
+  <tr><td><code>kAccent</code></td><td>#4d90e0</td><td>Active toggle buttons</td></tr>
+  <tr><td><code>kInputCol</code></td><td>#dd9933 (amber)</td><td>INPUT waveform colour</td></tr>
+  <tr><td><code>kOutputCol</code></td><td>#4488dd (blue)</td><td>OUTPUT waveform colour</td></tr>
+</table>
+
+<h3>ModernLookAndFeel::drawRotarySlider() — lines 51–94</h3>
+<p>Paints each knob from the centre out in five layers:</p>
+<ol>
+  <li><strong>Outer disc</strong> — dark charcoal circle (#1c1c1c)</li>
+  <li><strong>Three depth rings</strong> — alternating dark/light ellipses to simulate machined grooves</li>
+  <li><strong>Inner body disc</strong> — slightly lighter (#282828) with a thin border</li>
+  <li><strong>Pointer line + dot</strong> — white line from centre to rim, with a small filled circle at the tip</li>
+  <li>Angle is computed as: <code>valueAngle = startAngle + (endAngle − startAngle) × sliderPos</code></li>
+</ol>
+
+<h3>drawLinearSlider() — lines 96–166</h3>
+<p>Draws each vertical fader:</p>
+<ol>
+  <li><strong>Track groove</strong> — thin rounded rectangle, 4 px wide</li>
+  <li><strong>Tick marks</strong> at ±6, ±12, ±18, ±24 dB positions (major marks at multiples of 12)</li>
+  <li><strong>Cap (thumb)</strong> — a rounded rectangle with drop shadow passes, a highlight stripe, and three-line grip texture</li>
+</ol>
+
+<h3>Constructor wiring (lines 212–288)</h3>
+<p>
+  Every control is wired to a parameter via an APVTS Attachment in the constructor initialiser list.
+  Example: <code>thresholdAtt(p.apvts, "threshold", thresholdKnob)</code> means the threshold
+  knob and the "threshold" parameter are permanently linked — no extra code needed.
+</p>
+<p>
+  The <strong>sidechain button</strong> is different — it does <em>not</em> use an APVTS attachment
+  because it controls an atomic flag on the processor directly:
+</p>
+<pre>sidechainButton.onClick = [<span class="kw">this</span>] {
+    audioProcessor.sidechainEnabled.<span class="fn">store</span>(sidechainButton.<span class="fn">getToggleState</span>(),
+                                            memory_order_relaxed);
+};</pre>
+
+<h3>showModeMenu() / applyMode() — lines 300–325</h3>
+<p>
+  Clicking the mode button shows a <code>juce::PopupMenu</code> with four items.
+  The selected item's 1-based ID is converted to a 0-based <code>CompMode</code> index
+  and stored atomically: <code>audioProcessor.compMode.store(modeIndex)</code>.
+  The button label is updated immediately in the GUI.
+</p>
+
+<h3>paint() — lines 361–473</h3>
+<p>
+  Draws the entire non-widget background in one pass using four layered gradients to create
+  a subtle vignette effect (darker edges, lighter centre-top):
+</p>
+<ol>
+  <li>Solid dark base fill</li>
+  <li>Radial top-centre white glow (gives the "studio spotlight" feel)</li>
+  <li>Vertical black fade toward the bottom</li>
+  <li>Two edge darkening gradients (left and right)</li>
+</ol>
+<p>Then draws: title bar gradient, separator lines, knob column dividers, right-column divider.</p>
+
+<h3>resized() — lines 475–533</h3>
+<p>
+  Called whenever the plugin window size changes (only at creation since
+  <code>setResizable(false, false)</code>). Sets the pixel bounds of every child component.
+  All positions are derived from the layout constants at the top of the file —
+  no magic numbers in the body of <code>resized()</code>.
+</p>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     8. WAVEFORM DISPLAY
+═══════════════════════════════════════════════════════════ -->
+<h1 id="waveform">8. WaveformDisplay — Ring-Buffer Oscilloscope</h1>
+
+<div class="file-card">
+  <div class="fc-header">
+    <span class="filename">WaveformDisplay.h / .cpp</span>
+    <span class="role">Scrolling oscilloscope that shows ~1.3 s of audio history</span>
+  </div>
+  <div class="fc-body">
+
+<p>
+  Two instances are created — one showing the signal <em>before</em> compression (amber),
+  one after (blue). The component inherits from both <code>juce::Component</code>
+  (for painting) and <code>juce::Timer</code> (for the update loop).
+</p>
+
+<h3>Key constants</h3>
+<table>
+  <tr><th>Constant</th><th>Value</th><th>Meaning</th></tr>
+  <tr><td><code>kSamplesToShow</code></td><td>57,344</td><td>Audio history shown (≈ 1.3 s at 44.1 kHz)</td></tr>
+  <tr><td><code>kFrameW</code></td><td>3 px</td><td>Inset border width</td></tr>
+  <tr><td><code>kLabelW</code></td><td>34 px</td><td>Width reserved for dB axis labels on the left</td></tr>
+  <tr><td>Timer rate</td><td>120 Hz</td><td>Refresh rate — very smooth visual scrolling</td></tr>
+</table>
+
+<h3>timerCallback() — the display update loop</h3>
+<pre>
+<span class="kw">void</span> <span class="fn">timerCallback</span>() {
+    <span class="kw">const int</span> pixW = getWidth() - <span class="nm">2</span> * kFrameW - kLabelW;
+    <span class="kw">const int</span> wp   = waveformBuffer.writePos.<span class="fn">load</span>(memory_order_acquire);  <span class="cm">// acquire fence!</span>
+
+    <span class="kw">if</span> (displayWidth != pixW || lastWritePos &lt; <span class="nm">0</span>)
+        <span class="fn">initialiseDisplayBuffer</span>(pixW);   <span class="cm">// first run or resize — full rebuild</span>
+    <span class="kw">else</span>
+        <span class="fn">updateDisplayBuffer</span>(pixW, wp);    <span class="cm">// normal path — incremental shift</span>
+    <span class="fn">repaint</span>();
+}</pre>
+
+<div class="note">
+  <strong>Why <code>memory_order_acquire</code> here?</strong>
+  The audio thread uses <code>memory_order_relaxed</code> when <em>writing</em> <code>writePos</code>
+  (after all sample data is written). The GUI uses <code>acquire</code> when reading —
+  this creates a happens-before relationship that guarantees the GUI sees all sample data written
+  before the <code>writePos</code> update. Without this, the CPU could reorder reads and you might
+  read a new <code>writePos</code> but old sample data.
+</div>
+
+<h3>initialiseDisplayBuffer(pixW)</h3>
+<p>
+  Fills all <code>pixW</code> pixel columns from scratch by walking backwards through the ring buffer.
+  Column 0 (left edge) = oldest audio, column pixW−1 (right edge) = newest.
+  For each pixel column, it averages <code>spp</code> (samples-per-pixel) consecutive samples
+  to find the min and max amplitude.
+</p>
+
+<h3>updateDisplayBuffer(pixW, wp)</h3>
+<p>
+  The incremental (fast) path called on every timer tick:
+</p>
+<ol>
+  <li>Calculate how many new samples have arrived since last tick</li>
+  <li>Convert to pixel columns via <code>pixelAccum</code> (fractional accumulator)</li>
+  <li>Use <code>memmove()</code> to slide all existing pixel data left by <code>shift</code> columns — O(N) but only 57344/spp bytes</li>
+  <li>Fill the rightmost <code>shift</code> columns with fresh min/max data from the ring buffer</li>
+</ol>
+
+<div class="tip">
+  <strong>Why memmove and not a loop?</strong>
+  <code>memmove()</code> is a highly optimised C runtime function — on modern CPUs it uses SIMD
+  instructions (SSE/AVX) and is typically 10–20× faster than a manual loop for this operation.
+</div>
+
+<h3>paint() — drawing the waveform</h3>
+<p>Three drawing passes over the pre-computed <code>dispMin/dispMax</code> arrays:</p>
+<ol>
+  <li><strong>Filled polygon</strong> — traces max values forward then min values backward to form a closed shape, filled with 42% opacity waveform colour</li>
+  <li><strong>Bright top edge</strong> — anti-aliased stroke along the max values at 1.5 px width</li>
+  <li><strong>Dimmer bottom edge</strong> — mirrors the min values, 1.0 px, 55% opacity</li>
+</ol>
+<p>
+  For the INPUT display only: draws the <strong>threshold line</strong> as a red dashed horizontal
+  line (with a subtle red glow background), showing exactly where compression starts.
+</p>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     9. VU METER
+═══════════════════════════════════════════════════════════ -->
+<h1 id="vumeter">9. VuMeter — Ballistic Gain-Reduction Meter</h1>
+
+<div class="file-card">
+  <div class="fc-header">
+    <span class="filename">VuMeter.h / .cpp</span>
+    <span class="role">Analogue-style needle meter with ballistic smoothing</span>
+  </div>
+  <div class="fc-body">
+
+<p>
+  Emulates a vintage VU meter movement. The needle swings right for 0 dB GR (no compression)
+  and left for heavy gain reduction.
+</p>
+
+<h3>Scale marks table</h3>
+<pre>
+<span class="kw">static constexpr float</span> kMarks[<span class="nm">7</span>][<span class="nm">2</span>] = {
+    {  <span class="nm">0.0f</span>, <span class="nm">35.0f</span>  },  <span class="cm">// 0 dB GR   → needle fully right</span>
+    { -<span class="nm">2.0f</span>, <span class="nm">23.3f</span>  },
+    { -<span class="nm">4.0f</span>, <span class="nm">11.7f</span>  },
+    { -<span class="nm">8.0f</span>, -<span class="nm">11.7f</span> },
+    {-<span class="nm">12.0f</span>, -<span class="nm">23.3f</span> },
+    {-<span class="nm">16.0f</span>, -<span class="nm">29.0f</span> },
+    {-<span class="nm">20.0f</span>, -<span class="nm">35.0f</span> }   <span class="cm">// −20 dB GR → needle fully left</span>
+};</pre>
+<p>Each row is <code>{ gainReductionDb, needleAngleDegrees }</code>. The angle range is ±35°.</p>
+
+<h3>timerCallback() — ballistic needle physics (60 Hz)</h3>
+<pre>
+<span class="kw">const float</span> targetAngle = <span class="nm">35.0f</span> + grClamped * (<span class="nm">70.0f</span> / <span class="nm">20.0f</span>);
+<span class="kw">const float</span> alpha = targetAngle &lt; needleAngleDeg ? <span class="nm">0.42f</span> : <span class="nm">0.09f</span>;
+needleAngleDeg += (targetAngle - needleAngleDeg) * alpha;</pre>
+
+<ul>
+  <li><strong>targetAngle</strong>: maps −20 to 0 dB GR linearly to −35° to +35°</li>
+  <li><strong>alpha = 0.42</strong>: fast response when GR is <em>increasing</em> (needle swings left quickly — like a real meter attacking)</li>
+  <li><strong>alpha = 0.09</strong>: slow response when GR is <em>decreasing</em> (needle drifts right slowly — like a real meter releasing)</li>
+  <li>This exponential smoothing mimics the inertia of a physical meter movement</li>
+</ul>
+
+<h3>paint() — needle drawing</h3>
+<p>The pivot point is at the bottom-centre of the face area. The needle angle is converted to an (x, y) tip position using:</p>
+<pre>x = pivX + radius * sin(angleDeg)
+y = pivY - radius * cos(angleDeg)</pre>
+<p>
+  The needle is drawn in three parts: a drop shadow (offset 1.2 px), a dark body, and a
+  red tip (the top 18% of the needle length). A pivot circle is drawn last.
+</p>
+<p>
+  The <strong>red LED</strong> at the bottom lights up whenever GR exceeds 0.3 dB,
+  with a radial gradient for a realistic illuminated look.
+</p>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     10. GR CURVE DISPLAY
+═══════════════════════════════════════════════════════════ -->
+<h1 id="grcurve">10. GrCurveDisplay — Live Transfer Curve</h1>
+
+<div class="file-card">
+  <div class="fc-header">
+    <span class="filename">GrCurveDisplay.h / .cpp</span>
+    <span class="role">Draws the compressor's input→output transfer function in real time</span>
+  </div>
+  <div class="fc-body">
+
+<p>
+  Shows a graph of <em>input dBFS (X axis)</em> vs <em>output dBFS (Y axis)</em> for the
+  current threshold/ratio/knee settings. A moving dot shows exactly where on the curve
+  the signal is operating right now.
+</p>
+
+<h3>computeOutputDb() — the same formula as processBlock</h3>
+<pre>
+<span class="kw">static float</span> <span class="fn">computeOutputDb</span>(<span class="kw">float</span> inDb, <span class="kw">float</span> thresh, <span class="kw">float</span> ratio, <span class="kw">float</span> knee) {
+    <span class="kw">const float</span> hk = knee * <span class="nm">0.5f</span>;
+    <span class="kw">if</span> (knee &gt; <span class="nm">0</span> &amp;&amp; inDb &gt;= thresh - hk &amp;&amp; inDb &lt;= thresh + hk)
+        <span class="kw">return</span> inDb + (inDb - thresh + hk)^<span class="nm">2</span> * (<span class="nm">1</span>/ratio - <span class="nm">1</span>) / (<span class="nm">2</span>*knee);  <span class="cm">// soft knee</span>
+    <span class="kw">if</span> (inDb &gt; thresh + hk)
+        <span class="kw">return</span> thresh + (inDb - thresh) / ratio;  <span class="cm">// above threshold</span>
+    <span class="kw">return</span> inDb;  <span class="cm">// below threshold — unity gain</span>
+}</pre>
+<p>
+  This is identical to the formula in <code>processBlock()</code> — which is the whole point.
+  If the curve shows a certain amount of reduction at a given input level, that is exactly
+  what the audio is doing.
+</p>
+
+<h3>paint() — drawing the curve</h3>
+<ol>
+  <li><strong>Grid lines</strong> at −60, −40, −20, 0 dBFS with axis labels</li>
+  <li><strong>Threshold vertical line</strong> — red dashed vertical at current threshold position</li>
+  <li><strong>Knee shaded region</strong> — dark overlay over the knee transition zone</li>
+  <li><strong>Compression curve</strong> — walks pixel-by-pixel across the plot width, computing output for each input, drawn as a blue line with a 4 px glow pass first</li>
+  <li><strong>Operating-point dot</strong> — reads <code>inputLevelDb</code> from the atomic, computes corresponding output, draws an amber dot with a glow ring</li>
+</ol>
+
+<div class="tip">
+  Timer runs at <strong>30 Hz</strong> here (vs 120 Hz for oscilloscopes) because the curve
+  only needs to redraw when parameters change or the dot moves — it does not need to scroll.
+</div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     11. DSP DEEP-DIVE
+═══════════════════════════════════════════════════════════ -->
+<h1 id="dsp-theory">11. DSP Deep-Dive — Compression Math Explained</h1>
+
+<h2>11.1 The Fundamental Compressor Equation</h2>
+
+<p>Given input level <em>x</em> dBFS and threshold <em>T</em> dBFS:</p>
+<ul>
+  <li>If <em>x ≤ T</em>: output = x (no effect)</li>
+  <li>If <em>x &gt; T</em>: output = T + (x − T) / R</li>
+  <li>Gain reduction GR = output − x = (T + (x − T)/R) − x = (T − x)(1 − 1/R)</li>
+</ul>
+
+<p>Example: T = −20 dBFS, R = 4:1, x = −10 dBFS</p>
+<ul>
+  <li>Output = −20 + (−10 − (−20)) / 4 = −20 + 2.5 = <strong>−17.5 dBFS</strong></li>
+  <li>GR = −17.5 − (−10) = <strong>−7.5 dB</strong></li>
+</ul>
+
+<h2>11.2 Soft Knee</h2>
+<p>
+  A hard knee means compression starts abruptly at threshold. A soft knee applies a
+  quadratic transition in the region [T − K/2, T + K/2] where K = knee width in dB:
+</p>
+<pre>GR = (x − T + K/2)² × (1/R − 1) / (2K)</pre>
+<p>
+  This makes the compression onset gradual — the curve "bends" smoothly rather than having
+  a sharp elbow, producing a more transparent sound especially at low ratios.
+</p>
+
+<h2>11.3 Envelope Follower — The One-Pole IIR Filter</h2>
+
+<p>The smoothed gain reduction follows this recurrence relation each sample:</p>
+<pre>
+envelope[n] = coeff × envelope[n−1] + (1 − coeff) × GR[n]
+where coeff = exp(−1 / (τ × sampleRate))  and  τ = time_constant_in_seconds</pre>
+
+<p>
+  The coefficient controls how quickly the envelope tracks the target GR:
+</p>
+<ul>
+  <li>coeff = 0.9999 → extremely slow (long time constant)</li>
+  <li>coeff = 0.90 → fast (short time constant)</li>
+  <li>coeff = 0.0 → instantaneous (no smoothing)</li>
+</ul>
+<p>
+  Separate attack and release coefficients allow the compressor to respond quickly to
+  louder signals (GR becoming more negative = compressing harder = attacking) but
+  release slowly (GR returning to 0 = signal quieter = releasing).
+</p>
+
+<h2>11.4 Mode-Specific Envelope Behaviours</h2>
+
+<h3>VCA (Voltage Controlled Amplifier)</h3>
+<p>
+  Clean, predictable, transparent. Used on busses and anywhere you want control
+  without colouration. The envelope is a classic one-pole IIR with the user-set attack
+  and release times.
+</p>
+
+<h3>FET (Field-Effect Transistor)</h3>
+<p>
+  Attack clamped to ≤ 2 ms — extremely fast, catches and controls transients aggressively.
+  Input saturation adds odd- and even-harmonic content. This is what makes drums sound
+  "punchy" and "aggressive". Models the 1176-style compressor circuit.
+</p>
+
+<h3>Optical</h3>
+<p>
+  Uses a separate <code>opticalState</code> variable (0–1) that represents the brightness
+  of a photocell. The photocell charges quickly (attack) but discharges on a log curve:
+</p>
+<pre>
+envelope = −opticalState × 20 × (1 + opticalState × 0.5)
+</pre>
+<p>
+  The <code>× (1 + opticalState × 0.5)</code> term makes the release <em>programme-dependent</em>:
+  heavy GR takes longer to release than light GR. This is the characteristic of real optical
+  compressors (LA-2A, LA-3A) and makes them sound "musical" — they breathe with the music
+  naturally.
+</p>
+
+<h3>Tube (Variable-Mu)</h3>
+<p>
+  Computes a variable ratio multiplier:
+  <code>tubeMu = 1 + depth × 1.8</code> where depth = −GR/20 (0–1 scale).
+  This means the effective ratio <em>increases</em> as the signal gets louder — very heavy
+  transients get more compression than moderate signals. Combined with the slowest
+  attack/release times, this gives the famous "gluing" effect on master bus.
+</p>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     12. FULL SIGNAL FLOW
+═══════════════════════════════════════════════════════════ -->
+<h1 id="signal-flow">12. Full Signal Flow — End-to-End Walkthrough</h1>
+
+<p>
+  Follow a single sample of audio from the DAW input all the way to the DAW output:
+</p>
+
+<div class="diagram">
+ DAW AUDIO ENGINE
+      │
+      ▼  buffer arrives in processBlock()
+ ┌─────────────────────────────────────────────────────┐
+ │  1. Read all 9 APVTS parameters (atomic loads)       │
+ │  2. Read compMode + sidechainEnabled (atomic loads)  │
+ │  3. Clamp attack/release to mode limits              │
+ │  4. Compute attack/release coefficients via exp()    │
+ └──────────────────────┬──────────────────────────────┘
+                        │
+            [if mix < 1.0] ──► save dry copy to dryBuffer
+                        │
+                        ▼
+ ┌─────────────────────────────────────────────────────┐
+ │  Mono-mix → push to inputWaveform ring buffer        │
+ │  (INPUT oscilloscope reads this on message thread)   │
+ └──────────────────────┬──────────────────────────────┘
+                        │
+              ┌─────────┴──────────┐
+              ▼ PER SAMPLE LOOP    │
+ ┌────────────────────────────────┐│
+ │ Apply inputLinear gain          ││
+ │ Apply input saturation          ││
+ │   FET:  fetSaturate(x, drive)   ││
+ │   Tube: tubeSaturate(x, drive)  ││
+ │   VCA/Opt: passthrough          ││
+ └──────────────┬─────────────────┘│
+                │                   │
+                ▼                   │
+ ┌────────────────────────────────┐ │
+ │ Detect peak level               │ │
+ │   main input OR sidechain bus   │ │
+ │ Convert to dBFS                 │ │
+ └──────────────┬─────────────────┘ │
+                │                   │
+                ▼                   │
+ ┌────────────────────────────────┐ │
+ │ Compute raw GR (dB)             │ │
+ │   - below soft-knee: GR = 0    │ │
+ │   - in knee zone: quadratic    │ │
+ │   - above threshold: linear    │ │
+ └──────────────┬─────────────────┘ │
+                │                   │
+                ▼                   │
+ ┌────────────────────────────────┐ │
+ │ Smooth through envelope follower│ │
+ │   VCA/FET: one-pole IIR         │ │
+ │   Optical: photocell state      │ │
+ │   Tube:    variable-mu IIR      │ │
+ └──────────────┬─────────────────┘ │
+                │                   │
+                ▼                   │
+ ┌────────────────────────────────┐ │
+ │ Apply compGain = dBtoGain(env) │ │
+ │             × outputLinear      │ │
+ │                                 │ │
+ │ Apply output saturation         │ │
+ │   OR limiter clip to ±1.0      │ │
+ └──────────────┬─────────────────┘ │
+                └─────────┬──────────┘
+                          │
+              [if mix < 1.0] ──► blend wet + dry
+                          │
+                          ▼
+ ┌─────────────────────────────────────────────────────┐
+ │  Mono-mix → push to outputWaveform ring buffer       │
+ │  Store gainReductionDb, currentInputLevelDb atomics  │
+ └──────────────────────────────────────────────────────┘
+      │
+      ▼  processed buffer returned to DAW
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     13. GLOSSARY
+═══════════════════════════════════════════════════════════ -->
+<h1 id="glossary">13. Glossary</h1>
+
+<table>
+  <tr><th>Term</th><th>Definition</th></tr>
+  <tr><td><strong>APVTS</strong></td><td>AudioProcessorValueTreeState — JUCE's parameter manager that handles automation, state persistence, and UI binding</td></tr>
+  <tr><td><strong>Attack</strong></td><td>Time for the compressor to respond to a signal exceeding the threshold</td></tr>
+  <tr><td><strong>Atomic</strong></td><td>A data type that can be read/written from multiple threads simultaneously without data corruption</td></tr>
+  <tr><td><strong>Bus</strong></td><td>A named audio input or output channel group (e.g. "Input", "Sidechain", "Output")</td></tr>
+  <tr><td><strong>dBFS</strong></td><td>Decibels relative to Full Scale — 0 dBFS is the maximum digital level; values are always ≤ 0</td></tr>
+  <tr><td><strong>DAW</strong></td><td>Digital Audio Workstation — software that hosts plugins (Ableton, Logic, FL Studio, etc.)</td></tr>
+  <tr><td><strong>Envelope follower</strong></td><td>A circuit/algorithm that tracks the amplitude of a signal over time</td></tr>
+  <tr><td><strong>FET</strong></td><td>Field-Effect Transistor — a type of transistor used in fast compressor designs (1176 style)</td></tr>
+  <tr><td><strong>Gain reduction (GR)</strong></td><td>The amount by which the compressor has lowered the signal level, expressed in dB (always ≤ 0)</td></tr>
+  <tr><td><strong>Hard knee</strong></td><td>Compression begins abruptly at the threshold</td></tr>
+  <tr><td><strong>IIR filter</strong></td><td>Infinite Impulse Response — a filter that has feedback (its output depends on past outputs)</td></tr>
+  <tr><td><strong>JUCE</strong></td><td>C++ framework for audio applications and plugins</td></tr>
+  <tr><td><strong>Knee</strong></td><td>Transition zone around the threshold; soft knee = gradual onset</td></tr>
+  <tr><td><strong>Look-and-Feel</strong></td><td>JUCE class that controls how every type of widget is drawn</td></tr>
+  <tr><td><strong>Make-up gain</strong></td><td>Output gain added after compression to restore loudness</td></tr>
+  <tr><td><strong>Message thread</strong></td><td>The GUI thread in JUCE — handles user input and painting</td></tr>
+  <tr><td><strong>Optical compressor</strong></td><td>Uses a light source and photocell for gain control — programme-dependent, musical release</td></tr>
+  <tr><td><strong>Parallel compression</strong></td><td>Blending compressed signal with original dry signal (controlled by Mix parameter)</td></tr>
+  <tr><td><strong>Ratio</strong></td><td>Compression ratio — how much the signal above threshold is reduced. 4:1 means 4 dB input change = 1 dB output change</td></tr>
+  <tr><td><strong>Release</strong></td><td>Time for the compressor to stop reducing gain after the signal drops below threshold</td></tr>
+  <tr><td><strong>Ring buffer</strong></td><td>Fixed-size circular array where the write pointer wraps around — enables lock-free audio streaming</td></tr>
+  <tr><td><strong>Sidechain</strong></td><td>A secondary audio input used for detection only — compression reacts to this signal, not the main input</td></tr>
+  <tr><td><strong>Soft knee</strong></td><td>Compression begins gradually over a range of dB around the threshold</td></tr>
+  <tr><td><strong>Tanh saturation</strong></td><td>Soft clipping using the hyperbolic tangent function — models analogue circuit non-linearity</td></tr>
+  <tr><td><strong>Threshold</strong></td><td>Signal level (dBFS) above which compression is applied</td></tr>
+  <tr><td><strong>Transfer curve</strong></td><td>Graph of output level vs input level for a compressor — shows the "knee" shape visually</td></tr>
+  <tr><td><strong>Tube / Variable-mu</strong></td><td>Vacuum tube compressor where the ratio increases with signal level — smooth, musical compression</td></tr>
+  <tr><td><strong>VCA</strong></td><td>Voltage Controlled Amplifier — fast, clean, transparent compressor type</td></tr>
+
+</table>
+
+<hr/>
+
+<p style="text-align:center; color:#888; font-size:12px; margin-top: 40px;">
+  Visual Comp Pro &nbsp;|&nbsp; Brella Audio by Arnav Singh &nbsp;|&nbsp; Codebase Guide v1.0
+</p>
+
+</div><!-- .page -->
+</body>
+</html>

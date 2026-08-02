@@ -1,0 +1,134 @@
+﻿#pragma once
+#include <JuceHeader.h>
+#include <array>
+#include <atomic>
+#include "EqEngine.h"
+#include "ClipEngine.h"
+#include "LoudnessMeter.h"
+
+enum class CompMode { VCA = 0, FET, Optical, Tube };
+
+struct WaveformBuffer
+{
+    static constexpr int size = 65536;
+    std::array<float, size> data {};
+    std::atomic<int> writePos { 0 };
+
+    void push(const float* samples, int numSamples) noexcept
+    {
+        int pos = writePos.load(std::memory_order_relaxed);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            data[static_cast<size_t>(pos)] = samples[i];
+            pos = (pos + 1) & (size - 1);
+        }
+        writePos.store(pos, std::memory_order_relaxed);
+    }
+};
+
+class VisualCompProcessor final : public juce::AudioProcessor
+{
+public:
+    VisualCompProcessor();
+    ~VisualCompProcessor() override;
+
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+    void releaseResources() override;
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
+    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    juce::AudioProcessorEditor* createEditor() override;
+    bool hasEditor() const override { return true; }
+
+    const juce::String getName() const override { return JucePlugin_Name; }
+    bool acceptsMidi() const override { return false; }
+    bool producesMidi() const override { return false; }
+    bool isMidiEffect()  const override { return false; }
+    double getTailLengthSeconds() const override { return 0.0; }
+
+    int  getNumPrograms()                            override { return 1; }
+    int  getCurrentProgram()                         override { return 0; }
+    void setCurrentProgram(int)                      override {}
+    const juce::String getProgramName(int)           override { return {}; }
+    void changeProgramName(int, const juce::String&) override {}
+
+    void getStateInformation(juce::MemoryBlock& destData) override;
+    void setStateInformation(const void* data, int sizeInBytes) override;
+
+    juce::AudioProcessorValueTreeState apvts;
+
+    WaveformBuffer inputWaveform;
+    WaveformBuffer outputWaveform;
+    WaveformBuffer sidechainWaveform;   // sidechain peak envelope (0-1 per sample)
+
+    // Written by audio thread, read by GUI
+    std::atomic<float> gainReductionDb     { 0.0f };
+    std::atomic<float> currentInputLevelDb { -100.0f };
+
+    // GUI-controlled flags
+    std::atomic<bool>  sidechainEnabled  { false };
+    std::atomic<int>   compMode          { static_cast<int>(CompMode::VCA) };
+    std::atomic<bool>  bypassed          { false };
+    std::atomic<bool>  autoGainEnabled   { false };
+    std::atomic<int>   clipMode          { static_cast<int>(ClipMode::Soft) };
+
+    // Parametric EQ (multi-node) + multiband-aware detection
+    ParametricEq eq;
+    std::atomic<int> activeEqBand { -1 };   // GUI read-only: dominant linked band, or -1
+
+    // GUI read-only: each linked node's own current gain reduction (<= 0 dB),
+    // written every block while multiband mode is on (0 otherwise/for
+    // unlinked nodes) — lets the EQ panel draw a live per-band GR curve.
+    std::array<std::atomic<float>, kMaxEqNodes> bandGrDb {};
+
+    // Documentation aid, same pattern as the VC2_FORCE_* editor flags: when
+    // set, node 0's bandGrDb is pinned to a fixed demo value every block
+    // instead of being computed from (silent, in a screenshot rig) live
+    // audio, so the per-band gain-reduction curve can be screenshotted
+    // reproducibly. Inert unless set.
+    std::atomic<bool> debugForceBandGrDemo { false };
+
+    // Multiband mode: OFF = standard single-band compressor with the EQ
+    // affecting tone only. ON = every *linked* EQ node additionally acts as
+    // its own dynamic-EQ-style compression band (see ParametricEq::
+    // applyDynamicBandGain), on top of the ordinary broadband compressor.
+    std::atomic<bool> multibandEnabled { false };
+
+    // Post-output metering (peak/RMS dB + approximate LUFS) — GUI read-only
+    std::atomic<float> meterPeakDb     { -100.0f };
+    std::atomic<float> meterRmsDb      { -100.0f };
+    std::atomic<float> meterMomLufs    { -100.0f };
+    std::atomic<float> meterShortLufs  { -100.0f };
+
+    // GUI persistence (message thread only)
+    juce::String currentPresetName { "Mastering Glue" };
+    float        editorScale       { 1.0f };
+    bool         eqPanelOpen       { false };
+    bool         curveGrPanelOpen  { false };
+
+private:
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Per-mode state
+    float envelope      = 0.0f;
+    float opticalState  = 0.0f;
+    float tubeMu        = 1.0f;
+
+    // Sidechain envelope follower (audio thread only)
+    float scEnvelope = 0.0f;
+
+    // Auto-gain RMS smoothers
+    float inputRmsSmooth  = 0.0f;
+    float outputRmsSmooth = 0.0f;
+    float autoGainDb      = 0.0f;
+
+    double currentSampleRate = 44100.0;
+    juce::AudioBuffer<float> monoMixBuffer;
+    juce::AudioBuffer<float> dryBuffer;
+    juce::AudioBuffer<float> scEnvBuf;   // scratch buffer for per-sample SC envelope
+
+    OutputClipper  clipper;
+    LoudnessMeter  loudness;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VisualCompProcessor)
+};

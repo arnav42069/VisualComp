@@ -1,0 +1,20 @@
+# Build outputs — regenerate via CMake / package.ps1 / testbuild.ps1 (see CLAUDE.md)
+/build/
+/build-pkg/
+/build-macos/
+/Build Final/
+
+# Release archives and older frozen source/build snapshots (not living source)
+*.zip
+/VisualComp 2/
+/VisualComp 2.1 - Win and Mac/
+/VisualComp 2.1 - Win and Mac - Copy/
+/VisualComp 3/
+
+# Claude Code local (per-user) settings — not shared team config
+.claude/settings.local.json
+
+# Editor/OS cruft
+.vs/
+*.user
+Thumbs.db
