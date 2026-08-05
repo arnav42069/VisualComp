@@ -178,13 +178,18 @@ project name; that has not been renamed and doesn't need to be.
   package-release/SKILL.md` doc, the two `installer/Install|Uninstall VisualComp
   <version>.bat` filenames + their internal title text, `installer/install.ps1`/
   `uninstall.ps1`, `docs/manual.html` (title/cover/TOC/footer — see "Screenshots &
-  manual" below for the PDF regeneration step), and `About VisualComp <version>.md`
-  (repo root — rename the file itself, don't just edit its contents). Missing one of
-  these doesn't necessarily fail loudly: `package.ps1`'s manual-PDF path did exactly
-  this silently for a full release cycle (2.1→2.2) until the 2.2→2.21 bump turned it
-  into a hard `throw` instead once the stale-named PDF was deleted (see below) — CMake's
-  `DIST_DIR` post-build step (next paragraph) failed the same way, as a build *error*
-  rather than a silent staleness, since it's a required `COMMAND`, not an optional copy.
+  manual" below for the PDF regeneration step), `About VisualComp <version>.md`
+  (repo root — rename the file itself, don't just edit its contents), and
+  `build-macos/build.sh` + `build-macos/README.txt` (both hand-authored, hardcode the
+  version in comments/`PLUGIN_NAME`/install-path text — these were gitignored until
+  2026-08-06 so a prior bump silently left them at "2.1" for two full release cycles
+  with nothing to catch it; they're tracked now, so a stale version there will at least
+  show up in `git diff`). Missing one of these doesn't necessarily fail loudly:
+  `package.ps1`'s manual-PDF path did exactly this silently for a full release cycle
+  (2.1→2.2) until the 2.2→2.21 bump turned it into a hard `throw` instead once the
+  stale-named PDF was deleted (see below) — CMake's `DIST_DIR` post-build step (next
+  paragraph) failed the same way, as a build *error* rather than a silent staleness,
+  since it's a required `COMMAND`, not an optional copy.
 - **`DIST_DIR` post-build step** (`CMakeLists.txt`, `if(WIN32 AND VC2_INSTALL_PLUGIN)`
   block): every `VisualComp_VST3` build refreshes a full `VisualComp <version> - Win and
   Mac/` distribution folder at the repo root (Windows VST3 + a Mac build-scripts folder +
@@ -201,6 +206,29 @@ project name; that has not been renamed and doesn't need to be.
   copies left on disk alongside it (e.g. a lingering `VisualComp 2.1 - Win and Mac/` after
   the version moves to 2.21) are exactly that: stale one-offs, safe to ignore, not to be
   deleted without asking first.
+- **AU (Mac only)**: `CMakeLists.txt`'s `FORMATS` is `VST3 AU Standalone` (as of
+  2026-08-06). AU is an Apple-only plugin format — JUCE's own platform filtering
+  (`_juce_get_platform_plugin_kinds` only appends `AU` when `CMAKE_SYSTEM_NAME STREQUAL
+  "Darwin"`) makes this a confirmed no-op on Windows, so it doesn't change anything this
+  machine builds or what `package.ps1` bundles. The only place it takes effect is
+  `build-macos/build.sh`, which now builds and auto-installs both VST3 and AU in one pass
+  when run on an actual Mac (`~/Library/Audio/Plug-Ins/VST3/` and `.../Components/` — Logic
+  Pro needs the AU since it doesn't load VST3). There is no way to produce a `.component`
+  bundle on Windows; don't try.
+- **Code signing (Windows)**: `package.ps1` signs the packaged `.exe` and the VST3's inner
+  binary with `signtool` if a certificate is configured via env vars — `VC2_CODESIGN_PFX` +
+  `VC2_CODESIGN_PASSWORD` (a `.pfx`/`.p12` file), or `VC2_CODESIGN_THUMBPRINT` (a cert
+  already in the Windows cert store, e.g. an EV cert on a hardware token/cloud HSM).
+  `VC2_CODESIGN_TIMESTAMP_URL` optionally overrides the default RFC3161 timestamp server.
+  None of these are set as of 2026-08-06 (no certificate owned yet), so packaging proceeds
+  unsigned with a yellow console warning — that's expected, not a bug. `signtool.exe` is
+  located via `PATH` or by searching `Windows Kits\10\bin\*\x64\`. A self-signed cert only
+  removes "Unknown Publisher" from the UAC prompt; it does **not** stop Windows SmartScreen
+  flagging the binary — only a real CA-issued certificate does that, and even then a new
+  certificate can still get flagged until it earns download reputation. Verified working via
+  a throwaway self-signed test cert (signed, `Get-AuthenticodeSignature` confirmed a real
+  signature chain that correctly reports untrusted-root — the expected result for a
+  non-CA cert); the test cert was deleted from the store afterward, nothing shipped uses it.
 
 ## Version control
 

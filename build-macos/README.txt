@@ -1,4 +1,4 @@
-VisualComp 2.1 — macOS Build Guide
+VisualComp 2.21 — macOS Build Guide
 Azazel Audio
 ===============================
 
@@ -8,9 +8,10 @@ the whole project to a Mac and run one script.
 
 WHAT YOU GET
 ------------
-A universal VST3 (Apple Silicon + Intel, macOS 10.13+) that installs
-itself into the standard plugin folder automatically:
-  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.1.vst3
+A universal VST3 AND AU (Apple Silicon + Intel, macOS 10.13+), both built
+in one pass and installed into their standard plugin folders automatically:
+  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.21.vst3
+  ~/Library/Audio/Plug-Ins/Components/VisualComp 2.21.component
 
 PREREQUISITES (one-time setup on the Mac)
 -----------------------------------------
@@ -27,19 +28,19 @@ BUILD STEPS
      cd path/to/project/build-macos
      chmod +x build.sh
      ./build.sh
-3. Wait for "SUCCESS — plugin installed at: ..." (the first build takes a
-   few minutes because it downloads and compiles the JUCE framework).
+3. Wait for both "SUCCESS — ... installed at: ..." lines (the first build
+   takes a few minutes because it downloads and compiles the JUCE framework).
 4. Open your DAW and rescan plugins. The plugin appears as
-   "VisualComp 2.1" by Azazel Audio.
+   "VisualComp 2.21" by Azazel Audio.
 
 NOTES FOR MAC USERS
 -------------------
-- Gatekeeper: this plugin is not code-signed. If the DAW refuses to
-  load it, run:
-     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.1.vst3"
-- Logic Pro only loads AU plugins, not VST3. To also build an AU
-  version, edit CMakeLists.txt: change  FORMATS VST3 Standalone
-  to  FORMATS VST3 AU Standalone  and rebuild.
+- Gatekeeper: these plugins are not code-signed. If the DAW refuses to
+  load one, run:
+     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.21.vst3"
+     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/"VisualComp 2.21.component"
+- Logic Pro only loads AU plugins, not VST3 — that's why build.sh builds
+  both formats in one pass; no manual CMakeLists.txt edit needed.
 - Rebuilding after code changes: run ./build.sh again — it recompiles
   only what changed and reinstalls automatically.
 - User presets are saved to:
@@ -47,10 +48,11 @@ NOTES FOR MAC USERS
 
 FILE LOCATIONS SUMMARY
 ----------------------
-Windows plugin:
-  C:\Program Files\Common Files\VST3\VisualComp 2.1.vst3
-macOS plugin (after running build.sh):
-  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.1.vst3
+Windows plugin (VST3 only — no AU on Windows, it's an Apple-only format):
+  C:\Program Files\Common Files\VST3\VisualComp 2.21.vst3
+macOS plugins (after running build.sh):
+  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.21.vst3
+  ~/Library/Audio/Plug-Ins/Components/VisualComp 2.21.component
 
 The full user manual (PDF) is in the Documentation folder of the
 release bundle.

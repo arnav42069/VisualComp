@@ -34,7 +34,12 @@ endif()
 juce_add_plugin(VisualComp
     PLUGIN_MANUFACTURER_CODE Azzl
     PLUGIN_CODE Vc22
-    FORMATS VST3 Standalone
+    # AU only actually builds on macOS -- JUCE's _juce_get_platform_plugin_kinds
+    # filters FORMATS by CMAKE_SYSTEM_NAME, so listing it here is a silent no-op
+    # on this Windows machine and only takes effect when build-macos/build.sh is
+    # run on an actual Mac (see CLAUDE.md; Apple's toolchain doesn't run on
+    # Windows, so there's no way to produce an AU here either way).
+    FORMATS VST3 AU Standalone
     PRODUCT_NAME "VisualComp ${VC2_VERSION_STRING}"
     COMPANY_NAME "Azazel Audio"
     COMPANY_WEBSITE "https://brella.co.in"
