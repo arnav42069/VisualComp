@@ -14,7 +14,8 @@ namespace
     constexpr int kHeadH  = kTitleH + kStripH;        // 108
 
     constexpr int kRightColW   = 280;
-    constexpr int kLevelMeterW = 56;                  // reserved for the dB/LUFS meter strip
+    constexpr int kLevelMeterW = 77;                  // reserved for the dB/LUFS meter strip
+                                                       // (bars + their side labels, see LevelMeter::paint)
     constexpr int kContentW    = kWidth - kRightColW; // 680
 
     // Curve/GR (transfer curve + gain-reduction meter) column width when
@@ -468,12 +469,18 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
     const auto  range    = slider.getNormalisableRange();
     const float rangeMin = float(range.start), rangeMax = float(range.end);
 
+    // JUCE's own sliderPos spans the full [y, y+height] region passed in
+    // here, but the track (and the cap below) are inset 8px top/bottom —
+    // clamp once so the accent fill can never reach past where the cap
+    // itself is able to travel.
+    const float clampedPos = juce::jlimit(trackT, trackB, sliderPos);
+
     // Accent fill from unity to the handle
     {
         const float norm0 = juce::jlimit(0.0f, 1.0f, (0.0f - rangeMin) / (rangeMax - rangeMin));
         const float zeroY = trackT + trackH * (1.0f - norm0);
-        const float top   = juce::jmin(zeroY, sliderPos);
-        const float bot   = juce::jmax(zeroY, sliderPos);
+        const float top   = juce::jmin(zeroY, clampedPos);
+        const float bot   = juce::jmax(zeroY, clampedPos);
         if (bot - top > 0.5f)
         {
             g.setColour(Theme::accent.withAlpha(0.22f));
@@ -500,8 +507,7 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
     const float capH = 8.0f;
     const float capW = (float(width) - 16.0f) * 0.52f;
     const float capX = float(x) + (float(width) - capW) * 0.5f;
-    const float capY = juce::jlimit(trackT - capH * 0.5f, trackB - capH * 0.5f,
-                                    sliderPos - capH * 0.5f);
+    const float capY = clampedPos - capH * 0.5f;
     const float capR = 1.6f;
 
     for (int pass = 3; pass >= 1; --pass)
@@ -834,8 +840,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     setupTextButton(presetSave, "SAVE");
     presetSave.onClick = [this] { saveUserPreset(); };
 
-    // EQ toggle (opens the docked parametric EQ panel)
-    setupTextButton(eqButton, "EQ");
+    // MB toggle (opens the docked parametric EQ panel, always multiband now)
+    setupTextButton(eqButton, "MB");
     eqButton.setClickingTogglesState(true);
     eqButton.onClick = [this] { toggleEqPanel(); };
 
@@ -851,7 +857,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // Curve/GR toggle — Transfer Curve and Gain Reduction meter are hidden by
     // default (see vuMeter/curveDisplay setVisible below) and only rendered
     // while this is on.
-    setupTextButton(curveGrButton, "CURVE/GR");
+    setupTextButton(curveGrButton, "GR");
     curveGrButton.setClickingTogglesState(true);
     curveGrButton.onClick = [this] { toggleCurveGrPanel(); };
 
@@ -864,6 +870,14 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     {
         selectedBand = i;
         refreshBandButtons();
+    };
+    // Graph drags (incl. the "T" threshold marker) and Dynamic Island edits
+    // both land here so the Dynamics-pane progress bars (which read straight
+    // off bandThresholdKnob etc., not off the EQ panel) repaint immediately
+    // instead of waiting for the 30Hz timerCallback() poll below.
+    eqPanel->onNodeEdited = [this](int i)
+    {
+        if (i == selectedBand) refreshBandButtons();
     };
     addChildComponent(*eqPanel);
     eqPanelVisible = audioProcessor.eqPanelOpen;
@@ -964,13 +978,15 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     };
     setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f);
     setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f);
-    // FabFilter Pro-MB style: Threshold is downward-only (-inf..0 — -96
-    // stands in for -inf). Direction (downward/upward) and how far the band
-    // can swing now live on the Range knob instead (see NodeIsland) — that's
-    // what used to make a positive Threshold "auto-engage" upward and feel
-    // weird turning through the crossover; Threshold no longer carries that
-    // dual role.
-    setupBandKnob(bandThresholdKnob, -96.0f, 0.0f, 0.5f, -10.0f);
+    // FabFilter Pro-MB style: Threshold is downward-only (0..-60dB). Direction
+    // (downward/upward) and how far the band can swing now live on the Range
+    // knob instead (see NodeIsland) — that's what used to make a positive
+    // Threshold "auto-engage" upward and feel weird turning through the
+    // crossover; Threshold no longer carries that dual role. Range/skew below
+    // get overridden immediately after by setupThresholdKnobRange() — see
+    // EqEngine.h.
+    setupBandKnob(bandThresholdKnob, -60.0f, 0.0f, 0.5f, -20.0f);
+    setupThresholdKnobRange(bandThresholdKnob);
     setupBandKnob(bandKneeKnob,        0.0f, 20.0f, 1.0f,   6.0f);
     setupBandKnob(bandRatioKnob,       1.0f, 20.0f, 0.4f,   2.0f);
     bandAttackKnob.setTextValueSuffix(" ms");
@@ -1049,6 +1065,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     if (juce::SystemStats::getEnvironmentVariable("VC2_FORCE_CURVE_GR", {}).isNotEmpty())
         curveGrVisible = true;
     curveGrButton.setToggleState(curveGrVisible, juce::dontSendNotification);
+    curveGrButton.setButtonText("GR " + juce::String::charToString(curveGrVisible ? 0x2039 : 0x203a));
     vuMeter.setVisible(curveGrVisible);
     curveDisplay.setVisible(curveGrVisible);
 
@@ -1063,6 +1080,12 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         setScaleFactor(audioProcessor.editorScale);
 
     startTimerHz(30);   // keeps the band-selector row synced with the EQ panel
+
+    // Click-anywhere-to-deselect (see mouseDown()): registering on `this`
+    // with nested==true reports mouse-down events from every descendant
+    // component too, without stealing them from whatever normally handles
+    // the click.
+    addMouseListener(this, true);
 
     // First run: show the tour once the window has settled
     if (!hasSeenHelp())
@@ -1212,6 +1235,9 @@ void VisualCompEditor::toggleCurveGrPanel()
     curveGrVisible = !curveGrVisible;
     audioProcessor.curveGrPanelOpen = curveGrVisible;
     curveGrButton.setToggleState(curveGrVisible, juce::dontSendNotification);
+    // Arrow points the direction the click will move it: right (closed, "expand
+    // this way") when hidden, left ("collapse back") when open.
+    curveGrButton.setButtonText("GR " + juce::String::charToString(curveGrVisible ? 0x2039 : 0x203a));
     vuMeter.setVisible(curveGrVisible);
     curveDisplay.setVisible(curveGrVisible);
     setSize(totalEditorWidth(), kHeight);
@@ -1222,6 +1248,31 @@ void VisualCompEditor::toggleCurveGrPanel()
 //==============================================================================
 // Band-selector row (Attack/Release context switching)
 //==============================================================================
+
+void VisualCompEditor::mouseDown(const juce::MouseEvent& e)
+{
+    if (selectedBand < 0) return;   // already showing the default compressor -- nothing to do
+
+    // Walk up from the actual clicked component. Anything inside the EQ
+    // panel (graph + Dynamic Island) manages selection itself already; the
+    // band-context knobs and the numbered selector buttons are editing/
+    // choosing the current selection, not abandoning it -- deselecting on
+    // mouseDown for those would cancel a drag or fight selectBand()'s own
+    // toggle-off logic (which runs on mouseUp). Everything else -- faders,
+    // header buttons, waveform displays, blank space -- drops back to the
+    // default broadband compressor knobs.
+    for (auto* c = e.originalComponent; c != nullptr; c = c->getParentComponent())
+    {
+        if (c == eqPanel.get()) return;
+        if (c == &bandThresholdKnob || c == &bandKneeKnob || c == &bandRatioKnob
+            || c == &bandAttackKnob || c == &bandReleaseKnob) return;
+        for (auto& b : bandButtons) if (c == &b) return;
+    }
+
+    selectedBand = -1;
+    if (eqPanel != nullptr) eqPanel->setSelectedNode(-1);
+    refreshBandButtons();
+}
 
 void VisualCompEditor::selectBand(int i)
 {
@@ -2140,12 +2191,16 @@ void VisualCompEditor::resized()
         const int fx = ox + kContentW - kFaderM - kFaderW;
         gainOutFaderLabel.setBounds(fx, kCtrlY + kKnobRowY, kFaderW, kKnobLblH);
 
-        constexpr int btnH   = 24;
-        constexpr int agBtnH = 32;
-        constexpr int gap    = 3;
-        constexpr int miniH  = 14;
+        // Trimmed from 24/32/3/14 to reclaim vertical space for the fader
+        // itself (see faderH below) — still legible at this scale, matching
+        // other compact controls elsewhere in this UI (e.g. NodeIsland's
+        // 26px direction/type buttons).
+        constexpr int btnH   = 20;
+        constexpr int agBtnH = 28;
+        constexpr int gap    = 2;
+        constexpr int miniH  = 11;
 
-        const int bottomH  = agBtnH + gap + btnH + miniH + gap + btnH + miniH + 4;
+        const int bottomH  = agBtnH + gap + btnH + miniH + gap + btnH + miniH + 2;
         const int faderTop = kCtrlY + kKnobRowY + kKnobLblH + 2;
         const int faderH   = kCtrlH - kKnobRowY - kKnobLblH - 8 - bottomH - gap - textBoxH;
 

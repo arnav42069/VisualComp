@@ -1,0 +1,104 @@
+VisualComp 2.2 — Azazel Audio
+Product Page Content Brief
+
+TAGLINE
+A compressor that sees your mix. Multiband dynamics, a visual parametric EQ, and
+mastering-grade output shaping, built into one plugin with a live, interactive graph
+instead of a wall of knobs.
+
+OVERVIEW
+VisualComp 2.2 is a VST3 and Standalone audio plugin from Azazel Audio that merges a
+full parametric EQ with per-band multiband compression and a broadband master
+compressor, all controlled through one interactive frequency graph. Instead of
+switching between separate EQ and compressor screens, engineers shape tone and
+dynamics on the same curve: draw a node, hear it compress. It runs on Windows and Mac
+inside any VST3 host, or standalone for quick auditioning.
+
+CORE COMPRESSOR ENGINE
+At its heart, VisualComp runs a broadband compressor with four selectable circuit
+character models: VCA, FET, Opt(ical), and Tube. Each mode has its own attack/release
+feel and harmonic behavior, from clean and fast (VCA) to warm and glued (Tube).
+Standard controls: Threshold, Knee, Ratio, Attack, Release, Range, Makeup Gain, and a
+wet/dry Mix knob for parallel-style blending. A three-mode output clipper (Soft,
+Brickwall, or Off) sits after the compressor for final peak control, sharing one fixed
+lookahead delay line across all three modes — switching clip styles live never
+introduces clicks or changes the plugin's reported latency.
+
+VISUAL, MULTIBAND-AWARE EQ
+VisualComp's EQ is a full 8-node parametric equalizer — Bell, Low Shelf, High Shelf,
+High-Pass, Low-Pass, and Notch filters, all built on industry-standard RBJ biquad
+coefficients — drawn as a live, draggable curve rather than a numeric list. Nodes are
+created with a double-click directly on the graph, dragged to set frequency and gain,
+and shaped with mouse-wheel or an on-canvas "Dynamic Island" popup for Q, filter type,
+and more.
+
+What sets it apart: any EQ node can be linked to the compressor. A linked node gets
+its own bandpass-filtered detector and becomes a genuine, independent dynamics band —
+not just a filter, but a target for compression that reacts only to the energy in
+that frequency range. New nodes are linked to the compressor by default, so sculpting
+a frequency automatically gives you a dynamics band to control it with.
+
+PER-BAND DYNAMICS, FABFILTER PRO-MB STYLE
+Every linked band carries its own Threshold, Knee, Ratio, Range, Attack, and Release —
+editable live from the main editor's Dynamics pane whenever a band is selected, or
+from the floating Dynamic Island docked to the node itself. The Threshold knob uses a
+logarithmic taper from 0 dB down to -60 dB, centered so the knob's halfway point lands
+on a musically useful -20 dB — giving fine control across the everyday -20..0 dB
+working range while still reaching deep, aggressive settings without the knob feeling
+cramped. A Range control (+/-30 dB) sets how far a band's dynamics can swing the gain,
+and its sign chooses the direction: negative for classic downward compression,
+positive to automatically flip the band into upward mode — boosting quiet material
+below the threshold instead of squashing loud material above it, useful for pulling up
+buried low-level detail (room tone, sustain tails, quiet vocal phrases) without
+touching anything already loud. Each band's progress meters update live and in real
+time as knobs move, whether edited from the main panel or the node's own popup.
+
+Frequency range markers (the min/max edges of each node's active band) snap together
+automatically when dragged within 100 Hz of a neighboring band's edge, so adjacent
+bands can be lined up edge-to-edge with sample-accurate precision instead of guessing
+by eye.
+
+METERING
+VisualComp includes peak and RMS meters with musical ballistics, plus an approximate
+LUFS loudness reading (a continuous, EMA-smoothed K-weighting approximation) to give a
+fast, glanceable loudness read while mixing — clearly labeled as approximate rather
+than a certified BS.1770 delivery measurement, so it's a mixing aid, not a delivery
+spec tool. A dedicated Curve/GR panel shows the live transfer curve and gain-reduction
+activity, collapsible to keep the interface compact when it's not needed.
+
+INTERFACE & WORKFLOW
+The interface is dark-themed (near-black background, warm orange accent) with a clean,
+modern look built around waveform displays for input and output signal, a large
+central EQ/dynamics graph, and docked side panels that expand only when needed — the
+EQ panel and the Curve/GR panel each slide out from their own edge without disturbing
+the rest of the layout. Every EQ node's full state (frequency, gain, Q, filter type,
+linked/unlinked, and its own dynamics settings) is saved with your session or exported
+as a standalone preset, independent of the host's automation lanes — so preset recall
+and DAW automation never conflict with each other.
+
+PRESETS
+VisualComp ships with a curated factory preset library organized by use case —
+Mastering (glue, warmth, mix-bus punch and smoothing), Drums (kick punch, snare crack,
+room crush, overhead taming, percussion control), Vocals (smooth leads, upfront leads,
+thickening, backing-vocal tightening, whisper/breath boosting), Bass, and more —
+covering both transparent, corrective use and deliberately colored, characterful
+settings. Presets are a starting point tuned for real mixing scenarios, not just
+factory-default knob positions. Users can also save and recall their own custom
+presets from a dedicated user preset folder.
+
+WHO IT'S FOR
+Mixing and mastering engineers who want to shape tone and control dynamics in the same
+gesture — sculpting a frequency and immediately deciding how it should behave
+dynamically, without tabbing between an EQ plugin and a compressor plugin and
+losing the mental model of the mix in between. Its visual, node-based workflow suits
+producers who think in curves and shapes as much as in numbers.
+
+KEY DIFFERENTIATORS (for headline/hero copy)
+- One graph, two jobs: draw the EQ curve and get real per-band compression for free.
+- Four compressor characters (VCA/FET/Opt/Tube) in one broadband stage.
+- Musically-tapered Threshold knob — precision where you actually work, -20..0 dB.
+- Upward or downward per band, chosen by a single Range knob's sign.
+- Zero-latency-change output clipping — switch Soft/Brickwall/Off live, mid-mix.
+- Built-in approximate LUFS reading alongside peak/RMS.
+- Genre-organized factory preset library for Mastering, Drums, Vocals, Bass, and more.
+- VST3 + Standalone, Windows and Mac.

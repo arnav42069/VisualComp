@@ -197,8 +197,25 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     inputWaveform.push(monoMixBuffer.getReadPointer(0), numSamples);
 
     // ── Sidechain bus ─────────────────────────────────────────────────────────
-    auto scBus       = getBusBuffer(buffer, true, 1);
-    const bool hasSC = useSidechain && (scBus.getNumChannels() > 0);
+    // Defensive bounds check before touching the sidechain bus: JUCE's
+    // Bus::getBusBuffer() does raw pointer arithmetic on the channel-pointer
+    // array (buffer.getArrayOfWritePointers() + channelOffset) with NO bounds
+    // checking against the buffer we were actually handed. Some hosts (FL
+    // Studio observed, when the sidechain input is selected/enabled) report
+    // the sidechain bus as active in the layout but call processBlock with a
+    // buffer that doesn't actually have channels allocated for it -- calling
+    // getBusBuffer() unconditionally then reads channel pointers from past
+    // the end of the array and dereferences them, corrupting memory and
+    // crashing (typically far from this code, e.g. a null/garbage vtable
+    // call). Verify the sidechain bus's channel range actually fits within
+    // the buffer we were given before ever calling getBusBuffer() on it.
+    const int scChannelOffset = getChannelIndexInProcessBlockBuffer(true, 1, 0);
+    const int scChannelCount  = getChannelCountOfBus(true, 1);
+    const bool scBufferOk     = scChannelCount > 0
+                              && (scChannelOffset + scChannelCount) <= numChannels;
+    juce::AudioBuffer<float> scBus = scBufferOk ? getBusBuffer(buffer, true, 1)
+                                                 : juce::AudioBuffer<float>();
+    const bool hasSC = useSidechain && scBufferOk;
 
     // ── Sidechain envelope → visualization buffer ─────────────────────────────
     // Always push so sidechainWaveform stays current; display reads it only when SC on.
@@ -465,7 +482,9 @@ void VisualCompProcessor::getStateInformation(juce::MemoryBlock& destData)
     // eqPanelOpen deliberately not saved — see setStateInformation, it's
     // never read back, so always starts closed.
     state.setProperty("curveGrPanelOpen", curveGrPanelOpen, nullptr);
-    state.setProperty("multibandEnabled", multibandEnabled.load(std::memory_order_relaxed), nullptr);
+    // multibandEnabled deliberately not saved — see setStateInformation,
+    // it's never read back, so it's always on regardless of what an older
+    // saved project had.
 
     for (int i = 0; i < kMaxEqNodes; ++i)
     {
@@ -508,8 +527,10 @@ void VisualCompProcessor::setStateInformation(const void* data, int sizeInBytes)
             // last time it was saved) happened to leave it open.
             eqPanelOpen = false;
             curveGrPanelOpen = bool(state.getProperty("curveGrPanelOpen", false));
-            multibandEnabled.store(bool(state.getProperty("multibandEnabled", false)),
-                                   std::memory_order_relaxed);
+            // Deliberately not restored from state — multiband mode is always
+            // on now (no user-facing toggle any more), so an older project
+            // that saved it as off must not be able to turn it back off.
+            multibandEnabled.store(true, std::memory_order_relaxed);
 
             for (int i = 0; i < kMaxEqNodes; ++i)
             {
@@ -524,15 +545,17 @@ void VisualCompProcessor::setStateInformation(const void* data, int sizeInBytes)
                 n.attackMs  = float(state.getProperty(p + "attackMs",  0.2));
                 n.releaseMs = float(state.getProperty(p + "releaseMs", 45.0));
                 n.upward      = bool (state.getProperty(p + "upward",       false));
-                // Threshold is downward-only (-96..0) as of the Range knob's
-                // introduction; clamp in case this is an older project saved
-                // while it briefly went up to +96. rangeDb's fallback (for
-                // projects saved before Range existed at all) uses upward's
-                // already-loaded direction at max magnitude, so old linked
-                // bands keep doing roughly as much as they used to rather
-                // than silently going inert at the new default of 0dB.
-                n.thresholdDb = juce::jlimit(-96.0f, 0.0f,
-                                    float(state.getProperty(p + "thresholdDb", -10.0)));
+                // Threshold is downward-only (-60..0, the knob's own floor —
+                // see setupThresholdKnobRange() in EqEngine.h); clamp in case
+                // this is an older project saved with a value outside that
+                // (the range has moved a few times: +/-96, then -90..0, now
+                // -60..0). rangeDb's fallback (for projects saved before
+                // Range existed at all) uses upward's already-loaded
+                // direction at max magnitude, so old linked bands keep doing
+                // roughly as much as they used to rather than silently going
+                // inert at the new default of 0dB.
+                n.thresholdDb = juce::jlimit(-60.0f, 0.0f,
+                                    float(state.getProperty(p + "thresholdDb", -20.0)));
                 n.kneeDb      = float(state.getProperty(p + "kneeDb",        6.0));
                 n.ratio       = float(state.getProperty(p + "ratio",         2.0));
                 n.rangeDb     = float(state.getProperty(p + "rangeDb", n.upward ? 30.0 : -30.0));

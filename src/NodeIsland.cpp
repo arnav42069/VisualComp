@@ -18,6 +18,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         n.q = newQ;
         processor.eq.setNode(target, n);
         if (onQRatioChanged) onQRatioChanged(target, ratio);
+        if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(qKnob);
 
@@ -28,13 +29,13 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     qLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(qLabel);
 
-    // FabFilter Pro-MB style: downward-only (-inf..0dB — same value as the
-    // graph's "T" marker, see EqPanel::thresholdMarkerPos).
+    // FabFilter Pro-MB style: downward-only (0..-60dB — same value as the
+    // graph's "T" marker, see EqPanel::thresholdMarkerPos). Skewed range —
+    // see setupThresholdKnobRange() in EqEngine.h.
     thresholdKnob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
     thresholdKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
-    thresholdKnob.setRange(-96.0, 0.0);
-    thresholdKnob.setSkewFactor(0.5);
-    thresholdKnob.setDoubleClickReturnValue(true, -10.0);
+    setupThresholdKnobRange(thresholdKnob);
+    thresholdKnob.setDoubleClickReturnValue(true, -20.0);
     thresholdKnob.setMouseDragSensitivity(700);
     thresholdKnob.onValueChange = [this]
     {
@@ -42,6 +43,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         auto n = processor.eq.getNode(target);
         n.thresholdDb = float(thresholdKnob.getValue());
         processor.eq.setNode(target, n);
+        if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(thresholdKnob);
 
@@ -78,6 +80,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         processor.eq.setNode(target, n);
         directionButton.setToggleState(n.upward, juce::dontSendNotification);
         directionButton.setButtonText(n.upward ? "UP" : "DOWN");
+        if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(rangeKnob);
 
@@ -102,6 +105,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         auto n = processor.eq.getNode(target);
         n.freqHz = float(freqKnob.getValue());
         processor.eq.setNode(target, n);
+        if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(freqKnob);
 
@@ -126,6 +130,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         n.upward = directionButton.getToggleState();
         processor.eq.setNode(target, n);
         directionButton.setButtonText(n.upward ? "UP" : "DOWN");
+        if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(directionButton);
 
@@ -146,6 +151,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         auto n = processor.eq.getNode(target);
         n.linked = compButton.getToggleState();
         processor.eq.setNode(target, n);
+        if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(compButton);
 
@@ -199,6 +205,7 @@ void NodeIsland::showTypeMenu()
             auto node = processor.eq.getNode(t);
             node.type = result - 100;
             processor.eq.setNode(t, node);
+            if (onNodeEdited) onNodeEdited(t);
             if (t == target) refreshFromProcessor();
         });
 }

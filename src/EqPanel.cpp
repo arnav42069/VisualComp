@@ -14,9 +14,8 @@ namespace
     constexpr float kGainRange = 18.0f;   // +/- dB shown on the graph
     constexpr float kLeftGutter   = 34.0f;   // dB-axis labels
     constexpr float kBottomMargin = 34.0f;   // freq-axis labels + hint text
-    constexpr float kHeaderH      = 40.0f;   // title + MULTIBAND COMP toggle row
-    constexpr int   kMultibandBtnW = 150;    // wide enough for "MULTIBAND COMP"
-    constexpr int   kMultibandBtnX = 10;
+    constexpr float kHeaderH      = 40.0f;   // title row
+    constexpr int   kHeaderPad    = 10;
 
     // Right-click "Q" submenu presets (see EqPanel::showNodeMenu).
     constexpr float kQPresets[] = { 0.3f, 0.5f, 0.71f, 1.0f, 1.4f, 2.0f, 3.0f, 5.0f, 8.0f };
@@ -42,41 +41,17 @@ EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
     closeButton.onClick = [this] { if (onCloseRequested) onCloseRequested(); };
     addAndMakeVisible(closeButton);
 
-    // MULTIBAND: OFF = standard single-band compressor, EQ affects tone only.
-    // ON = every *linked* node also acts as its own dynamic-EQ-style
-    // compression band (see ParametricEq::applyDynamicBandGain). Clicking
-    // it on also links every currently-active node in one motion (per the
-    // button's own name); clicking it off leaves existing links alone,
-    // since they still matter for the single-compressor frequency-aware
-    // detector (see CLAUDE.md).
-    multibandButton.setClickingTogglesState(true);
-    multibandButton.setColour(juce::TextButton::buttonColourId,   Theme::charcoal);
-    multibandButton.setColour(juce::TextButton::buttonOnColourId, Theme::warn);
-    multibandButton.setColour(juce::TextButton::textColourOffId,  Theme::textDim);
-    multibandButton.setColour(juce::TextButton::textColourOnId,   juce::Colours::white);
-    multibandButton.setToggleState(processor.multibandEnabled.load(std::memory_order_relaxed),
-                                   juce::dontSendNotification);
-    multibandButton.onClick = [this]
-    {
-        const bool on = multibandButton.getToggleState();
-        processor.multibandEnabled.store(on, std::memory_order_relaxed);
-        if (on)
-        {
-            for (int i = 0; i < kMaxEqNodes; ++i)
-            {
-                if (!localNodes[size_t(i)].enabled || localNodes[size_t(i)].linked) continue;
-                localNodes[size_t(i)].linked = true;
-                pushNode(i);
-            }
-            repaint();
-        }
-    };
-    addAndMakeVisible(multibandButton);
-
     nodeIsland.onQRatioChanged = [this](int anchor, float ratio) { applyRelativeQ(anchor, ratio); };
+    nodeIsland.onNodeEdited = [this](int i) { if (onNodeEdited) onNodeEdited(i); };
     addChildComponent(nodeIsland);
 
-    startTimerHz(20);
+    // 60Hz, not 20 -- the response curve and per-band gain-reduction dips are
+    // the only animated elements in the interface still updating this slowly,
+    // which reads as visibly choppy next to everything else (VuMeter 60Hz,
+    // WaveformDisplay 120Hz). The per-block work here (a handful of ~64-96
+    // step Path rebuilds) is cheap enough that 3x the repaint rate is not a
+    // real cost.
+    startTimerHz(60);
     setInterceptsMouseClicks(true, true);
 }
 
@@ -85,6 +60,7 @@ EqPanel::~EqPanel() { stopTimer(); }
 void EqPanel::pushNode(int i)
 {
     processor.eq.setNode(i, localNodes[size_t(i)]);
+    if (onNodeEdited) onNodeEdited(i);
 }
 
 void EqPanel::setSelectedNode(int i)
@@ -189,8 +165,7 @@ int EqPanel::findEdgeNear(juce::Point<float> p, int& whichEdge, float radius) co
 {
     whichEdge = -1;
     const auto r = graphArea();
-    const float flagY = r.getY() + 6.0f;
-    if (std::abs(p.y - flagY) > radius) return -1;
+    if (p.y < r.getY() - radius || p.y > r.getBottom() + radius) return -1;
 
     const float sr = sampleRateForDisplay();
     int best = -1; float bestD = radius;
@@ -206,6 +181,97 @@ int EqPanel::findEdgeNear(juce::Point<float> p, int& whichEdge, float radius) co
         if (dHi < bestD) { bestD = dHi; best = i; whichEdge = 1; }
     }
     return best;
+}
+
+float EqPanel::edgeHzOf(int node, int edge) const
+{
+    const auto& n = localNodes[size_t(node)];
+    return edge == 0 ? detectorLoHz(n) : detectorHiHz(n, sampleRateForDisplay());
+}
+
+void EqPanel::setEdgeHz(int node, int edge, float hz)
+{
+    auto& n = localNodes[size_t(node)];
+    if (edge == 0)
+    {
+        const float loHz = juce::jmin(n.freqHz * 0.98f, hz);
+        n.bwLowOct = juce::jlimit(0.05f, 8.0f, std::log2(n.freqHz / juce::jmax(kFreqLo, loHz)));
+    }
+    else
+    {
+        const float hiHz = juce::jmax(n.freqHz * 1.02f, hz);
+        n.bwHighOct = juce::jlimit(0.05f, 8.0f, std::log2(juce::jmin(kFreqHi, hiHz) / n.freqHz));
+    }
+    pushNode(node);
+}
+
+void EqPanel::linkEdges(int nodeA, int edgeA, int nodeB, int edgeB)
+{
+    // Keep the relation strictly pairwise: breaking any stale bond these two
+    // slots already held before forming the new one.
+    unlinkEdge(nodeA, edgeA);
+    unlinkEdge(nodeB, edgeB);
+    snapPartner[size_t(nodeA)][edgeA] = { nodeB, edgeB };
+    snapPartner[size_t(nodeB)][edgeB] = { nodeA, edgeA };
+}
+
+void EqPanel::unlinkEdge(int node, int edge)
+{
+    auto& ref = snapPartner[size_t(node)][edge];
+    if (ref.node >= 0)
+    {
+        auto& back = snapPartner[size_t(ref.node)][ref.edge];
+        if (back.node == node && back.edge == edge)
+            back = {};
+    }
+    ref = {};
+}
+
+float EqPanel::trySnapEdge(int node, int edge, float rawHz, float snapRadiusHz)
+{
+    const float srSnap = sampleRateForDisplay();
+    float bestDelta = snapRadiusHz;
+    int   bestNode = -1, bestEdge = -1;
+    float bestHz = rawHz;
+
+    for (int i = 0; i < kMaxEqNodes; ++i)
+    {
+        if (i == node) continue;
+        const auto& other = localNodes[size_t(i)];
+        if (!other.enabled || !other.linked) continue;
+        for (int e = 0; e < 2; ++e)
+        {
+            const float candidate = e == 0 ? detectorLoHz(other) : detectorHiHz(other, srSnap);
+            const float delta = std::abs(candidate - rawHz);
+            if (delta < bestDelta) { bestDelta = delta; bestNode = i; bestEdge = e; bestHz = candidate; }
+        }
+    }
+
+    if (bestNode >= 0)
+        linkEdges(node, edge, bestNode, bestEdge);
+    else
+        unlinkEdge(node, edge);
+
+    return bestHz;
+}
+
+void EqPanel::moveEdgeTo(int node, int edge, juce::Point<float> p)
+{
+    const float rawHz = juce::jlimit(kFreqLo, kFreqHi, xToFreq(p.x));
+    const float snappedHz = trySnapEdge(node, edge, rawHz);
+    setEdgeHz(node, edge, snappedHz);
+    propagateJunctions(node);
+    repaint();
+}
+
+void EqPanel::propagateJunctions(int node)
+{
+    for (int e = 0; e < 2; ++e)
+    {
+        const auto partner = snapPartner[size_t(node)][e];
+        if (partner.node < 0) continue;
+        setEdgeHz(partner.node, partner.edge, edgeHzOf(node, e));
+    }
 }
 
 void EqPanel::createNodeAt(juce::Point<float> p)
@@ -230,7 +296,18 @@ void EqPanel::createNodeAt(juce::Point<float> p)
     localNodes[size_t(freeIdx)].freqHz  = newFreq;
     localNodes[size_t(freeIdx)].gainDb  = yToGainDb(p.y);
     localNodes[size_t(freeIdx)].type    = defaultType;
+    localNodes[size_t(freeIdx)].linked  = true;   // linked to the compressor by default
     pushNode(freeIdx);
+
+    // Snap the new node's default detector edges to any nearby linked node's
+    // edge right away (same 100Hz-radius match as an in-progress edge drag,
+    // see trySnapEdge) so a band placed next to an existing one lines up its
+    // crossover without the user having to nudge borders by hand afterwards.
+    for (int e = 0; e < 2; ++e)
+    {
+        const float snappedHz = trySnapEdge(freeIdx, e, edgeHzOf(freeIdx, e));
+        setEdgeHz(freeIdx, e, snappedHz);
+    }
 
     dragIndex = freeIdx;
     dragEdge  = -1;
@@ -274,6 +351,7 @@ void EqPanel::applyRelativeGainFreq(int anchor, float deltaGainDb, float freqRat
         if (!isGainlessType(n.type))
             n.gainDb = juce::jlimit(-kGainRange, kGainRange, n.gainDb + deltaGainDb);
         pushNode(i);
+        propagateJunctions(i);
     }
 }
 
@@ -303,11 +381,11 @@ void EqPanel::updateIslandBounds()
     int x = int(p.x - NodeIsland::kWidth * 0.5f);
     x = juce::jlimit(int(r.getX()), juce::jmax(int(r.getX()), int(r.getRight()) - NodeIsland::kWidth), x);
 
-    constexpr int gap = 14;
-    int y = int(p.y) - NodeIsland::kHeight - gap;
-    if (y < r.getY())
-        y = int(p.y) + gap;   // not enough room above -- flip below the node
-    y = juce::jlimit(int(r.getY()), juce::jmax(int(r.getY()), int(r.getBottom()) - NodeIsland::kHeight), y);
+    // Docked to the bottom of the graph rather than hovering above/below the
+    // node — a fixed anchor is easier to find at a glance than one that
+    // jumps between above/below depending on the node's own vertical position.
+    constexpr int kBottomPad = 5;
+    const int y = int(r.getBottom()) - NodeIsland::kHeight - kBottomPad;
 
     nodeIsland.setBounds(x, y, NodeIsland::kWidth, NodeIsland::kHeight);
     nodeIsland.toFront(false);
@@ -357,6 +435,7 @@ void EqPanel::mouseDown(const juce::MouseEvent& e)
         dragEdge  = whichEdge;
         selectOnly(edgeHit);
         if (onNodeSelected) onNodeSelected(edgeHit);
+        moveEdgeTo(edgeHit, whichEdge, p);   // jump straight to the click, don't wait for a drag
         return;
     }
 
@@ -380,11 +459,11 @@ void EqPanel::mouseDrag(const juce::MouseEvent& e)
     if (dragThreshold)
     {
         // Vertical-only: frequency stays locked to the node's own position.
-        // Downward-only (<=0), matching the knob's own -96..0 range; also
-        // clamped to the graph's +/-kGainRange dB window like everything
-        // else drawn on it (see yToGainDb) — the Threshold knob itself is
-        // the only way to reach values beyond what the graph can show.
-        n.thresholdDb = juce::jmin(0.0f, yToGainDb(e.position.y));
+        // Downward-only, clamped to the knob's own -60..0 floor (see
+        // setupThresholdKnobRange() in EqEngine.h) so a drag below the
+        // visible graph area can't push the value further than the knob
+        // itself can ever show or reach.
+        n.thresholdDb = juce::jlimit(-60.0f, 0.0f, yToGainDb(e.position.y));
         pushNode(dragIndex);
         repaint();
         return;
@@ -392,19 +471,7 @@ void EqPanel::mouseDrag(const juce::MouseEvent& e)
 
     if (dragEdge >= 0)
     {
-        const float edgeHz = juce::jlimit(kFreqLo, kFreqHi, xToFreq(e.position.x));
-        if (dragEdge == 0)
-        {
-            const float loHz = juce::jmin(n.freqHz * 0.98f, edgeHz);
-            n.bwLowOct = juce::jlimit(0.05f, 8.0f, std::log2(n.freqHz / juce::jmax(kFreqLo, loHz)));
-        }
-        else
-        {
-            const float hiHz = juce::jmax(n.freqHz * 1.02f, edgeHz);
-            n.bwHighOct = juce::jlimit(0.05f, 8.0f, std::log2(juce::jmin(kFreqHi, hiHz) / n.freqHz));
-        }
-        pushNode(dragIndex);
-        repaint();
+        moveEdgeTo(dragIndex, dragEdge, e.position);
         return;
     }
 
@@ -415,6 +482,7 @@ void EqPanel::mouseDrag(const juce::MouseEvent& e)
     if (!isGainlessType(n.type))
         n.gainDb = juce::jlimit(-kGainRange, kGainRange, yToGainDb(e.position.y));
     pushNode(dragIndex);
+    propagateJunctions(dragIndex);   // keep any bonded neighbour edge locked to this node's new position
 
     const float freqRatio   = (oldFreq > 0.0f) ? n.freqHz / oldFreq : 1.0f;
     const float deltaGainDb = n.gainDb - oldGain;
@@ -488,12 +556,17 @@ void EqPanel::showNodeMenu(int i)
         else if (result >= 200 && result < 200 + kNumQPresets)
             node.q = kQPresets[result - 200];
         else if (result == 1)
+        {
             node.linked = !node.linked;
+            if (!node.linked) { unlinkEdge(i, 0); unlinkEdge(i, 1); }   // edges no longer shown/meaningful
+        }
         else if (result == 2)
         {
             node = EqNodeState{};   // disable + reset to defaults
             multiSelected[size_t(i)] = false;
             if (selectedNode == i) setSelectedNode(-1);
+            unlinkEdge(i, 0);
+            unlinkEdge(i, 1);
         }
 
         pushNode(i);
@@ -513,6 +586,13 @@ void EqPanel::timerCallback()
             latest.linked  != localNodes[size_t(i)].linked)
             changed = true;
         if (!latest.enabled) multiSelected[size_t(i)] = false;
+        // A node that became disabled/unlinked out-of-band (e.g. a preset
+        // recall) can no longer meaningfully hold a snap junction.
+        if (!(latest.enabled && latest.linked) && localNodes[size_t(i)].enabled && localNodes[size_t(i)].linked)
+        {
+            unlinkEdge(i, 0);
+            unlinkEdge(i, 1);
+        }
         localNodes[size_t(i)] = latest;
     }
 
@@ -534,7 +614,6 @@ void EqPanel::timerCallback()
 void EqPanel::resized()
 {
     closeButton.setBounds(getWidth() - 28, 8, 22, 22);
-    multibandButton.setBounds(kMultibandBtnX, 8, kMultibandBtnW, 24);
     updateIslandBounds();
 }
 
@@ -542,8 +621,8 @@ void EqPanel::paint(juce::Graphics& g)
 {
     g.fillAll(Theme::bg);
 
-    // Header: MULTIBAND COMP toggle top-left, title alongside it, close top-right.
-    const int titleX = kMultibandBtnX + kMultibandBtnW + 10;
+    // Header: title top-left, close top-right.
+    const int titleX = kHeaderPad;
     g.setFont(Theme::label(15.0f));
     g.setColour(Theme::accent);
     g.drawText("PARAMETRIC EQ", titleX, 8, getWidth() - titleX - 40, 24,

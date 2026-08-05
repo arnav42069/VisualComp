@@ -154,6 +154,13 @@ public:
 
 private:
     void timerCallback() override;   // drives the reactive title glow
+    // Global click-anywhere-to-deselect: registered on `this` with nested
+    // children included (see constructor), so a click landing anywhere in
+    // the editor -- other than inside the EQ panel/Dynamic Island (which
+    // manage node selection themselves) or the band-context knobs/selector
+    // buttons currently editing the selected node -- drops back to the
+    // default (unlinked) broadband compressor knobs.
+    void mouseDown(const juce::MouseEvent&) override;
 
     VisualCompProcessor& audioProcessor;
 

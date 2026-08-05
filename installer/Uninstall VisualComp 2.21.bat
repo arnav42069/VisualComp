@@ -1,5 +1,5 @@
 @echo off
-title VisualComp 2.2 Uninstaller - Azazel Audio
+title VisualComp 2.21 Uninstaller - Azazel Audio
 
 net session >nul 2>&1
 if %errorlevel% neq 0 (

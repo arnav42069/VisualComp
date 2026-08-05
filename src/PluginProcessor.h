@@ -88,11 +88,12 @@ public:
     // reproducibly. Inert unless set.
     std::atomic<bool> debugForceBandGrDemo { false };
 
-    // Multiband mode: OFF = standard single-band compressor with the EQ
-    // affecting tone only. ON = every *linked* EQ node additionally acts as
-    // its own dynamic-EQ-style compression band (see ParametricEq::
-    // applyDynamicBandGain), on top of the ordinary broadband compressor.
-    std::atomic<bool> multibandEnabled { false };
+    // Multiband mode: every *linked* EQ node acts as its own dynamic-EQ-style
+    // compression band (see ParametricEq::applyDynamicBandGain), on top of
+    // the ordinary broadband compressor. As of 2026-08-02 this is always on
+    // (no user-facing toggle any more — see setStateInformation, the flag
+    // itself is kept only because the DSP branches on it internally).
+    std::atomic<bool> multibandEnabled { true };
 
     // Post-output metering (peak/RMS dB + approximate LUFS) — GUI read-only
     std::atomic<float> meterPeakDb     { -100.0f };

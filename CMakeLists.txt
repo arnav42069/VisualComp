@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
-project(VisuComp VERSION 2.2.0)
+project(VisuComp VERSION 2.21.0)
+
+# Single source of truth for the version string embedded in PRODUCT_NAME below
+# and in the distribution-folder paths further down -- keep these in sync
+# rather than hardcoding "2.21" in more than one place (a prior version bump
+# updated PRODUCT_NAME but missed the DIST_DIR block, which then silently
+# kept referencing stale "2.1" paths for an entire release cycle).
+set(VC2_VERSION_STRING "2.21")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,7 +35,7 @@ juce_add_plugin(VisualComp
     PLUGIN_MANUFACTURER_CODE Azzl
     PLUGIN_CODE Vc22
     FORMATS VST3 Standalone
-    PRODUCT_NAME "VisualComp 2.2"
+    PRODUCT_NAME "VisualComp ${VC2_VERSION_STRING}"
     COMPANY_NAME "Azazel Audio"
     COMPANY_WEBSITE "https://brella.co.in"
     IS_SYNTH FALSE
@@ -39,17 +46,18 @@ juce_add_plugin(VisualComp
     COPY_PLUGIN_AFTER_BUILD ${VC2_INSTALL_PLUGIN}
     VST3_COPY_DIR "${VST3_INSTALL_DIR}"
     VST3_CATEGORIES "Fx" "Dynamics"
+    ICON_BIG "${CMAKE_SOURCE_DIR}/resources/azazel-icon.png"
 )
 
 juce_generate_juce_header(VisualComp)
 
 # ── Distribution folder: every Windows build refreshes the release bundle ──
 if(WIN32 AND VC2_INSTALL_PLUGIN)
-    set(DIST_DIR "${CMAKE_SOURCE_DIR}/VisualComp 2.1 - Win and Mac")
+    set(DIST_DIR "${CMAKE_SOURCE_DIR}/VisualComp ${VC2_VERSION_STRING} - Win and Mac")
     add_custom_command(TARGET VisualComp_VST3 POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "$<TARGET_FILE_DIR:VisualComp_VST3>/../.."
-            "${DIST_DIR}/Windows/VisualComp 2.1.vst3"
+            "${DIST_DIR}/Windows/VisualComp ${VC2_VERSION_STRING}.vst3"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/build-macos/build.sh"
             "${DIST_DIR}/Mac/build.sh"
@@ -57,11 +65,11 @@ if(WIN32 AND VC2_INSTALL_PLUGIN)
             "${CMAKE_SOURCE_DIR}/build-macos/README.txt"
             "${DIST_DIR}/Mac/README.txt"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_SOURCE_DIR}/docs/VisualComp 2.1 - User Manual.pdf"
-            "${DIST_DIR}/Documentation/VisualComp 2.1 - User Manual.pdf"
+            "${CMAKE_SOURCE_DIR}/docs/VisualComp ${VC2_VERSION_STRING} - User Manual.pdf"
+            "${DIST_DIR}/Documentation/VisualComp ${VC2_VERSION_STRING} - User Manual.pdf"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_SOURCE_DIR}/About VisualComp 2.1.md"
-            "${DIST_DIR}/Documentation/About VisualComp 2.1.md"
+            "${CMAKE_SOURCE_DIR}/About VisualComp ${VC2_VERSION_STRING}.md"
+            "${DIST_DIR}/Documentation/About VisualComp ${VC2_VERSION_STRING}.md"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/installer/README.txt"
             "${DIST_DIR}/README.txt"

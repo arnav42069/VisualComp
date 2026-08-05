@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>VisualComp 2.1 — User Manual | Azazel Audio</title>
+<title>VisualComp 2.21 — User Manual | Azazel Audio</title>
 <style>
   /* Zero printer margin so each sheet is filled edge to edge with the panel
      black; the readable inset comes from padding inside .page. */
@@ -157,11 +157,11 @@
 <!-- ══════════════════════════ COVER ══════════════════════════ -->
 <div class="page cover">
   <img class="logo" src="img/azazel-logo.svg" alt="Azazel Audio">
-  <h1>VISUALCOMP 2.1</h1>
+  <h1>VISUALCOMP 2.21</h1>
   <div class="tag">The Compressor You Can See</div>
   <div class="rule"></div>
-  <div class="sub">USER MANUAL  /  VERSION 2.1  /  VST3 / STANDALONE  /  WINDOWS &amp; macOS</div>
-  <img class="shot" src="img/ui-full.png" alt="VisualComp 2.1 interface">
+  <div class="sub">USER MANUAL  /  VERSION 2.21  /  VST3 / STANDALONE  /  WINDOWS &amp; macOS</div>
+  <img class="shot" src="img/ui-full.png" alt="VisualComp 2.21 interface" style="width:88%;">
   <div class="foot">AZAZEL AUDIO  /  DESIGNED AND BUILT BY ARNAV SINGH</div>
 </div>
 
@@ -186,12 +186,14 @@
     <tr><td class="n">15</td><td>Recipes</td><td class="pg">21</td></tr>
     <tr><td class="n">16</td><td>Troubleshooting</td><td class="pg">22</td></tr>
     <tr><td class="n">17</td><td>Version 2.1 — New Tools</td><td class="pg">23</td></tr>
-    <tr><td class="n">18</td><td>Specifications &amp; Credits</td><td class="pg">25</td></tr>
+    <tr><td class="n">18</td><td>Version 2.2 — Multiband Dynamic EQ</td><td class="pg">33</td></tr>
+    <tr><td class="n">19</td><td>Version 2.21 — Refinements</td><td class="pg">36</td></tr>
+    <tr><td class="n">20</td><td>Specifications &amp; Credits</td><td class="pg">38</td></tr>
   </table>
 
   <div class="note">
     <span class="lbl">Quick start</span>
-    Insert VisualComp 2.1 on a bus, leave the default <em>Mastering Glue</em> preset loaded, and play
+    Insert VisualComp 2.21 on a bus, leave the default <em>Mastering Glue</em> preset loaded, and play
     your material. Lower <strong>THRESHOLD</strong> until the needle rests around −2 to −4 dB on
     peaks. That is a finished mix-bus compressor setting — everything else in this manual is
     refinement.
@@ -213,12 +215,12 @@
   compressors you cannot see what is happening. You turn a knob, something changes — maybe — and it
   takes years to build the ear that connects a number to a result.</p>
 
-  <p><strong>VisualComp 2.1 is built on one idea: if you can see compression working, you can master
+  <p><strong>VisualComp 2.21 is built on one idea: if you can see compression working, you can master
   it.</strong> Two oscilloscope displays show your signal before and after processing, with the
   threshold drawn straight across the waveform. Set the attack too slow and you will <em>see</em> the
   transient escape. Set the release too fast and you will <em>see</em> the pumping.</p>
 
-  <h3>What VisualComp 2.1 is for</h3>
+  <h3>What VisualComp 2.21 is for</h3>
   <ul>
     <li><strong>Glue</strong> — bonding a mix or a bus into one coherent, finished-sounding whole.</li>
     <li><strong>Control</strong> — evening out an inconsistent vocal, bass or drum performance.</li>
@@ -247,7 +249,7 @@
   <h2><span class="num">02</span>Installation</h2>
 
   <h3>Windows — installer</h3>
-  <p>Open the <code>Windows</code> folder and run <strong>Install VisualComp 2.1.bat</strong>. Windows
+  <p>Open the <code>Windows</code> folder and run <strong>Install VisualComp 2.21.bat</strong>. Windows
   will ask for administrator permission, which the installer needs in order to write to the shared
   VST3 folder. It installs:</p>
   <ul>
@@ -262,9 +264,9 @@
   category Dynamics.</p>
 
   <h4>Manual install</h4>
-  <p>If you prefer not to run the installer, copy the <code>VisualComp 2.1.vst3</code> folder from the
+  <p>If you prefer not to run the installer, copy the <code>VisualComp 2.21.vst3</code> folder from the
   <code>Windows</code> folder into <code>C:\Program Files\Common Files\VST3\</code> yourself, and run
-  <code>VisualComp 2.1.exe</code> from wherever you like.</p>
+  <code>VisualComp 2.21.exe</code> from wherever you like.</p>
 
   <div class="warnbox">
     <span class="lbl">If the plugin does not appear</span>
@@ -292,7 +294,7 @@
         <code>~/Library/Audio/Plug-Ins/VST3/</code>. Rescan plugins in your DAW.</li>
   </ol>
   <p>The plugin is not code-signed. If your DAW refuses to load it, clear the quarantine flag:<br>
-  <code>xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.1.vst3"</code></p>
+  <code>xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.21.vst3"</code></p>
 
   <h3>Where your files live</h3>
   <table>
@@ -313,7 +315,7 @@
 <div class="page">
   <h2><span class="num">03</span>The Guided Tour</h2>
 
-  <p>The first time you open VisualComp 2.1, an eight-step tour walks you through the panel. Each step
+  <p>The first time you open VisualComp 2.21, an eight-step tour walks you through the panel. Each step
   dims the interface, spotlights one area and explains it in a sentence or two.</p>
 
   <figure>
@@ -369,9 +371,9 @@
 <div class="page">
   <h2><span class="num">04</span>Interface Map</h2>
 
-  <figure style="max-width:148mm;margin-left:auto;margin-right:auto;">
+  <figure style="max-width:125mm;margin-left:auto;margin-right:auto;">
     <img src="img/ui-full.png" alt="Full interface">
-    <figcaption><b>Figure 4.1</b> — The complete VisualComp 2.1 panel at 100 % zoom, showing the
+    <figcaption><b>Figure 4.1</b> — The complete VisualComp 2.21 panel at 100 % zoom, showing the
     default <em>Mastering Glue</em> preset.</figcaption>
   </figure>
 
@@ -447,7 +449,7 @@
 <div class="page">
   <h2><span class="num">06</span>Using the Controls</h2>
 
-  <p>Every control in VisualComp 2.1 responds the same way, and the rules are worth learning once
+  <p>Every control in VisualComp 2.21 responds the same way, and the rules are worth learning once
   because they make the plugin considerably faster to operate than a conventional interface.</p>
 
   <h3>Drag anywhere in the box</h3>
@@ -639,7 +641,7 @@
   <div class="note">
     <span class="lbl">Why your knob values may not apply literally</span>
     Real optical and tube compressors physically cannot react in a fraction of a millisecond, and a
-    FET unit cannot be slow. VisualComp 2.1 respects those limits: in Optical and Tube modes very short
+    FET unit cannot be slow. VisualComp 2.21 respects those limits: in Optical and Tube modes very short
     attack settings are lengthened to the circuit's minimum, and in FET mode the attack is always
     fast. The knobs remain fully useful — they simply operate within each circuit's real range.
   </div>
@@ -658,7 +660,7 @@
   <h2><span class="num">10</span>Sidechain — Routing in Your DAW</h2>
 
   <p>External sidechaining lets one signal control the compression applied to another — most commonly
-  a kick drum ducking a bass line or pad so the low end stays clear. VisualComp 2.1 exposes a second
+  a kick drum ducking a bass line or pad so the low end stays clear. VisualComp 2.21 exposes a second
   stereo input bus named <strong>Sidechain</strong> for exactly this.</p>
 
   <div class="warnbox">
@@ -670,11 +672,11 @@
 
   <h3>FL Studio</h3>
   <ol>
-    <li>Put VisualComp 2.1 on the mixer track you want ducked (for example, the bass).</li>
+    <li>Put VisualComp 2.21 on the mixer track you want ducked (for example, the bass).</li>
     <li>Select the <strong>kick's mixer track</strong>, and at the bottom of the bass track's channel
         click the small <strong>send arrow</strong> so the kick is routed to the bass track. The
         arrow lights up to show the side-send is active.</li>
-    <li>Open the VisualComp 2.1 plugin window and click the <strong>wrapper menu</strong> (the arrow in
+    <li>Open the VisualComp 2.21 plugin window and click the <strong>wrapper menu</strong> (the arrow in
         the plugin's title bar).</li>
     <li>Go to <strong>Processing &rarr; Connections</strong>, find the input labelled
         <em>External input</em> (or the sidechain pair) in the dropdown, and select the routed
@@ -685,7 +687,7 @@
 
   <h3>Ableton Live</h3>
   <ol>
-    <li>Place VisualComp 2.1 on the target track.</li>
+    <li>Place VisualComp 2.21 on the target track.</li>
     <li>Open the plugin's device panel and set the <strong>Sidechain</strong> input to the key track
         using Live's plugin sidechain routing selector.</li>
     <li>Press <strong>SC</strong>.</li>
@@ -1214,9 +1216,202 @@
   mark at small sizes.</p>
 </div>
 
-<!-- ══════════════════════════ 18 SPECS ══════════════════════════ -->
+<!-- ══════════════════════════ 18 VERSION 2.2 ══════════════════════════ -->
 <div class="page">
-  <h2><span class="num">18</span>Specifications &amp; Credits</h2>
+  <h2><span class="num">18</span>Version 2.2 — Multiband Dynamic EQ</h2>
+
+  <p>Version 2.2 turns the parametric EQ from Section 17.2 into a real per-band
+  dynamics tool. Any node can now carry its own Threshold, Knee, Ratio, Range,
+  Attack and Release — independent of every other node's — layered on top of
+  the single broadband compressor described in Sections 08–09. This section
+  covers what changed; the control layout itself (Threshold/Knee/Ratio/
+  Attack/Release knobs, the numbered band-selector row) is unchanged from
+  Section 08.</p>
+
+  <h3>18.1 — Multiband is always on</h3>
+  <p>The old <strong>MULTIBAND COMP</strong> toggle button is gone. Multiband
+  dynamics are permanently active — every linked node always runs its own
+  detector and dynamics — and this is not saved as a per-project setting, so
+  there is nothing to remember to turn back on. The EQ panel's open/close
+  button (top-left of the header strip) is now labelled <strong>MB</strong>
+  instead of <strong>EQ</strong>, but does the same thing: it only opens or
+  closes the docked panel.</p>
+  <div class="note">
+    <span class="lbl">What "multiband" means here</span>
+    This is still not eight fully independent compressors summed together —
+    there is one broadband compressor underneath, and each linked node
+    additionally runs its own dynamic-EQ-style gain adjustment at its own
+    frequency. That combination is what every control in this chapter edits.
+  </div>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">18</span>Version 2.2 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>18.2 — Per-band dynamics &amp; the Threshold taper</h3>
+  <figure style="max-width:40mm;margin-left:auto;margin-right:auto;">
+    <img src="img/eq-island-v221.png" alt="EQ graph with a linked node's own dynamics knobs open">
+    <figcaption><b>Figure 18.1</b> — Node 1's own Q/Threshold/Range/Freq
+    controls in the Dynamic Island, mirrored below by the main
+    Threshold/Knee/Ratio/Attack/Release knobs.</figcaption>
+  </figure>
+  <p>Select a node (its number lights up below the graph), then use the
+  Threshold/Knee/Ratio/Attack/Release knobs from Section 08 — they now edit
+  that node instead of the shared broadband compressor:</p>
+  <table>
+    <tr><th>Control</th><th>Range</th><th>Default</th></tr>
+    <tr><td>Threshold</td><td class="p">0 to −60 dB</td><td class="p">−20 dB</td></tr>
+    <tr><td>Knee</td><td class="p">0 to 20 dB</td><td class="p">6 dB</td></tr>
+    <tr><td>Ratio</td><td class="p">1:1 to 20:1</td><td class="p">2:1</td></tr>
+    <tr><td>Attack</td><td class="p">0.1 to 200 ms</td><td class="p">0.2 ms</td></tr>
+    <tr><td>Release</td><td class="p">1 to 2000 ms</td><td class="p">45 ms</td></tr>
+  </table>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">18</span>Version 2.2 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <p>The Threshold knob has a deliberately uneven response: turning it uses a
+  logarithmic taper so the knob's <strong>halfway point lands on −20 dB</strong>
+  — a musically useful "sweet spot" — rather than the midpoint of the raw
+  0 to −60 dB range. That gives finer control across the −20 to 0 dB range
+  most material actually sits in, and compresses the rarely-used −60 to
+  −40 dB tail into the remaining half-turn. The same mapping, and the same
+  underlying value, drives the draggable orange <strong>T</strong> marker on
+  the graph itself (visible in Figure 18.1, below node 1).</p>
+
+  <h3>18.3 — Upward vs. downward, via Range</h3>
+  <p>The <strong>Range</strong> knob (Dynamic Island only, ±30 dB) sets both
+  how far this band's dynamics can move its gain and, through its sign, which
+  direction they move it:</p>
+  <ul>
+    <li><strong>Negative Range</strong> (the default) — ordinary downward
+        compression: material above Threshold is turned down, up to Range's
+        magnitude.</li>
+    <li><strong>Positive Range</strong> — upward compression: material
+        <em>below</em> Threshold is turned up instead, using the same
+        Knee/Ratio shape mirrored around the threshold. Useful for lifting
+        buried detail (room tone, a sustain tail, a quiet vocal phrase)
+        without touching anything already loud.</li>
+  </ul>
+  <p>The Dynamic Island's <strong>UP / DOWN</strong> button reflects and can
+  override this, but turning Range past zero in either direction will flip it
+  automatically — you rarely need to touch the button directly.</p>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">18</span>Version 2.2 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>18.4 — The Dynamic Island</h3>
+  <p>Clicking any node opens a small floating control popup docked to its
+  spot on the graph — the <strong>Dynamic Island</strong>. Alongside Q (also
+  reachable by mouse wheel over the node, or the right-click Q submenu) and
+  the Threshold/Range pair from 18.2–18.3, it carries two more controls:</p>
+  <ul>
+    <li><strong>FREQ</strong> — the node's own frequency (20 Hz to 20 kHz).
+        Identical to dragging the node left/right on the graph, but useful
+        for a precise numeric-feeling nudge without also disturbing gain.</li>
+    <li><strong>COMP</strong> — links or unlinks this node from the
+        compressor. A newly created node (double-click on empty graph space)
+        is <strong>linked by default</strong>, so a new band gets its own
+        dynamics immediately rather than needing a second step.</li>
+  </ul>
+  <p>Every Island edit, and every graph drag, updates the Dynamics pane's
+  knobs and progress bars immediately — there is no need to click elsewhere
+  or wait for the display to refresh.</p>
+
+  <h3>18.5 — Multi-select editing</h3>
+  <p><strong>Ctrl+Click</strong> (Cmd+Click on macOS) a second node to add it
+  to a selection; the most recently clicked node becomes the anchor. Dragging
+  the anchor's frequency/gain, or turning its Q, now applies the same
+  <em>relative</em> change to every other selected node — a dB delta for
+  gain, a multiplicative ratio for frequency and Q — each clamped to its own
+  valid range. A plain click (no modifier) always resets the selection back
+  to just that one node. Right-click actions (change type, link/unlink,
+  remove) always apply to the single clicked node regardless of any active
+  multi-selection.</p>
+
+  <div class="tip">
+    <span class="lbl">Detector edges, briefly</span>
+    Each linked node's shaded band strip (visible in Figure 18.1) still shows
+    the frequency range feeding its detector, independent of its own tone
+    shape — see Section 19.3 for how dragging those edges changed in 2.21.
+  </div>
+
+</div>
+
+<!-- ══════════════════════════ 19 VERSION 2.21 ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">19</span>Version 2.21 — Refinements</h2>
+
+  <p>Version 2.21 is a smaller, interface-focused update on top of 2.2's
+  multiband dynamic EQ: a more predictable home for the Dynamic Island, a
+  clearer level meter, and detector-edge dragging that is both easier to
+  grab and easier to line bands up with.</p>
+
+  <h3>19.1 — Dynamic Island docked to the graph</h3>
+  <p>The Dynamic Island no longer hovers above or below whichever node is
+  selected, flipping sides depending on how close that node is to the top or
+  bottom of the graph. It now docks to a fixed spot at the <strong>bottom of
+  the EQ graph</strong>, 5 px above the frequency axis, sliding only
+  left/right to stay centred under the selected node (Figure 18.1 shows this
+  docked position). The result is one predictable location to look for it
+  regardless of which node — or how high or low on the graph — is selected.</p>
+
+  <h3>19.2 — Level meter: peak-hold and side labels</h3>
+  <figure style="max-width:52mm;margin-left:auto;margin-right:auto;">
+    <img src="img/meter-peakhold-v221.png" alt="Level meter strip with dB/LUFS side labels and a peak-hold readout, next to the gain-reduction meter">
+    <figcaption><b>Figure 19.1</b> — The level meter strip (far right edge,
+    shown here next to the Gain Reduction meter for scale), both bars
+    revealed. The readout at top is the peak-hold value; "dB" and "LUFS" now
+    label their bars from the side.</figcaption>
+  </figure>
+  <p>The dB and LUFS unit labels introduced in Section 11 have moved from
+  underneath each bar to a narrow vertical label immediately to its right, in
+  bright white for quick reading at a glance. That freed the space they used
+  to occupy, which now goes to a numeric <strong>peak-hold readout</strong>
+  above the bars: the highest dB peak reached in the <strong>trailing three
+  seconds</strong>, rather than an ordinary meter needle that can slip back
+  down the instant a transient passes. It reads "--" when there has been no
+  signal in that window.</p>
+
+</div>
+
+<div class="page">
+  <h2><span class="num">19</span>Version 2.21 <span style="font-size:10pt;color:var(--muted)">(continued)</span></h2>
+
+  <h3>19.3 — Click-to-jump borders &amp; persistent snap junctions</h3>
+  <p>Every linked node's detector-edge border (the shaded band's low/high
+  boundary, Section 18.5) can now be grabbed by clicking <strong>anywhere
+  near it</strong> along the graph's full height, not just the small flag
+  triangle at the very top — and a single click, without needing to drag
+  first, jumps that border straight to the clicked frequency.</p>
+  <p>Borders dragged within 100 Hz of another linked node's edge still snap
+  together, as introduced in 2.2 — but that snap is now a lasting bond, not a
+  one-time nudge:</p>
+  <ul>
+    <li><strong>Dragging a snapped junction</strong> moves both nodes' edges
+        together, keeping them locked to the same frequency as you drag left
+        or right.</li>
+    <li><strong>Moving a node itself</strong> (dragging its centre frequency)
+        carries any junction it participates in along with it, so the bond
+        survives instead of drifting apart the next time that node moves.</li>
+    <li><strong>Newly created nodes</strong> snap their default edges to any
+        nearby linked node right away, so placing a band next to an existing
+        one lines up the crossover without any manual nudging.</li>
+  </ul>
+  <p>Dragging a border far enough away from its partner (out past the 100 Hz
+  snap radius) breaks the bond, freeing that edge to move independently
+  again.</p>
+
+</div>
+
+<!-- ══════════════════════════ 20 SPECS ══════════════════════════ -->
+<div class="page">
+  <h2><span class="num">20</span>Specifications &amp; Credits</h2>
 
   <h3>Parameters</h3>
   <table>
@@ -1246,7 +1441,7 @@
   </ul>
 
   <h3>Credits</h3>
-  <p>VisualComp 2.1 was designed, programmed and voiced by <strong>Arnav Singh</strong> for
+  <p>VisualComp 2.21 was designed, programmed and voiced by <strong>Arnav Singh</strong> for
   <strong>Azazel Audio</strong>. Built with the JUCE framework.</p>
   <p>Preset values were informed by long-documented practice around the SSL G-Series bus compressor,
   FET and optical studio units, and contemporary mastering technique — then verified by ear on real
@@ -1254,12 +1449,12 @@
 
   <div class="note">
     <span class="lbl">Thank you</span>
-    Thank you for using VisualComp 2.1. If it helps you understand compression a little better, it has
+    Thank you for using VisualComp 2.21. If it helps you understand compression a little better, it has
     done its job. — <a href="https://azazelaudio.com">azazelaudio.com</a>
   </div>
 
   <p style="margin-top:8mm;text-align:center;color:var(--muted);font-size:8.6pt;letter-spacing:.18em;">
-    AZAZEL AUDIO  /  VISUALCOMP 2.1  /  USER MANUAL  /  VERSION 2.1
+    AZAZEL AUDIO  /  VISUALCOMP 2.21  /  USER MANUAL  /  VERSION 2.21
   </p>
 </div>
 

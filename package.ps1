@@ -1,9 +1,9 @@
-# Assembles the VisualComp 2.2 release bundle and zips it into "Build Final".
+# Assembles the VisualComp 2.21 release bundle and zips it into "Build Final".
 # Run after a Release build of VisualComp_VST3 and VisualComp_Standalone.
 
 $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $MyInvocation.MyCommand.Path
-$version = '2.2'
+$version = '2.21'
 
 # Use whichever build tree holds the newest plugin. build-pkg is built with
 # -DVC2_INSTALL_PLUGIN=OFF so it never touches files a running DAW has locked.
@@ -18,7 +18,7 @@ $artefacts = $candidates |
     Select-Object -First 1
 $vst3Src   = Join-Path $artefacts "VST3\VisualComp $version.vst3"
 $exeSrc    = Join-Path $artefacts "Standalone\VisualComp $version.exe"
-$manual    = Join-Path $root 'docs\VisualComp 2.1 - User Manual.pdf'
+$manual    = Join-Path $root "docs\VisualComp $version - User Manual.pdf"
 
 foreach ($p in @($vst3Src, $exeSrc, $manual)) {
     if (-not (Test-Path -LiteralPath $p)) { throw "Missing build output: $p" }
@@ -35,7 +35,7 @@ New-Item -ItemType Directory -Force -Path $stageRoot | Out-Null
 
 # ── Root: readme + manual ───────────────────────────────────────────────────
 Copy-Item (Join-Path $root 'installer\README.txt') (Join-Path $stageRoot 'README.txt') -Force
-Copy-Item $manual (Join-Path $stageRoot 'VisualComp 2.1 - User Manual.pdf') -Force
+Copy-Item $manual (Join-Path $stageRoot "VisualComp $version - User Manual.pdf") -Force
 
 # ── Windows: installer + plugin + standalone ────────────────────────────────
 $win = Join-Path $stageRoot 'Windows'

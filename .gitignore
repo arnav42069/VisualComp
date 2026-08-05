@@ -1,8 +1,17 @@
 # Build outputs — regenerate via CMake / package.ps1 / testbuild.ps1 (see CLAUDE.md)
 /build/
 /build-pkg/
-/build-macos/
+# build-macos/ holds hand-authored source (build.sh, README.txt) copied into
+# releases by CMakeLists.txt's DIST_DIR step and package.ps1 -- only its own
+# generated build tree is regenerable output.
+/build-macos/cmake-build/
 /Build Final/
+
+# CMake's DIST_DIR post-build folder (CLAUDE.md "DIST_DIR post-build step") --
+# regenerated for the *current* version on every VisualComp_VST3 build, so it's
+# build output like /build/, not living source. Old previous-version copies are
+# covered by the explicit snapshot entries below.
+/VisualComp * - Win and Mac/
 
 # Release archives and older frozen source/build snapshots (not living source)
 *.zip

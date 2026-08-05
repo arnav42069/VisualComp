@@ -47,6 +47,12 @@ public:
     // already does for the graph's own mouse-wheel Q adjustment.
     std::function<void(int nodeIndex, float qRatio)> onQRatioChanged;
 
+    // Fired after any knob/button here writes a new value straight to
+    // processor.eq (Q, Threshold, Range, Freq, direction, Comp) — EqPanel
+    // relays this to the main editor so its Dynamics-pane progress bars can
+    // repaint immediately rather than waiting for a poll tick.
+    std::function<void(int nodeIndex)> onNodeEdited;
+
 private:
     void showTypeMenu();
 

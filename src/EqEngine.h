@@ -192,7 +192,7 @@ struct EqNodeState
     // This band's own compressor dynamics, used only when linked AND
     // multiband mode is on (see ParametricEq::applyDynamicBandGain) — lets
     // each band compress differently instead of sharing the global knobs.
-    float thresholdDb = -10.0f;   // downward-only now: -inf(-96)..0dB, FabFilter Pro-MB style
+    float thresholdDb = -20.0f;   // downward-only, 0..-60dB — see setupThresholdKnobRange()
     float kneeDb      = 6.0f;
     float ratio       = 2.0f;
     // FabFilter Pro-MB-style Range: +/-30dB, clamps how far kneeRatioGrDb/
@@ -219,6 +219,20 @@ struct EqNodeState
 
 static constexpr int kMaxEqNodes = 8;
 constexpr float kDetectorEdgeQ = 0.7071f;   // 2-pole Butterworth-ish edge slope
+
+// Threshold knob mapping (per-node dynamic-EQ Threshold — NodeIsland's knob
+// and the main editor's bandThresholdKnob both use this, and must stay
+// identical since they edit the same underlying value): 0..-60dB, with a
+// logarithmic taper (JUCE skew) centred so 50% rotation lands on -20dB, a
+// musically useful "sweet spot" — giving finer control across the typical
+// -20..0dB working range while compressing the -60..-40dB tail into the
+// knob's other half. A plain skew (not the earlier piecewise range) since a
+// smooth taper, not an exact breakpoint, is what was actually wanted.
+inline void setupThresholdKnobRange(juce::Slider& knob) noexcept
+{
+    knob.setRange(-60.0, 0.0);
+    knob.setSkewFactorFromMidPoint(-20.0);
+}
 
 // Detector passband edges for a node (see EqNodeState::bwLowOct/bwHighOct).
 inline float detectorLoHz(const EqNodeState& n) noexcept

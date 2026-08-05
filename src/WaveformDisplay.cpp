@@ -452,20 +452,22 @@ void WaveformDisplay::paint(juce::Graphics& g)
                    juce::Justification::centredRight, false);
     }
 
-    // === Title tab ===
-    const auto badge = juce::Rectangle<int>(int(waveX) + 4, screen.getY() + 4, 92, 22);
-    g.setColour(Theme::bg.withAlpha(0.88f));
+    // === Title tab === bottom-right corner, no outline, half the footprint
+    // and half the opacity of the original top-left badge — a subtle stamp
+    // rather than a prominent chip.
+    const auto badge = juce::Rectangle<int>(int(waveEnd) - 46 - 4, screen.getBottom() - 11 - 4, 46, 11);
+    g.setColour(Theme::bg.withAlpha(0.5f));
     g.fillRect(badge);
-    g.setColour(waveColour.withAlpha(0.55f));
-    g.drawRect(badge, 1);
-    g.setColour(waveColour);
-    g.setFont(Theme::label(15.0f));
+    g.setColour(waveColour.withAlpha(0.5f));
+    g.setFont(Theme::label(7.5f));
     g.drawText(title, badge, juce::Justification::centred, false);
 
-    // Sidechain state stamp, so screenshots/manuals read unambiguously
+    // Sidechain state stamp, so screenshots/manuals read unambiguously.
+    // Anchored independently of the (now bottom-right, subtle) title badge
+    // above, at the top-left corner where the title used to sit.
     if (scEnabledAtomic != nullptr && scEnabledAtomic->load(std::memory_order_relaxed))
     {
-        const auto stamp = juce::Rectangle<int>(badge.getRight() + 5, badge.getY(), 122, 22);
+        const auto stamp = juce::Rectangle<int>(int(waveX) + 4, screen.getY() + 4, 122, 22);
         g.setColour(Theme::ice.withAlpha(0.55f));
         g.drawRect(stamp, 1);
         g.setColour(Theme::ice);

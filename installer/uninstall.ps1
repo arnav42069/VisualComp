@@ -1,13 +1,15 @@
-# VisualComp 2.2 — Azazel Audio — uninstaller
+# VisualComp 2.21 — Azazel Audio — uninstaller
 $ErrorActionPreference = 'SilentlyContinue'
 
 Write-Host ''
-Write-Host '  Removing VisualComp 2.2...' -ForegroundColor Yellow
+Write-Host '  Removing VisualComp 2.21...' -ForegroundColor Yellow
 
 $targets = @(
+    'C:\Program Files\Common Files\VST3\VisualComp 2.21.vst3',
+    'C:\Program Files\Azazel Audio\VisualComp 2.21',
+    # earlier releases, removed too so no duplicates are left in the DAW
     'C:\Program Files\Common Files\VST3\VisualComp 2.2.vst3',
     'C:\Program Files\Azazel Audio\VisualComp 2.2',
-    # earlier releases, removed too so no duplicates are left in the DAW
     'C:\Program Files\Common Files\VST3\VisualComp 2.1.vst3',
     'C:\Program Files\Azazel Audio\VisualComp 2.1',
     'C:\Program Files\Common Files\VST3\VisualComp 2.vst3',
