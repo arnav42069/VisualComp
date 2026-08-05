@@ -165,9 +165,31 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
 
 void NodeIsland::setTargetNode(int index)
 {
+    if (index != target) userMoved = false;   // new node: re-dock under it by default
     target = index;
     setVisible(index >= 0);
     if (index >= 0) refreshFromProcessor();
+}
+
+void NodeIsland::mouseDown(const juce::MouseEvent& e)
+{
+    // Only reached for clicks that land on the Island's own background --
+    // every knob/button consumes its own clicks, so this is naturally
+    // "anywhere that's not a button or input".
+    dragAnchor = e.getPosition();
+}
+
+void NodeIsland::mouseDrag(const juce::MouseEvent& e)
+{
+    auto* parent = getParentComponent();
+    if (parent == nullptr) return;
+
+    auto pos = getPosition() + (e.getPosition() - dragAnchor);
+    const auto bounds = parent->getLocalBounds();
+    pos.x = juce::jlimit(bounds.getX(), juce::jmax(bounds.getX(), bounds.getRight() - getWidth()),  pos.x);
+    pos.y = juce::jlimit(bounds.getY(), juce::jmax(bounds.getY(), bounds.getBottom() - getHeight()), pos.y);
+    setTopLeftPosition(pos);
+    userMoved = true;
 }
 
 void NodeIsland::refreshFromProcessor()

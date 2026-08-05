@@ -102,7 +102,12 @@ public:
     std::atomic<float> meterShortLufs  { -100.0f };
 
     // GUI persistence (message thread only)
-    juce::String currentPresetName { "Mastering Glue" };
+    juce::String currentPresetName   { "Mastering Glue" };
+    // Author of the currently loaded/saved user preset -- blank for factory
+    // presets and for user presets saved before this field existed. Doubles
+    // as the remembered default the next "Save Preset As..." pre-fills, so a
+    // producer saving a whole preset pack doesn't retype their name each time.
+    juce::String currentPresetAuthor { "" };
     float        editorScale       { 1.0f };
     bool         eqPanelOpen       { false };
     bool         curveGrPanelOpen  { false };

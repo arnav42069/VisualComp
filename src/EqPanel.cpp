@@ -375,6 +375,22 @@ void EqPanel::updateIslandBounds()
 {
     if (selectedNode < 0) { nodeIsland.setVisible(false); return; }
 
+    // Once the user has dragged the Island (see NodeIsland::mouseDrag), stop
+    // re-docking it under the node on every call -- this runs from the 60Hz
+    // poll timer too, so without this it would fight/undo the drag every
+    // frame. Still re-clamp to the panel's own bounds in case a resize (e.g.
+    // toggling the Curve/GR column) left it hanging off the new edge.
+    if (nodeIsland.wasManuallyPositioned())
+    {
+        auto b = nodeIsland.getBounds();
+        const auto within = getLocalBounds();
+        b.setX(juce::jlimit(within.getX(), juce::jmax(within.getX(), within.getRight() - b.getWidth()), b.getX()));
+        b.setY(juce::jlimit(within.getY(), juce::jmax(within.getY(), within.getBottom() - b.getHeight()), b.getY()));
+        nodeIsland.setBounds(b);
+        nodeIsland.toFront(false);
+        return;
+    }
+
     const auto p = nodePos(selectedNode);
     const auto r = graphArea();
 

@@ -31,10 +31,22 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseDrag(const juce::MouseEvent&) override;
 
     // -1 hides the island; otherwise shows it reflecting node `index`.
+    // Switching to a *different* node index re-docks the Island under it
+    // (clearing any manual drag from the previous node); re-passing the
+    // already-target index (e.g. re-clicking the same node) leaves a manual
+    // drag alone.
     void setTargetNode(int index);
     int  targetNode() const { return target; }
+
+    // True once the user has dragged the Island away from its default
+    // docked position (see mouseDrag) -- EqPanel::updateIslandBounds() stops
+    // auto-recentring it under the node while this is set, so the drag
+    // isn't immediately fought/undone by the next poll-timer tick.
+    bool wasManuallyPositioned() const { return userMoved; }
 
     // Re-syncs the displayed Q/threshold/range/direction/type from the
     // processor (called by EqPanel's existing poll timer, mirroring how it
@@ -58,6 +70,16 @@ private:
 
     VisualCompProcessor& processor;
     int target = -1;
+
+    // Manual-drag state (see mouseDown/mouseDrag). dragAnchor is the mouse
+    // position, relative to this component, at the start of the drag --
+    // clicks landing on a child knob/button/label never reach here (they
+    // either consume the event themselves or, for the labels, pass through
+    // with setInterceptsMouseClicks(false, false) only after already being
+    // routed to whichever component is actually under the cursor), so this
+    // only fires for clicks on the Island's own background/padding.
+    juce::Point<int> dragAnchor;
+    bool userMoved = false;
 
     juce::Slider     qKnob;
     juce::Label      qLabel;

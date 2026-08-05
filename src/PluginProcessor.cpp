@@ -478,7 +478,8 @@ void VisualCompProcessor::getStateInformation(juce::MemoryBlock& destData)
     auto state = apvts.copyState();
     state.setProperty("compMode",   compMode.load(std::memory_order_relaxed), nullptr);
     state.setProperty("clipMode",   clipMode.load(std::memory_order_relaxed), nullptr);
-    state.setProperty("presetName", currentPresetName, nullptr);
+    state.setProperty("presetName",   currentPresetName,   nullptr);
+    state.setProperty("presetAuthor", currentPresetAuthor, nullptr);
     // eqPanelOpen deliberately not saved — see setStateInformation, it's
     // never read back, so always starts closed.
     state.setProperty("curveGrPanelOpen", curveGrPanelOpen, nullptr);
@@ -520,7 +521,8 @@ void VisualCompProcessor::setStateInformation(const void* data, int sizeInBytes)
             apvts.replaceState(state);
             compMode.store(int(state.getProperty("compMode", 0)), std::memory_order_relaxed);
             clipMode.store(int(state.getProperty("clipMode", 0)), std::memory_order_relaxed);
-            currentPresetName = state.getProperty("presetName", "Mastering Glue").toString();
+            currentPresetName   = state.getProperty("presetName", "Mastering Glue").toString();
+            currentPresetAuthor = state.getProperty("presetAuthor", "").toString();
             // Deliberately not restored from state — the docked EQ panel is a
             // transient view, not song data, and should always start closed
             // regardless of whether an earlier session (or this same project,

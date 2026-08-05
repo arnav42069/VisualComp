@@ -85,7 +85,17 @@ project name; that has not been renamed and doesn't need to be.
   bottom of the graph (`EqPanel::updateIslandBounds()`), 5px above the frequency axis,
   sliding only left/right to stay centred under the selected node — it no longer flips
   above/below the node depending on the node's own vertical position, which was the previous
-  behavior. `EqPanel` supports Ctrl/Cmd+Click multi-selection: dragging or wheel/Island-editing
+  behavior. As of 2026-08-06 the Island is also freely draggable: clicking anywhere on its own
+  background (not a knob/button — those consume their own clicks first, and the Q/Threshold/
+  Range/Freq labels pass clicks through via `setInterceptsMouseClicks(false, false)`) and
+  dragging repositions it (`NodeIsland::mouseDown`/`mouseDrag`, clamped to stay within
+  `EqPanel`'s own bounds). Once dragged, `NodeIsland::wasManuallyPositioned()` goes true and
+  `EqPanel::updateIslandBounds()` — which otherwise re-centres the Island under the node on
+  every 60Hz poll tick — stops doing so (only re-clamping into bounds on resize) until a
+  *different* node is selected, at which point `NodeIsland::setTargetNode()` resets the flag
+  and it re-docks under the newly-selected node by default. Re-clicking the same
+  already-selected node (e.g. to start dragging it on the graph) does not reset the flag.
+  `EqPanel` supports Ctrl/Cmd+Click multi-selection: dragging or wheel/Island-editing
   the most-recently-clicked node propagates the same relative change (dB delta for gain/additive
   fields, multiplicative ratio for freq/Q) to the rest of the selected set, each clamped to
   its own range. Right-click actions (type/link/remove) are always single-node.
@@ -301,6 +311,25 @@ project name; that has not been renamed and doesn't need to be.
 - User presets live at `Documents\Azazel Audio\VisualComp 2\Presets\*.vcpreset` —
   deliberately still versioned "VisualComp 2", not "2.1", so presets survive point
   releases. Don't rename that folder.
+- As of 2026-08-06 user presets (not factory ones) carry an **Author** field, aimed at
+  producers sharing preset packs. `VisualCompEditor::saveUserPreset()` first shows a themed
+  `AlertWindow` prompt (same "modal, then continue" shape as the Auto-Analyze wizard below)
+  asking for an author name — pre-filled with whichever name was typed last
+  (`VisualCompProcessor::currentPresetAuthor`) so a whole pack doesn't need retyping it every
+  save, blank the first time — then hands off to the existing `FileChooser` Save flow
+  (`launchSavePresetFileChooser()`). The name is written into the `.vcpreset` XML as a
+  `presetAuthor` property (same custom-`ValueTree`-property pattern as `compMode`/`clipMode`,
+  not an APVTS parameter) and also persisted in the processor's own session state
+  (`getStateInformation`/`setStateInformation`) alongside `presetName`, so it survives a DAW
+  project reload. There's no room for an always-visible "by X" label in the pixel-packed
+  preset header row (see `resized()`'s preset-strip block), so on load it surfaces instead as
+  a tooltip on the preset name button (`VisualCompEditor::setPresetAuthor()`,
+  `presetButton.setTooltip(...)`) — this needed a `juce::TooltipWindow` member added to
+  `VisualCompEditor` (`tooltipWindow`), since `setTooltip()` text alone renders nothing
+  without one live in the component hierarchy. Factory presets and Smart Master+-generated
+  presets explicitly clear it (`setPresetAuthor({})`) so a stale author from a
+  previously-loaded user preset doesn't linger. `VC2_FORCE_SAVE_PRESET_DIALOG` (screenshot
+  automation only, inert unless set) opens the author prompt on launch.
 
 ## General conventions
 

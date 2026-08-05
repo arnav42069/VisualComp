@@ -832,6 +832,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
 
     // Presets
     setupTextButton(presetButton, audioProcessor.currentPresetName);
+    presetButton.setTooltip(audioProcessor.currentPresetAuthor.isNotEmpty()
+        ? ("Preset by " + audioProcessor.currentPresetAuthor) : juce::String());
     presetButton.onClick = [this] { showPresetMenu(); };
     setupTextButton(presetPrev, juce::String::charToString(0x2039));
     presetPrev.onClick = [this] { stepPreset(-1); };
@@ -1094,6 +1096,19 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         juce::Timer::callAfterDelay(500, [safe]
         {
             if (safe != nullptr) safe->startHelpTour();
+        });
+    }
+
+    // Documentation aid, same pattern as VC2_FORCE_EQ_OPEN: opens the
+    // "Save Preset" author-name prompt on launch so it can be screenshotted
+    // reproducibly (synthetic clicks don't reach the window on Windows).
+    // Inert unless set.
+    if (juce::SystemStats::getEnvironmentVariable("VC2_FORCE_SAVE_PRESET_DIALOG", {}).isNotEmpty())
+    {
+        juce::Component::SafePointer<VisualCompEditor> safe(this);
+        juce::Timer::callAfterDelay(700, [safe]
+        {
+            if (safe != nullptr) safe->saveUserPreset();
         });
     }
 }
@@ -1362,6 +1377,18 @@ void VisualCompEditor::setPresetName(const juce::String& name)
     presetButton.setButtonText(name);
 }
 
+// The preset row (see resized()) is already pixel-packed with no slack for
+// a new always-visible "by <author>" label, so the author rides along as a
+// tooltip on the preset name button instead -- zero layout risk, still
+// genuinely discoverable on hover, and blank (no tooltip) for presets that
+// don't carry one (factory presets, or older .vcpreset files saved before
+// this field existed).
+void VisualCompEditor::setPresetAuthor(const juce::String& author)
+{
+    audioProcessor.currentPresetAuthor = author;
+    presetButton.setTooltip(author.isNotEmpty() ? ("Preset by " + author) : juce::String());
+}
+
 void VisualCompEditor::showPresetMenu()
 {
     juce::PopupMenu menu;
@@ -1434,6 +1461,7 @@ void VisualCompEditor::applyFactoryPreset(int index)
     audioProcessor.clipMode.store(fp.clipMode, std::memory_order_relaxed);
     clipModeButton.setButtonText(OutputClipper::modeName(static_cast<ClipMode>(fp.clipMode)));
     setPresetName(fp.name);
+    setPresetAuthor({});   // factory presets don't carry an author
 }
 
 void VisualCompEditor::stepPreset(int delta)
@@ -1449,6 +1477,32 @@ void VisualCompEditor::stepPreset(int delta)
 
 void VisualCompEditor::saveUserPreset()
 {
+    // Ask for an author first (blank input field, pre-filled with whatever
+    // was typed last so a whole preset pack doesn't need retyping it every
+    // save), then hand off to the file chooser for the name/location --
+    // same two-step AlertWindow-then-continue shape as the Auto-Analyze
+    // wizard below.
+    auto* aw = new juce::AlertWindow("Save Preset",
+        "Credit yourself so producers sharing this pack know who made it (optional).",
+        juce::AlertWindow::NoIcon);
+    aw->setLookAndFeel(&laf);
+    aw->addTextEditor("author", audioProcessor.currentPresetAuthor, "Author");
+    aw->addButton("Next",   1, juce::KeyPress(juce::KeyPress::returnKey));
+    aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+    wizardWindow.reset(aw);
+    aw->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this](int result)
+        {
+            if (result != 1 || wizardWindow == nullptr) { wizardWindow.reset(); return; }
+            const juce::String author = wizardWindow->getTextEditorContents("author").trim();
+            wizardWindow.reset();
+            launchSavePresetFileChooser(author);
+        }), false);
+}
+
+void VisualCompEditor::launchSavePresetFileChooser(const juce::String& author)
+{
     fileChooser = std::make_unique<juce::FileChooser>(
         "Save preset", getUserPresetDir().getChildFile("My Preset.vcpreset"), "*.vcpreset");
 
@@ -1456,7 +1510,7 @@ void VisualCompEditor::saveUserPreset()
         juce::FileBrowserComponent::saveMode
             | juce::FileBrowserComponent::canSelectFiles
             | juce::FileBrowserComponent::warnAboutOverwriting,
-        [this](const juce::FileChooser& fc)
+        [this, author](const juce::FileChooser& fc)
         {
             auto file = fc.getResult();
             if (file == juce::File{}) return;
@@ -1467,9 +1521,13 @@ void VisualCompEditor::saveUserPreset()
                 audioProcessor.compMode.load(std::memory_order_relaxed), nullptr);
             state.setProperty("clipMode",
                 audioProcessor.clipMode.load(std::memory_order_relaxed), nullptr);
+            state.setProperty("presetAuthor", author, nullptr);
             if (auto xml = state.createXml())
                 if (xml->writeTo(file))
+                {
                     setPresetName(file.getFileNameWithoutExtension());
+                    setPresetAuthor(author);
+                }
         });
 }
 
@@ -1487,6 +1545,9 @@ void VisualCompEditor::loadUserPreset(const juce::File& file)
             audioProcessor.clipMode.store(cm, std::memory_order_relaxed);
             clipModeButton.setButtonText(OutputClipper::modeName(static_cast<ClipMode>(cm)));
             setPresetName(file.getFileNameWithoutExtension());
+            // Blank for presets saved before this field existed -- clears
+            // any stale tooltip left over from whatever was loaded before.
+            setPresetAuthor(state.getProperty("presetAuthor", "").toString());
         }
     }
 }
@@ -1640,6 +1701,7 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
 
     const juce::String name = "Smart Master+: " + genre + "  " + juce::String(targetLufs, 1) + " LU";
     setPresetName(name);
+    setPresetAuthor({});   // generated, not loaded/saved from a user preset file
 
     juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::InfoIcon,
         "Smart Master+ complete",

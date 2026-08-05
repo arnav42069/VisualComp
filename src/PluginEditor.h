@@ -166,6 +166,12 @@ private:
 
     AzazelLookAndFeel laf;
 
+    // Needed for any setTooltip() text (e.g. the preset button's "Preset by
+    // <author>", see setPresetAuthor()) to actually pop up on hover -- a
+    // Component's tooltip string alone does nothing without one of these
+    // live somewhere in its hierarchy.
+    juce::TooltipWindow tooltipWindow { this };
+
     WaveformDisplay inputDisplay;
     WaveformDisplay outputDisplay;
     VuMeter         vuMeter;
@@ -273,8 +279,10 @@ private:
     void applyFactoryPreset(int index);
     void stepPreset(int delta);
     void saveUserPreset();
+    void launchSavePresetFileChooser(const juce::String& author);
     void loadUserPreset(const juce::File& file);
     void setPresetName(const juce::String& name);
+    void setPresetAuthor(const juce::String& author);
     static juce::File getUserPresetDir();
 
     // Auto-Analyze wizard
