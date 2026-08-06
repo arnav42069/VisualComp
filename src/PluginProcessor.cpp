@@ -85,6 +85,13 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     loudness.prepare(sampleRate);
     const int latency = clipper.prepare(sampleRate, samplesPerBlock);
     setLatencySamples(latency);
+
+    const int capSamples = int(std::ceil(sampleRate * kSmartMasterCaptureSeconds));
+    if (smartMasterCapture.getNumSamples() != capSamples)
+        smartMasterCapture.setSize(2, capSamples, false, true, true);
+    smartMasterCaptureActive.store(false, std::memory_order_relaxed);
+    smartMasterCaptureWritePos.store(0, std::memory_order_relaxed);
+    smartMasterCaptureDone.store(false, std::memory_order_relaxed);
 }
 
 void VisualCompProcessor::releaseResources() {}
@@ -195,6 +202,33 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (int ch = 0; ch < numChannels; ++ch)
         monoMixBuffer.addFrom(0, 0, buffer, ch, 0, numSamples, inScale);
     inputWaveform.push(monoMixBuffer.getReadPointer(0), numSamples);
+
+    // ── Smart Master+ capture (raw pre-processing input, up to ~9s) ───────────
+    // Armed by VisualCompEditor::beginSmartMasterCapture; runs until the
+    // buffer fills, then flags done for the GUI's timer to notice. Copies
+    // straight from the untouched input `buffer` -- nothing below this point
+    // has modified it yet -- so the wizard analyzes exactly what came in.
+    if (smartMasterCaptureActive.load(std::memory_order_relaxed))
+    {
+        int pos = smartMasterCaptureWritePos.load(std::memory_order_relaxed);
+        const int cap = smartMasterCapture.getNumSamples();
+        const int toCopy = juce::jmin(numSamples, cap - pos);
+        if (toCopy > 0)
+        {
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const int srcCh = juce::jmin(ch, numChannels - 1);
+                smartMasterCapture.copyFrom(ch, pos, buffer, srcCh, 0, toCopy);
+            }
+            pos += toCopy;
+            smartMasterCaptureWritePos.store(pos, std::memory_order_relaxed);
+        }
+        if (pos >= cap)
+        {
+            smartMasterCaptureActive.store(false, std::memory_order_relaxed);
+            smartMasterCaptureDone.store(true, std::memory_order_relaxed);
+        }
+    }
 
     // ── Sidechain bus ─────────────────────────────────────────────────────────
     // Defensive bounds check before touching the sidechain bus: JUCE's

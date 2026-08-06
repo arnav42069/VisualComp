@@ -84,6 +84,24 @@ namespace
         { "Podcast / Spoken Word", -16.0f },
     };
     constexpr int kNumGenres = int(sizeof(kGenres) / sizeof(kGenres[0]));
+
+    // Shared 7-band tonal-balance split used by both
+    // VisualCompEditor::analyzeSmartMasterCapture (measuring the captured
+    // excerpt) and runAutoAnalyze (building the correction EQ nodes) so the
+    // two never drift out of sync: sub-bass, bass, low-mid, mid, high-mid,
+    // presence, air.
+    constexpr int   kNumSmartBands = 7;   // must match VisualCompEditor::SmartMasterAnalysis::kNumBands
+    constexpr float kSmartBandLo[kNumSmartBands] =
+        {   20.0f,  90.0f, 150.0f,  400.0f, 2000.0f, 4000.0f, 8000.0f };
+    constexpr float kSmartBandHi[kNumSmartBands] =
+        {   90.0f, 150.0f, 400.0f, 2000.0f, 4000.0f, 8000.0f, 20000.0f };
+    // Indices (into the band arrays above) given a live multiband dynamics
+    // band in the generated master, on top of the static tilt-matching EQ
+    // every band gets: gentle low-end glue on the bass band, and a de-esser/
+    // harshness tamer on the presence band -- the two moves that show up in
+    // almost every genre's mastering-chain guidance.
+    constexpr int kSmartBassBand     = 1;
+    constexpr int kSmartPresenceBand = 5;
 }
 
 //==============================================================================
@@ -255,6 +273,98 @@ void HelpOverlay::paint(juce::Graphics& g)
 }
 
 //==============================================================================
+// WaveEnlargeOverlay
+//==============================================================================
+
+WaveEnlargeOverlay::WaveEnlargeOverlay(VisualCompProcessor& proc, bool showInput, bool showOutput)
+{
+    // Fresh WaveformDisplay instances reading the same live buffers as the
+    // normal-size ones -- own independent pause state, so pausing the small
+    // input display and pausing this enlarged one are unrelated. bigInput
+    // mirrors inputDisplay's full dynamics-aware constructor args (threshold/
+    // sidechain/ratio/knee/attack/release) so its ducking-curve overlay and
+    // click-to-pause behave identically; bigOutput mirrors outputDisplay's
+    // plain 3-arg form.
+    if (showInput)
+    {
+        bigInput = std::make_unique<WaveformDisplay>(
+            "INPUT", Theme::inputCol, proc.inputWaveform,
+            proc.apvts.getRawParameterValue("threshold"),
+            &proc.sidechainWaveform, &proc.sidechainEnabled,
+            proc.apvts.getRawParameterValue("ratio"),
+            proc.apvts.getRawParameterValue("knee"),
+            proc.apvts.getRawParameterValue("attack"),
+            proc.apvts.getRawParameterValue("release"), true);
+        addAndMakeVisible(*bigInput);
+    }
+    if (showOutput)
+    {
+        bigOutput = std::make_unique<WaveformDisplay>("OUTPUT", Theme::outputCol, proc.outputWaveform);
+        addAndMakeVisible(*bigOutput);
+    }
+
+    closeButton.setColour(juce::TextButton::buttonColourId, Theme::charcoal);
+    closeButton.setColour(juce::TextButton::textColourOffId, Theme::text);
+    closeButton.onClick = [this] { if (onClose) onClose(); };
+    addAndMakeVisible(closeButton);
+
+    setAlwaysOnTop(true);
+}
+
+void WaveEnlargeOverlay::paint(juce::Graphics& g)
+{
+    g.fillAll(juce::Colours::black.withAlpha(0.76f));
+
+    auto drawCard = [&](juce::Component& c)
+    {
+        auto b = c.getBounds().expanded(4);
+        g.setColour(juce::Colours::black.withAlpha(0.55f));
+        g.fillRoundedRectangle(b.toFloat().translated(0.0f, 3.0f), 6.0f);
+        g.setColour(Theme::bgDeep);
+        g.fillRoundedRectangle(b.toFloat(), 6.0f);
+        g.setColour(Theme::line);
+        g.drawRoundedRectangle(b.toFloat(), 6.0f, 1.2f);
+    };
+    if (bigInput)  drawCard(*bigInput);
+    if (bigOutput) drawCard(*bigOutput);
+}
+
+void WaveEnlargeOverlay::resized()
+{
+    constexpr int margin = 40, gap = 20, closeH = 30, closeW = 100;
+    auto area = getLocalBounds().reduced(margin);
+    area.removeFromBottom(gap + closeH);
+
+    const bool both = (bigInput != nullptr && bigOutput != nullptr);
+    if (both)
+    {
+        auto left  = area.removeFromLeft(area.getWidth() / 2 - gap / 2);
+        area.removeFromLeft(gap);
+        bigInput->setBounds(left.reduced(4));
+        bigOutput->setBounds(area.reduced(4));
+    }
+    else if (bigInput)
+    {
+        bigInput->setBounds(area.reduced(4));
+    }
+    else if (bigOutput)
+    {
+        bigOutput->setBounds(area.reduced(4));
+    }
+
+    closeButton.setBounds(getLocalBounds().getCentreX() - closeW / 2,
+                           getHeight() - margin - closeH, closeW, closeH);
+}
+
+void WaveEnlargeOverlay::mouseUp(const juce::MouseEvent& e)
+{
+    // A click that lands on this component itself (not one of the child
+    // WaveformDisplay/CLOSE-button components, which consume it first)
+    // means the dimmed backdrop was clicked -- dismiss.
+    if (e.eventComponent == this && onClose) onClose();
+}
+
+//==============================================================================
 // AzazelLookAndFeel
 //==============================================================================
 
@@ -300,7 +410,15 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         g.fillEllipse(cx - maxR * 1.14f, cy - maxR * 1.14f, maxR * 2.28f, maxR * 2.28f);
     }
 
-    // Graduation ticks
+    // Machined bezel radii, declared up front so the graduation ticks below
+    // can reach flush against the cog-wheel rim instead of floating short of
+    // it with a visible gap.
+    const float bezelOuter  = maxR * 0.72f;
+    const float bezelValley = maxR * 0.645f;   // tooth root radius (grooves a finger catches on)
+    const float bezelInner  = maxR * 0.60f;
+
+    // Graduation ticks — elongated all the way in to the bezel rim (rather
+    // than stopping short of it) so they read as one continuous dial face.
     {
         constexpr int N = 22;
         for (int i = 0; i <= N; ++i)
@@ -309,12 +427,11 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
             const float angle = startAngle + frac * (endAngle - startAngle);
             const bool  isMaj = (i % 4 == 0) || (i == N);
             if (simpleTicks && !isMaj) continue;
-            const float inner = isMaj ? maxR * 0.78f : maxR * 0.85f;
             const float sa = std::sin(angle), ca = -std::cos(angle);
             g.setColour(isMaj ? Theme::text.withAlpha(0.75f)
                               : Theme::textDim.withAlpha(0.40f));
-            g.drawLine(cx + inner * sa, cy + inner * ca,
-                       cx + maxR * sa,  cy + maxR * ca,
+            g.drawLine(cx + bezelOuter * sa, cy + bezelOuter * ca,
+                       cx + maxR * sa,       cy + maxR * ca,
                        isMaj ? 1.5f : 0.7f);
         }
     }
@@ -349,10 +466,25 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         }
     }
 
-    // Machined bezel
-    const float bezelOuter = maxR * 0.72f;
-    const float bezelInner = maxR * 0.60f;
+    // Machined bezel — a cog-wheel/knurled rim instead of a plain disc, so
+    // there's something for a finger to actually grip and turn, like a real
+    // hardware compressor's knob. Same gradient/stroke colours as the old
+    // plain-circle bezel; only the outline shape changed to alternate
+    // between an outer tooth radius and an inner valley radius. (Radii
+    // declared once, above, for the graduation ticks.)
     {
+        constexpr int kTeeth = 18;
+        juce::Path gear;
+        for (int t = 0; t < kTeeth * 2; ++t)
+        {
+            const float ang = (float(t) / float(kTeeth * 2)) * juce::MathConstants<float>::twoPi;
+            const float rad = (t % 2 == 0) ? bezelOuter : bezelValley;
+            const float sa = std::sin(ang), ca = -std::cos(ang);
+            const juce::Point<float> pnt(cx + rad * sa, cy + rad * ca);
+            if (t == 0) gear.startNewSubPath(pnt); else gear.lineTo(pnt);
+        }
+        gear.closeSubPath();
+
         juce::ColourGradient ch(
             juce::Colour(0xff54514c), cx - bezelOuter * 0.40f, cy - bezelOuter * 0.52f,
             juce::Colour(0xff121110), cx + bezelOuter * 0.40f, cy + bezelOuter * 0.52f, true);
@@ -360,13 +492,12 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         ch.addColour(0.45, juce::Colour(0xff232220));
         ch.addColour(0.70, juce::Colour(0xff43403b));
         g.setGradientFill(ch);
-        g.fillEllipse(cx - bezelOuter, cy - bezelOuter, bezelOuter * 2.0f, bezelOuter * 2.0f);
+        g.fillPath(gear);
 
         g.setColour(juce::Colour(0xff8b857a).withAlpha(0.40f));
-        g.drawEllipse(cx - bezelOuter + 0.7f, cy - bezelOuter + 0.7f,
-                      (bezelOuter - 0.7f) * 2.0f, (bezelOuter - 0.7f) * 2.0f, 0.7f);
+        g.strokePath(gear, juce::PathStrokeType(0.7f));
         g.setColour(juce::Colour(0xff000000).withAlpha(0.75f));
-        g.drawEllipse(cx - bezelOuter, cy - bezelOuter, bezelOuter * 2.0f, bezelOuter * 2.0f, 0.9f);
+        g.strokePath(gear, juce::PathStrokeType(0.9f));
 
         g.setColour(juce::Colour(0xff080807));
         g.fillEllipse(cx - bezelInner, cy - bezelInner, bezelInner * 2.0f, bezelInner * 2.0f);
@@ -766,7 +897,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
                     p.apvts.getRawParameterValue("ratio"),
                     p.apvts.getRawParameterValue("knee"),
                     p.apvts.getRawParameterValue("attack"),
-                    p.apvts.getRawParameterValue("release")),
+                    p.apvts.getRawParameterValue("release"), true),
       outputDisplay("OUTPUT", Theme::outputCol, p.outputWaveform),
       vuMeter(p.gainReductionDb),
       curveDisplay(p.apvts, p.currentInputLevelDb),
@@ -841,6 +972,28 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     presetNext.onClick = [this] { stepPreset(1); };
     setupTextButton(presetSave, "SAVE");
     presetSave.onClick = [this] { saveUserPreset(); };
+
+    // Preset Author — free text, always visible in presetButton's old strip
+    // slot; kept in sync with audioProcessor.currentPresetAuthor both ways
+    // (see setPresetAuthor()).
+    presetAuthorEditor.setFont(Theme::label(13.0f, juce::Font::plain));
+    presetAuthorEditor.setColour(juce::TextEditor::backgroundColourId, Theme::bgDeep);
+    presetAuthorEditor.setColour(juce::TextEditor::textColourId,       Theme::text);
+    presetAuthorEditor.setColour(juce::TextEditor::outlineColourId,    Theme::line);
+    presetAuthorEditor.setColour(juce::TextEditor::focusedOutlineColourId, Theme::accent);
+    presetAuthorEditor.setColour(juce::TextEditor::highlightColourId,  Theme::accentDim);
+    presetAuthorEditor.setColour(juce::CaretComponent::caretColourId,  Theme::accent);
+    presetAuthorEditor.setJustification(juce::Justification::centredLeft);
+    presetAuthorEditor.setTextToShowWhenEmpty("Author", Theme::textDim);
+    presetAuthorEditor.setText(audioProcessor.currentPresetAuthor, false);
+    presetAuthorEditor.setSelectAllWhenFocused(true);
+    presetAuthorEditor.onFocusLost = [this] { setPresetAuthor(presetAuthorEditor.getText().trim()); };
+    presetAuthorEditor.onReturnKey = [this]
+    {
+        setPresetAuthor(presetAuthorEditor.getText().trim());
+        presetAuthorEditor.giveAwayKeyboardFocus();
+    };
+    addAndMakeVisible(presetAuthorEditor);
 
     // MB toggle (opens the docked parametric EQ panel, always multiband now)
     setupTextButton(eqButton, "MB");
@@ -1056,6 +1209,10 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
 
     addAndMakeVisible(inputDisplay);
     addAndMakeVisible(outputDisplay);
+
+    inputDisplay.onRightClick  = [this](const juce::MouseEvent&) { showEnlargeMenu(inputDisplay, true); };
+    outputDisplay.onRightClick = [this](const juce::MouseEvent&) { showEnlargeMenu(outputDisplay, false); };
+
     addChildComponent(vuMeter);
     addChildComponent(curveDisplay);
     addAndMakeVisible(levelMeter);
@@ -1124,6 +1281,7 @@ void VisualCompEditor::timerCallback()
     // Pick up out-of-band EQ changes (docked panel edits, Auto-Analyze) so
     // the band row and any context-swapped knobs stay in sync.
     refreshBandButtons();
+    if (waitingForSmartMasterCapture) pollSmartMasterCapture();
 }
 
 void VisualCompEditor::setupKnob(DragSlider& knob, juce::Label& label,
@@ -1377,16 +1535,17 @@ void VisualCompEditor::setPresetName(const juce::String& name)
     presetButton.setButtonText(name);
 }
 
-// The preset row (see resized()) is already pixel-packed with no slack for
-// a new always-visible "by <author>" label, so the author rides along as a
-// tooltip on the preset name button instead -- zero layout risk, still
-// genuinely discoverable on hover, and blank (no tooltip) for presets that
-// don't carry one (factory presets, or older .vcpreset files saved before
-// this field existed).
+// Author now has its own always-visible editable field in the preset strip
+// (presetAuthorEditor, presetButton's old slot); the tooltip is kept too as
+// a low-effort second surface. Guard against clobbering text the user is
+// actively typing when this is called from elsewhere (preset load, factory
+// preset apply) while the field happens to have focus.
 void VisualCompEditor::setPresetAuthor(const juce::String& author)
 {
     audioProcessor.currentPresetAuthor = author;
     presetButton.setTooltip(author.isNotEmpty() ? ("Preset by " + author) : juce::String());
+    if (!presetAuthorEditor.hasKeyboardFocus(false) && presetAuthorEditor.getText() != author)
+        presetAuthorEditor.setText(author, false);
 }
 
 void VisualCompEditor::showPresetMenu()
@@ -1437,6 +1596,32 @@ void VisualCompEditor::showPresetMenu()
         });
 }
 
+void VisualCompEditor::showEnlargeMenu(WaveformDisplay& source, bool sourceIsInput)
+{
+    juce::PopupMenu menu;
+    menu.setLookAndFeel(&laf);
+    menu.addItem(1, sourceIsInput ? "Enlarge Input Display" : "Enlarge Output Display");
+    menu.addItem(2, "Enlarge Both Displays");
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(source)
+                                                 .withMinimumWidth(200),
+        [this, sourceIsInput](int result)
+        {
+            if (result == 1)      showEnlargeOverlay(sourceIsInput, !sourceIsInput);
+            else if (result == 2) showEnlargeOverlay(true, true);
+        });
+}
+
+void VisualCompEditor::showEnlargeOverlay(bool showInput, bool showOutput)
+{
+    if (!showInput && !showOutput) return;
+    enlargeOverlay = std::make_unique<WaveEnlargeOverlay>(audioProcessor, showInput, showOutput);
+    enlargeOverlay->onClose = [this] { enlargeOverlay.reset(); };
+    addAndMakeVisible(*enlargeOverlay);
+    enlargeOverlay->setBounds(getLocalBounds());
+    enlargeOverlay->toFront(true);
+}
+
 void VisualCompEditor::applyFactoryPreset(int index)
 {
     if (index < 0 || index >= kNumFactoryPresets) return;
@@ -1461,7 +1646,7 @@ void VisualCompEditor::applyFactoryPreset(int index)
     audioProcessor.clipMode.store(fp.clipMode, std::memory_order_relaxed);
     clipModeButton.setButtonText(OutputClipper::modeName(static_cast<ClipMode>(fp.clipMode)));
     setPresetName(fp.name);
-    setPresetAuthor({});   // factory presets don't carry an author
+    setPresetAuthor("Arnav Singh");   // all factory presets are credited to Arnav Singh
 }
 
 void VisualCompEditor::stepPreset(int delta)
@@ -1480,8 +1665,8 @@ void VisualCompEditor::saveUserPreset()
     // Ask for an author first (blank input field, pre-filled with whatever
     // was typed last so a whole preset pack doesn't need retyping it every
     // save), then hand off to the file chooser for the name/location --
-    // same two-step AlertWindow-then-continue shape as the Auto-Analyze
-    // wizard below.
+    // same AlertWindow-then-continue shape as the Auto-Analyze/Smart
+    // Master+ wizard below, just with fewer steps.
     auto* aw = new juce::AlertWindow("Save Preset",
         "Credit yourself so producers sharing this pack know who made it (optional).",
         juce::AlertWindow::NoIcon);
@@ -1553,7 +1738,7 @@ void VisualCompEditor::loadUserPreset(const juce::File& file)
 }
 
 //==============================================================================
-// Auto-Analyze wizard
+// Auto-Analyze / Smart Master+ wizard
 //==============================================================================
 // A two-step wizard (genre, then LUFS target) that measures the material
 // currently flowing through the plugin's existing input ring buffer and
@@ -1565,7 +1750,7 @@ void VisualCompEditor::loadUserPreset(const juce::File& file)
 
 void VisualCompEditor::showAutoAnalyzeGenreStep()
 {
-    auto* aw = new juce::AlertWindow("Smart Master+ - Step 1 of 2",
+    auto* aw = new juce::AlertWindow("Smart Master+ - Step 1 of 3",
         "Choose the closest genre for this material.",
         juce::AlertWindow::NoIcon);
     aw->setLookAndFeel(&laf);
@@ -1606,12 +1791,12 @@ void VisualCompEditor::showAutoAnalyzeLufsStep(const juce::String& genre)
         if (genre == kGenres[i].name) { defaultLufs = kGenres[i].defaultLufs; break; }
 
     auto* aw = new juce::AlertWindow("Smart Master+ - " + genre,
-        "Step 2 of 2 - target loudness in LUFS (approx). Typical masters run "
+        "Step 2 of 3 - target loudness in LUFS (approx). Typical masters run "
         "from about -18 LU (classical) to -6 LU (EDM/club).",
         juce::AlertWindow::NoIcon);
     aw->setLookAndFeel(&laf);
     aw->addTextEditor("lufs", juce::String(defaultLufs, 1), "Target LUFS");
-    aw->addButton("Analyze", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    aw->addButton("Start Listening", 1, juce::KeyPress(juce::KeyPress::returnKey));
     aw->addButton("Back",    2);
     aw->addButton("Cancel",  0, juce::KeyPress(juce::KeyPress::escapeKey));
 
@@ -1623,7 +1808,7 @@ void VisualCompEditor::showAutoAnalyzeLufsStep(const juce::String& genre)
             {
                 const float target = wizardWindow->getTextEditorContents("lufs").getFloatValue();
                 wizardWindow.reset();
-                runAutoAnalyze(genre, target);
+                beginSmartMasterCapture(genre, target);
             }
             else if (result == 2)
             {
@@ -1637,24 +1822,184 @@ void VisualCompEditor::showAutoAnalyzeLufsStep(const juce::String& genre)
         }), false);
 }
 
+void VisualCompEditor::beginSmartMasterCapture(const juce::String& genre, float targetLufs)
+{
+    smartMasterGenre       = genre;
+    smartMasterTargetLufs  = targetLufs;
+    smartMasterProgress    = 0.0;
+
+    audioProcessor.smartMasterCaptureWritePos.store(0, std::memory_order_relaxed);
+    audioProcessor.smartMasterCaptureDone.store(false, std::memory_order_relaxed);
+    audioProcessor.smartMasterCaptureActive.store(true, std::memory_order_relaxed);
+
+    auto* aw = new juce::AlertWindow("Smart Master+ - Step 3 of 3 - Listening",
+        "Play (or let run) at least "
+            + juce::String(int(VisualCompProcessor::kSmartMasterCaptureSeconds))
+            + " seconds of representative audio through the plugin now. Smart Master+ analyzes "
+              "the whole excerpt -- level, dynamics and full frequency spectrum -- rather than "
+              "an instant snapshot, then builds EQ and multiband moves from it.",
+        juce::AlertWindow::NoIcon);
+    aw->setLookAndFeel(&laf);
+    aw->addProgressBarComponent(smartMasterProgress);
+    aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+    wizardWindow.reset(aw);
+    waitingForSmartMasterCapture = true;
+    wizardWindow->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this](int result)
+        {
+            waitingForSmartMasterCapture = false;
+            audioProcessor.smartMasterCaptureActive.store(false, std::memory_order_relaxed);
+            wizardWindow.reset();
+            if (result == 2)   // capture finished -- see pollSmartMasterCapture
+                runAutoAnalyze(smartMasterGenre, smartMasterTargetLufs);
+            // result == 0 (Cancel) -- just abandon, capture buffer discarded
+        }), false);
+}
+
+void VisualCompEditor::pollSmartMasterCapture()
+{
+    const int cap = audioProcessor.smartMasterCapture.getNumSamples();
+    const int pos = audioProcessor.smartMasterCaptureWritePos.load(std::memory_order_relaxed);
+    smartMasterProgress = cap > 0 ? juce::jlimit(0.0, 1.0, double(pos) / double(cap)) : 0.0;
+
+    // Programmatically closes the still-open AlertWindow once the capture
+    // buffer is full; its ModalCallbackFunction (above) picks up result==2
+    // and runs the actual analysis.
+    if (audioProcessor.smartMasterCaptureDone.load(std::memory_order_relaxed) && wizardWindow != nullptr)
+        wizardWindow->exitModalState(2);
+}
+
+VisualCompEditor::SmartMasterAnalysis VisualCompEditor::analyzeSmartMasterCapture() const
+{
+    SmartMasterAnalysis a;
+    const auto& cap = audioProcessor.smartMasterCapture;
+    const int numCaptured = juce::jmin(audioProcessor.smartMasterCaptureWritePos.load(std::memory_order_relaxed),
+                                       cap.getNumSamples());
+    if (numCaptured < 1024 || cap.getNumChannels() < 2) return a;
+
+    const double sr = audioProcessor.getSampleRate() > 0.0 ? audioProcessor.getSampleRate() : 44100.0;
+    const float* L = cap.getReadPointer(0);
+    const float* R = cap.getReadPointer(1);
+
+    // ---- Level / crest factor / integrated loudness over the whole excerpt ----
+    // Same K-weighting shape as LoudnessMeter (see its class comment) but
+    // accumulated as one true mean over the whole capture rather than a
+    // continuously-decaying short-term window, since the excerpt is now a
+    // fixed, complete measurement rather than a live reading.
+    Biquad shelfL, shelfR, hpL, hpR;
+    designBiquad(FilterShape::HighShelf, 1500.0f, 0.707f, 4.0f, sr, shelfL);
+    designBiquad(FilterShape::HighShelf, 1500.0f, 0.707f, 4.0f, sr, shelfR);
+    designBiquad(FilterShape::HighPass,  60.0f,   0.707f, 0.0f, sr, hpL);
+    designBiquad(FilterShape::HighPass,  60.0f,   0.707f, 0.0f, sr, hpR);
+
+    double sumSq = 0.0, kSumSq = 0.0;
+    float  peak  = 0.0f;
+    for (int i = 0; i < numCaptured; ++i)
+    {
+        const float l = L[i], r = R[i];
+        peak   = juce::jmax(peak, juce::jmax(std::abs(l), std::abs(r)));
+        sumSq += 0.5 * (double(l) * l + double(r) * r);
+
+        const float kl = hpL.process(shelfL.process(l));
+        const float kr = hpR.process(shelfR.process(r));
+        kSumSq += 0.5 * (double(kl) * kl + double(kr) * kr);
+    }
+    const double meanSq  = sumSq  / double(numCaptured);
+    const double kMeanSq = kSumSq / double(numCaptured);
+    const float rms = float(std::sqrt(meanSq));
+    a.rmsDb          = rms  > 1.0e-9f ? juce::Decibels::gainToDecibels(rms)  : -100.0f;
+    a.peakDb         = peak > 1.0e-9f ? juce::Decibels::gainToDecibels(peak) : -100.0f;
+    a.crestDb        = a.peakDb - a.rmsDb;
+    a.integratedLufs = kMeanSq > 1.0e-9 ? float(-0.691 + 10.0 * std::log10(kMeanSq)) : -100.0f;
+
+    // ---- Welch-averaged magnitude spectrum, reduced to the 7 tonal bands ----
+    constexpr int kFftOrder = 12;                 // 4096-point FFT
+    constexpr int kFftSize  = 1 << kFftOrder;
+    constexpr int kHop      = kFftSize / 2;        // 50% overlap
+    if (numCaptured < kFftSize) return a;
+
+    juce::dsp::FFT fft(kFftOrder);
+    juce::dsp::WindowingFunction<float> window(size_t(kFftSize),
+        juce::dsp::WindowingFunction<float>::hann);
+
+    std::array<double, SmartMasterAnalysis::kNumBands> bandEnergy {};
+    std::array<double, SmartMasterAnalysis::kNumBands> bandBins   {};
+    std::vector<float> fftBuf(size_t(kFftSize) * 2, 0.0f);
+
+    int numWindows = 0;
+    for (int start = 0; start + kFftSize <= numCaptured; start += kHop)
+    {
+        for (int i = 0; i < kFftSize; ++i)
+            fftBuf[size_t(i)] = 0.5f * (L[start + i] + R[start + i]);
+        juce::FloatVectorOperations::clear(fftBuf.data() + kFftSize, kFftSize);
+        window.multiplyWithWindowingTable(fftBuf.data(), size_t(kFftSize));
+        fft.performRealOnlyForwardTransform(fftBuf.data());
+
+        for (int bin = 1; bin < kFftSize / 2; ++bin)
+        {
+            const float re = fftBuf[size_t(bin * 2)];
+            const float im = fftBuf[size_t(bin * 2 + 1)];
+            const double mag2 = double(re) * re + double(im) * im;
+            const double freq = double(bin) * sr / double(kFftSize);
+            for (int b = 0; b < SmartMasterAnalysis::kNumBands; ++b)
+            {
+                if (freq >= kSmartBandLo[b] && freq < kSmartBandHi[b])
+                {
+                    bandEnergy[size_t(b)] += mag2;
+                    bandBins[size_t(b)]   += 1.0;
+                    break;
+                }
+            }
+        }
+        ++numWindows;
+    }
+
+    if (numWindows > 0)
+    {
+        std::array<float, SmartMasterAnalysis::kNumBands> rawDb {};
+        double meanDb = 0.0; int validBands = 0;
+        for (int b = 0; b < SmartMasterAnalysis::kNumBands; ++b)
+        {
+            const double avgEnergy = bandBins[size_t(b)] > 0.0
+                ? bandEnergy[size_t(b)] / bandBins[size_t(b)] : 0.0;
+            rawDb[size_t(b)] = avgEnergy > 1.0e-12 ? float(10.0 * std::log10(avgEnergy)) : -120.0f;
+            if (rawDb[size_t(b)] > -119.0f) { meanDb += rawDb[size_t(b)]; ++validBands; }
+        }
+        const float mean = validBands > 0 ? float(meanDb / validBands) : 0.0f;
+        // Store each band relative to this excerpt's own mean -- a tilt
+        // shape, comparable directly against the (also mean-relative)
+        // genre target tilt table in runAutoAnalyze regardless of the
+        // excerpt's absolute level.
+        for (int b = 0; b < SmartMasterAnalysis::kNumBands; ++b)
+            a.bandDb[size_t(b)] = rawDb[size_t(b)] - mean;
+    }
+
+    return a;
+}
+
+// Builds a full master from the just-captured excerpt: broadband compressor
+// (same genre-character table the original heuristic used), a set of EQ
+// nodes correcting this excerpt's measured spectral tilt toward the genre's
+// reference curve (see kSmartBandLo/Hi and the target-tilt table below --
+// distilled from genre mastering-reference-curve guidance: V-shaped pop;
+// hip-hop/EDM sub-bass emphasis with a scooped low-mid and crisp top;
+// rock/metal midrange-forward with controlled low-mid mud; classical/
+// acoustic left close to flat/natural; podcast presence-boosted for
+// intelligibility with rumble cut), plus two always-on multiband dynamics
+// bands (gentle bass glue, presence de-esser) layered on top -- this is the
+// "use plain EQ nodes, multiband comp, whatever is needed" ask, not just a
+// broadband-compressor preset.
 void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLufs)
 {
-    // Measure the material already captured in the input ring buffer (the
-    // same data driving the on-screen input waveform).
-    const auto& buf = audioProcessor.inputWaveform.data;
-    constexpr int N = WaveformBuffer::size;
-    double sumSq = 0.0;
-    float  peak  = 0.0f;
-    for (int i = 0; i < N; ++i)
+    const auto analysis = analyzeSmartMasterCapture();
+    if (analysis.rmsDb <= -99.0f)
     {
-        const float s = buf[size_t(i)];
-        sumSq += double(s) * double(s);
-        peak = juce::jmax(peak, std::abs(s));
+        juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
+            "Smart Master+", "No usable audio was captured -- make sure audio is actually "
+                              "playing through the plugin, then try again.");
+        return;
     }
-    const float rms  = float(std::sqrt(sumSq / double(N)));
-    const float rmsDb  = rms  > 1.0e-9f ? juce::Decibels::gainToDecibels(rms)  : -60.0f;
-    const float peakDb = peak > 1.0e-9f ? juce::Decibels::gainToDecibels(peak) : -60.0f;
-    const float crestDb = peakDb - rmsDb;
 
     struct Character { float ratio, attackMs, releaseMs; int mode; ClipMode clip; };
     auto characterFor = [](const juce::String& g) -> Character
@@ -1669,16 +2014,28 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
     };
     const auto ch = characterFor(genre);
 
-    // Threshold at the midpoint between measured RMS and peak: punchier,
-    // higher-crest-factor material gets compressed harder; already-dense
-    // material is left mostly alone.
-    const float thresholdDb = juce::jlimit(-40.0f, -1.0f, (peakDb + rmsDb) * 0.5f);
+    using Tilt = std::array<float, SmartMasterAnalysis::kNumBands>;
+    auto targetTiltFor = [](const juce::String& g) -> Tilt
+    {
+        // sub-bass, bass, low-mid, mid, high-mid, presence, air (relative dB)
+        if (g == "Pop")                    return { { 1.5f, 1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 1.5f } };
+        if (g == "Hip-Hop / Trap")         return { { 3.5f, 2.0f, -1.5f, -0.5f, 0.5f, 1.5f, 2.0f } };
+        if (g == "EDM / Dance")            return { { 3.0f, 2.5f, -2.0f, -0.5f, 0.5f, 1.5f, 2.5f } };
+        if (g == "Rock / Metal")           return { { -1.0f, 0.5f, -1.0f, 1.5f, 1.5f, 1.0f, 0.0f } };
+        if (g == "Acoustic / Folk")        return { { -2.0f, -0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 1.0f } };
+        if (g == "Classical / Orchestral") return { { -1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f } };
+        return                                    { { -4.0f, -2.0f, -0.5f, 1.0f, 2.0f, -0.5f, 0.5f } }; // Podcast
+    };
+    const Tilt target = targetTiltFor(genre);
 
-    // Trim output gain toward the requested loudness using the plugin's own
-    // (approximate) short-term LUFS reading of the current live signal.
-    const float currentLufs = audioProcessor.meterShortLufs.load(std::memory_order_relaxed);
-    const float gainOutDb = (currentLufs > -90.0f)
-        ? juce::jlimit(-24.0f, 24.0f, targetLufs - currentLufs) : 0.0f;
+    // Per-band Q: wider at the extremes (sub-bass/air), a bit narrower
+    // through the mids where a genre's character actually lives.
+    static constexpr float kBandQ[SmartMasterAnalysis::kNumBands] = { 0.7f, 0.8f, 0.9f, 0.9f, 1.0f, 1.1f, 0.7f };
+
+    // ---- Threshold/gain-out for the broadband compressor, from the whole excerpt ----
+    const float thresholdDb = juce::jlimit(-40.0f, -1.0f, (analysis.peakDb + analysis.rmsDb) * 0.5f);
+    const float gainOutDb   = (analysis.integratedLufs > -90.0f)
+        ? juce::jlimit(-24.0f, 24.0f, targetLufs - analysis.integratedLufs) : 0.0f;
 
     auto setParam = [this](const char* id, float value)
     {
@@ -1699,16 +2056,63 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
     audioProcessor.clipMode.store(static_cast<int>(ch.clip), std::memory_order_relaxed);
     clipModeButton.setButtonText(OutputClipper::modeName(ch.clip));
 
+    // ---- EQ nodes: one per tonal band, tilt-correcting toward the genre's
+    // reference curve; the bass and presence bands are additionally linked
+    // into their own multiband compressor for glue/de-essing. Node 7 is left
+    // free (only 7 bands are defined).
+    int nodesUsed = 0;
+    for (int b = 0; b < SmartMasterAnalysis::kNumBands; ++b)
+    {
+        const bool isDynamicsBand = (b == kSmartBassBand || b == kSmartPresenceBand);
+        const float deviation = juce::jlimit(-6.0f, 6.0f, target[size_t(b)] - analysis.bandDb[size_t(b)]);
+        const bool  worthCorrecting = std::abs(deviation) > 0.4f;
+
+        EqNodeState n;
+        n.enabled = isDynamicsBand || worthCorrecting;
+        if (!n.enabled) { audioProcessor.eq.setNode(b, n); continue; }
+
+        n.type   = EqTypes::Bell;
+        n.freqHz = std::sqrt(kSmartBandLo[b] * kSmartBandHi[b]);
+        n.q      = kBandQ[size_t(b)];
+        n.gainDb = worthCorrecting ? deviation : 0.0f;
+        n.linked = isDynamicsBand;
+
+        if (isDynamicsBand)
+        {
+            const bool isBass = (b == kSmartBassBand);
+            // Threshold anchored to this excerpt's own measured RMS: a bit
+            // below it for the bass band (catches above-average low-end
+            // buildup for gentle glue), a bit above it for the presence
+            // band (catches only harsh/sibilant peaks, not steady content).
+            n.thresholdDb = juce::jlimit(-60.0f, 0.0f, analysis.rmsDb + (isBass ? -2.0f : 2.0f));
+            n.kneeDb      = isBass ? 6.0f  : 4.0f;
+            n.ratio       = isBass ? 1.8f  : 2.5f;
+            n.attackMs    = isBass ? 25.0f : 3.0f;
+            n.releaseMs   = isBass ? 180.0f : 90.0f;
+            n.rangeDb     = -3.0f;     // gentle -- glue/de-ess, not slam
+            n.upward      = false;
+            n.bwLowOct    = isBass ? 0.8f : 0.5f;
+            n.bwHighOct   = isBass ? 0.8f : 0.5f;
+        }
+
+        audioProcessor.eq.setNode(b, n);
+        ++nodesUsed;
+    }
+    { EqNodeState off; audioProcessor.eq.setNode(SmartMasterAnalysis::kNumBands, off); }   // node 7, unused
+
     const juce::String name = "Smart Master+: " + genre + "  " + juce::String(targetLufs, 1) + " LU";
     setPresetName(name);
     setPresetAuthor({});   // generated, not loaded/saved from a user preset file
 
     juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::InfoIcon,
         "Smart Master+ complete",
-        "Generated \"" + name + "\" from " + juce::String(crestDb, 1)
-            + " dB of measured crest factor in the current input.\n\n"
-              "This is a heuristic starting point, not a mastering-grade AI - "
-              "refine threshold, ratio, attack and release by ear.");
+        "Generated \"" + name + "\" from "
+            + juce::String(int(VisualCompProcessor::kSmartMasterCaptureSeconds))
+            + "s of captured audio (" + juce::String(analysis.crestDb, 1) + " dB crest factor, "
+            + juce::String(analysis.integratedLufs, 1) + " LUFS measured): broadband compression, "
+            + juce::String(nodesUsed) + " spectrum-matching EQ nodes, and bass/presence multiband "
+              "dynamics.\n\nThis is a heuristic starting point, not a mastering-grade AI -- refine "
+              "by ear, especially threshold, ratio and the EQ node gains.");
 }
 
 //==============================================================================
@@ -1792,10 +2196,13 @@ void VisualCompEditor::startHelpTour()
         "A compressor you can actually see. This 30-second tour covers the essentials. "
         "Click anywhere, or press NEXT, to continue." });
 
-    steps.push_back({ presetButton.getBounds().getUnion(presetSave.getBounds()),
-        "Start with a preset",
-        "34 factory presets for drums, vocals, bass, mastering and more. "
-        "Step through them with the arrows, or click the name to browse. SAVE keeps your own." });
+    steps.push_back({ presetButton.getBounds(), "Start with a preset",
+        "34 factory presets for drums, vocals, bass, mastering and more. Click the name to browse." });
+
+    steps.push_back({ presetPrev.getBounds().getUnion(presetSave.getBounds()),
+        "Step through and save",
+        "The arrows cycle presets in order. SAVE keeps your own — credit yourself in the Author "
+        "box in between, so a shared pack still says who made it." });
 
     steps.push_back({ modeButton.getBounds(), "Pick a circuit",
         "VCA is clean, FET is fast and punchy, Optical is smooth, Tube is warm. "
@@ -1977,7 +2384,7 @@ void VisualCompEditor::paint(juce::Graphics& g)
         g.setFont(Theme::label(13.0f));
         g.setColour(Theme::textDim);
         g.drawText("MODE",   50,  kTitleH + 4, 104, 14, juce::Justification::centredLeft, false);
-        g.drawText("PRESET", 182, kTitleH + 4, 140, 14, juce::Justification::centredLeft, false);
+        g.drawText("AUTHOR", 182, kTitleH + 4, 140, 14, juce::Justification::centredLeft, false);
     }
 
     // Waveform seat
@@ -2131,14 +2538,19 @@ void VisualCompEditor::resized()
     bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104, 14, 100, kTitleH - 28);
     clipModeButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104 - 100 - 8, 14, 96, kTitleH - 28);
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
+    // Preset name now lives up here, left of SoftClip — same row/height as
+    // bypassButton/clipModeButton. Worst case (Curve/GR collapsed) leaves
+    // 290px between logoZone's right edge and clipModeButton's left edge.
+    presetButton.setBounds(ox + 130, 14, 270, kTitleH - 28);
 
-    // Preset strip — EQ toggle sits directly to the left of the Mode button
+    // Preset strip — EQ toggle sits directly to the left of the Mode button.
+    // presetButton's old slot here now holds the Author field instead.
     {
         const int sy = kTitleH + 20, sh = 24;
         eqButton         .setBounds(ox + 10,  sy, 36,  sh);
         modeButton       .setBounds(ox + 50,  sy, 104, sh);
         presetPrev       .setBounds(ox + 158, sy, 20,  sh);
-        presetButton     .setBounds(ox + 182, sy, 250, sh);
+        presetAuthorEditor.setBounds(ox + 182, sy, 250, sh);
         presetNext       .setBounds(ox + 436, sy, 20,  sh);
         presetSave       .setBounds(ox + 460, sy, 54,  sh);
         // Width trimmed to ~half its old side padding around the text.
@@ -2281,4 +2693,7 @@ void VisualCompEditor::resized()
     }
 
     helpOverlay.setBounds(getLocalBounds());
+
+    if (enlargeOverlay)
+        enlargeOverlay->setBounds(getLocalBounds());
 }

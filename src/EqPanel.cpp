@@ -116,6 +116,20 @@ namespace
     {
         return type == EqTypes::HighPass || type == EqTypes::LowPass || type == EqTypes::Notch;
     }
+
+    // "500Hz" / "1.2kHz" — same short form as the frequency-axis gridline
+    // labels above, just without the space before the unit so it stays
+    // compact next to the gain figure in the per-node readout.
+    juce::String formatNodeFreq(float hz)
+    {
+        if (hz >= 1000.0f)
+        {
+            const float k = hz / 1000.0f;
+            const bool wholeNumber = std::abs(k - std::round(k)) < 0.05f;
+            return (wholeNumber ? juce::String(int(std::round(k))) : juce::String(k, 1)) + "kHz";
+        }
+        return juce::String(int(std::round(hz))) + "Hz";
+    }
 }
 
 juce::Point<float> EqPanel::nodePos(int i) const
@@ -872,6 +886,32 @@ void EqPanel::paint(juce::Graphics& g)
             g.setColour(juce::Colours::white.withAlpha(0.85f));
             g.drawEllipse(p.x - radius - 2.5f, p.y - radius - 2.5f,
                           (radius + 2.5f) * 2.0f, (radius + 2.5f) * 2.0f, 1.4f);
+        }
+
+        // Freq/gain readout — same font/size/weight as the node's own
+        // numeral above, so it reads as a matched pair rather than two
+        // different label systems. Sits just below the ball by default;
+        // flips above it near the bottom of the graph so it never runs off
+        // the frequency axis. Gainless types (HPF/LPF/Notch — see
+        // isGainlessType) omit the dB figure since their gain is fixed at
+        // 0 and not a meaningful reading.
+        {
+            juce::String line = formatNodeFreq(n.freqHz);
+            if (!isGainlessType(n.type))
+                line << "  " << (n.gainDb >= 0.0f ? "+" : "") << juce::String(n.gainDb, 1) << "dB";
+
+            g.setFont(Theme::mono(9.5f, juce::Font::bold));
+            const float textW = g.getCurrentFont().getStringWidthFloat(line) + 6.0f;
+            const bool  placeBelow = p.y < r.getBottom() - 22.0f;
+            const float ly = placeBelow ? (p.y + radius + 3.0f) : (p.y - radius - 15.0f);
+
+            juce::Rectangle<float> lblR(p.x - textW * 0.5f, ly, textW, 12.0f);
+            lblR.setX(juce::jlimit(r.getX(), juce::jmax(r.getX(), r.getRight() - textW), lblR.getX()));
+
+            g.setColour(juce::Colours::black.withAlpha(0.55f));
+            g.fillRoundedRectangle(lblR.expanded(2.0f, 1.0f), 2.5f);
+            g.setColour(colour.withAlpha(0.95f));
+            g.drawText(line, lblR, juce::Justification::centred, false);
         }
 
         // Selected-node ring — mirrors the main editor's band-selector row so

@@ -1,6 +1,21 @@
 #include "LevelMeter.h"
 #include "Theme.h"
 
+namespace
+{
+    // Common dBFS reference levels for the peak bar: 0 = digital ceiling,
+    // -1 a typical true-peak safety margin, -3/-6/-9/-12 coarse mixing
+    // headroom marks, -18 the SMPTE/EBU alignment reference level, -24 the
+    // ATSC/broadcast reference, -36 near the meter floor.
+    constexpr float kDbNotches[] = { 0.0f, -1.0f, -3.0f, -6.0f, -9.0f, -12.0f, -18.0f, -24.0f, -36.0f };
+    // Common integrated-loudness targets platforms normalize to, so a mix
+    // can be eyeballed against them live: -6 (loud EDM/club masters), -9
+    // (typical streaming-era pop/hip-hop master), -14 (Spotify/YouTube/
+    // Apple Music streaming normalization), -16 (Apple Music alt/podcasts),
+    // -18 (some broadcast delivery specs), -23 (EBU R128 broadcast).
+    constexpr float kLufsNotches[] = { -6.0f, -9.0f, -14.0f, -16.0f, -18.0f, -23.0f };
+}
+
 LevelMeter::LevelMeter(VisualCompProcessor& proc) : processor(proc)
 {
     peakHistory.fill(-100.0f);
@@ -101,6 +116,35 @@ void LevelMeter::drawBottomValue(juce::Graphics& g, juce::Rectangle<float> bar, 
                juce::Justification::centred, false);
 }
 
+// Draws a small tick + number directly on the bar for each reference level
+// that falls within its range -- a printed meter-bridge scale rather than a
+// bare colour column, so common thresholds (0dB, streaming LUFS targets,
+// etc.) can be read at a glance instead of estimated by eye.
+void LevelMeter::drawNotches(juce::Graphics& g, juce::Rectangle<float> bar,
+                             float floorDb, float ceilDb,
+                             const float* levels, int numLevels, float alpha)
+{
+    g.setFont(Theme::mono(6.3f, juce::Font::bold));
+    for (int i = 0; i < numLevels; ++i)
+    {
+        const float db = levels[i];
+        if (db < floorDb || db > ceilDb) continue;
+
+        const float norm = (db - floorDb) / (ceilDb - floorDb);
+        const float y = bar.getBottom() - norm * bar.getHeight();
+
+        g.setColour(juce::Colours::black.withAlpha(0.55f * alpha));
+        g.drawLine(bar.getX(), y, bar.getRight(), y, 1.0f);
+
+        const juce::String txt = juce::String(int(db));
+        const juce::Rectangle<float> textR(bar.getX() - 1.0f, y - 4.5f, bar.getWidth() + 2.0f, 9.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.65f * alpha));
+        g.drawText(txt, textR.translated(0.4f, 0.4f), juce::Justification::centred, false);
+        g.setColour(juce::Colours::white.withAlpha(0.85f * alpha));
+        g.drawText(txt, textR, juce::Justification::centred, false);
+    }
+}
+
 void LevelMeter::paint(juce::Graphics& g)
 {
     const auto full = getLocalBounds().toFloat();
@@ -125,6 +169,7 @@ void LevelMeter::paint(juce::Graphics& g)
 
     const float peakDb = processor.meterPeakDb.load(std::memory_order_relaxed);
     drawBar(g, dbBar, peakDb, -48.0f, 0.0f, -18.0f, -6.0f, 1.0f);
+    drawNotches(g, dbBar, -48.0f, 0.0f, kDbNotches, int(sizeof(kDbNotches) / sizeof(kDbNotches[0])), 1.0f);
     drawSideLabel(g, dbBar, "dB", 1.0f);
     drawBottomValue(g, dbBar, peakDb, 1.0f);
 
@@ -132,6 +177,7 @@ void LevelMeter::paint(juce::Graphics& g)
     {
         const float stLufs = processor.meterShortLufs.load(std::memory_order_relaxed);
         drawBar(g, lufsBar, stLufs, -36.0f, 0.0f, -18.0f, -10.0f, revealAmount);
+        drawNotches(g, lufsBar, -36.0f, 0.0f, kLufsNotches, int(sizeof(kLufsNotches) / sizeof(kLufsNotches[0])), revealAmount);
         drawSideLabel(g, lufsBar, "LUFS", revealAmount);
         drawBottomValue(g, lufsBar, stLufs, revealAmount);
     }

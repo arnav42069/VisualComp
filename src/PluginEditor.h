@@ -98,6 +98,34 @@ private:
 };
 
 //==============================================================================
+// Full-window "enlarge" overlay opened via right-click on either waveform
+// display (WaveformDisplay::onRightClick) -- shows a fresh, independently-
+// paused large WaveformDisplay for the input, the output, or both, reading
+// the same WaveformBuffers as the normal-size displays. Built/torn down on
+// demand (see VisualCompEditor::showEnlargeOverlay()), same unique_ptr
+// on-demand pattern as eqPanel below, rather than a permanently-live member
+// like HelpOverlay, since its content (one display vs two) changes per use.
+//==============================================================================
+class WaveEnlargeOverlay : public juce::Component
+{
+public:
+    WaveEnlargeOverlay(VisualCompProcessor& proc, bool showInput, bool showOutput);
+    ~WaveEnlargeOverlay() override = default;
+
+    void paint(juce::Graphics&) override;
+    void resized() override;
+    void mouseUp(const juce::MouseEvent&) override;   // click on the dimmed backdrop closes it
+
+    std::function<void()> onClose;
+
+private:
+    std::unique_ptr<WaveformDisplay> bigInput, bigOutput;
+    juce::TextButton closeButton { "CLOSE" };
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WaveEnlargeOverlay)
+};
+
+//==============================================================================
 class AzazelLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
@@ -196,6 +224,12 @@ private:
     juce::TextButton   presetButton, presetPrev, presetNext, presetSave, autoAnalyzeButton;
     ClickZone          logoZone;
 
+    // Always-visible free-text Author field — occupies presetButton's old
+    // slot in the preset strip now that presetButton itself lives in the
+    // title bar (see resized()). Wired to audioProcessor.currentPresetAuthor
+    // via setPresetAuthor(), same as presetButton's tooltip.
+    juce::TextEditor   presetAuthorEditor;
+
     juce::String currentModeName { "VCA" };
 
     // Knobs
@@ -285,10 +319,44 @@ private:
     void setPresetAuthor(const juce::String& author);
     static juce::File getUserPresetDir();
 
-    // Auto-Analyze wizard
+    // Waveform enlarge overlay -- right-click on either WaveformDisplay
+    // (wired via its onRightClick) opens a themed popup menu, same styling
+    // as showPresetMenu(), offering "enlarge this display" / "enlarge both";
+    // showEnlargeOverlay builds the on-demand WaveEnlargeOverlay accordingly.
+    std::unique_ptr<WaveEnlargeOverlay> enlargeOverlay;
+    void showEnlargeMenu(WaveformDisplay& source, bool sourceIsInput);
+    void showEnlargeOverlay(bool showInput, bool showOutput);
+
+    // Auto-Analyze / Smart Master+ wizard
     void showAutoAnalyzeGenreStep();
     void showAutoAnalyzeLufsStep(const juce::String& genre);
+    // Arms the processor's ~9s capture buffer and shows a progress dialog
+    // that only completes once that much real audio has actually passed
+    // through the plugin -- runAutoAnalyze then analyzes that whole excerpt
+    // rather than an instantaneous snapshot. pollSmartMasterCapture (driven
+    // by the existing 30Hz timerCallback) advances/closes the dialog.
+    void beginSmartMasterCapture(const juce::String& genre, float targetLufs);
+    void pollSmartMasterCapture();
     void runAutoAnalyze(const juce::String& genre, float targetLufs);
+
+    // Full analysis of the just-captured Smart Master+ excerpt: crest
+    // factor/integrated loudness measured across the whole 8-10s buffer
+    // (not the ~1.5s waveform display ring buffer) plus a Welch-averaged
+    // FFT spectrum reduced to a handful of broad tonal-balance bands, used
+    // to steer the generated EQ nodes toward each genre's reference curve.
+    struct SmartMasterAnalysis
+    {
+        float integratedLufs = -100.0f;
+        float rmsDb = -100.0f, peakDb = -100.0f, crestDb = 0.0f;
+        static constexpr int kNumBands = 7;   // sub-bass..air, see runAutoAnalyze
+        std::array<float, kNumBands> bandDb {};   // per-band level, dB (mean-relative)
+    };
+    SmartMasterAnalysis analyzeSmartMasterCapture() const;
+
+    double       smartMasterProgress = 0.0;   // bound to the capture dialog's ProgressBar
+    juce::String smartMasterGenre;
+    float        smartMasterTargetLufs = -9.0f;
+    bool         waitingForSmartMasterCapture = false;
 
     // Zoom
     void applyZoom(float scale);

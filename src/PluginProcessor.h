@@ -101,6 +101,20 @@ public:
     std::atomic<float> meterMomLufs    { -100.0f };
     std::atomic<float> meterShortLufs  { -100.0f };
 
+    // Smart Master+ capture buffer: a real 8-10s excerpt of raw (pre-
+    // processing) input, captured on demand so the wizard can analyze a full
+    // representative passage -- spectrum, crest factor, integrated loudness
+    // -- rather than whatever happened to be sitting in the ~1.5s
+    // inputWaveform display ring buffer. GUI arms it by setting
+    // smartMasterCaptureActive true (after zeroing writePos/done); the audio
+    // thread fills smartMasterCapture in processBlock and flips
+    // smartMasterCaptureDone once full. Sized once per prepareToPlay call.
+    static constexpr double kSmartMasterCaptureSeconds = 9.0;   // middle of the 8-10s ask
+    juce::AudioBuffer<float> smartMasterCapture;                 // 2ch, sized in prepareToPlay
+    std::atomic<bool> smartMasterCaptureActive   { false };
+    std::atomic<int>  smartMasterCaptureWritePos { 0 };          // samples captured so far
+    std::atomic<bool> smartMasterCaptureDone     { false };
+
     // GUI persistence (message thread only)
     juce::String currentPresetName   { "Mastering Glue" };
     // Author of the currently loaded/saved user preset -- blank for factory

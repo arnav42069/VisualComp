@@ -9,9 +9,14 @@
 # reusing a locked, already-loaded one.
 #
 # Usage: ./bump-version.ps1 [-NewVersion '2.22']
-#   With no argument, increments the integer after the last '.' by one
-#   (2.21 -> 2.22 -> 2.23 ...). Pass -NewVersion explicitly for anything
-#   else (e.g. a major bump to '3.0').
+#   With no argument, adds 0.01 to the version as a real decimal number,
+#   formatted back to two decimal places (2.21 -> 2.22 -> 2.23 -> ... ->
+#   2.99 -> 3.00 -> 3.01 ...). This is real decimal arithmetic, not a
+#   string-integer bump on the trailing component -- that earlier approach
+#   broke on single-digit fractions (e.g. "2.9" + 1 on the suffix produced
+#   "2.10", which is a jump of +0.91, not +0.01, and even sorts *before*
+#   2.9 as a real number). Pass -NewVersion explicitly for anything else
+#   (e.g. a major bump to '3.0').
 
 param([string]$NewVersion)
 
@@ -37,9 +42,14 @@ if (-not $m.Success) { throw "Couldn't find VC2_VERSION_STRING in CMakeLists.txt
 $old = $m.Groups[1].Value
 
 if (-not $NewVersion) {
-    $parts = $old.Split('.')
-    $parts[-1] = [string]([int]$parts[-1] + 1)
-    $new = [string]::Join('.', $parts)
+    # Real decimal +0.01, not a string-integer bump on the trailing
+    # component (see the usage comment above for why that broke on
+    # single-digit fractions). [math]::Round guards against binary-float
+    # noise (e.g. 2.22 + 0.01 landing on 2.2299999999999995) before it hits
+    # formatting.
+    $oldNum = [double]::Parse($old, [System.Globalization.CultureInfo]::InvariantCulture)
+    $newNum = [math]::Round($oldNum + 0.01, 2)
+    $new = $newNum.ToString('0.00', [System.Globalization.CultureInfo]::InvariantCulture)
 } else {
     $new = $NewVersion
 }

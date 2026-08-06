@@ -191,7 +191,10 @@ number hardcoded in this file would go stale within a build or two — check
   "Auto-versioning" section) — every packaged release now gets a fresh
   `PRODUCT_NAME`/plugin ID on its own, which is the mechanism that makes FL Studio (or
   any host) detect it as a new plugin on rescan instead of reusing a stale, locked
-  one. It increments the integer after the last `.` (`2.21` → `2.22`) and rewrites
+  one. As of 2026-08-06 (later revised same day) it adds 0.01 to the version as a
+  real decimal number (`2.21` → `2.22` → `2.23`), not a string-integer bump on the
+  trailing component — that earlier approach broke on single-digit fractions (e.g.
+  `2.9` → `2.10`, a jump of +0.91, not +0.01). It rewrites
   every place that needs to match: `CMakeLists.txt`'s `VC2_VERSION_STRING` (drives
   `PRODUCT_NAME` and, see below, the `DIST_DIR` post-build block) and its `project()`
   version, `package.ps1`'s `$version`, both `.claude/skills/*/SKILL.md` docs, the two

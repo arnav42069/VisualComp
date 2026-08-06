@@ -12,12 +12,37 @@ WaveformDisplay::WaveformDisplay(const juce::String& t,
                                  std::atomic<float>* ratio,
                                  std::atomic<float>* knee,
                                  std::atomic<float>* attack,
-                                 std::atomic<float>* release)
+                                 std::atomic<float>* release,
+                                 bool                clickToPause)
     : title(t), waveColour(c), waveformBuffer(buf), thresholdParamDb(thresholdDb),
       scWaveformBuffer(scBuffer), scEnabledAtomic(scEnabled),
-      ratioParam(ratio), kneeParam(knee), attackParam(attack), releaseParam(release)
+      ratioParam(ratio), kneeParam(knee), attackParam(attack), releaseParam(release),
+      allowClickPause(clickToPause)
 {
     startTimerHz(120);
+    if (allowClickPause)
+        setMouseCursor(juce::MouseCursor::PointingHandCursor);
+}
+
+//==============================================================================
+// mouseDown: left click toggles pause (input display only); right click
+// always fires onRightClick so the owning editor can show its enlarge menu.
+//==============================================================================
+
+void WaveformDisplay::mouseDown(const juce::MouseEvent& e)
+{
+    if (e.mods.isPopupMenu())
+    {
+        if (onRightClick)
+            onRightClick(e);
+        return;
+    }
+
+    if (allowClickPause)
+    {
+        paused = ! paused;
+        repaint();
+    }
 }
 
 //==============================================================================
@@ -38,19 +63,31 @@ void WaveformDisplay::timerCallback()
     const int pixW = getWidth() - 2 * kFrameW - kLabelW;
     if (pixW <= 0) return;
 
-    const int wp = waveformBuffer.writePos.load(std::memory_order_acquire);
+    // While paused, skip the buffer refresh entirely so the trace/fill stay
+    // frozen in place -- unless the display was never (or no longer
+    // correctly) initialised, e.g. right after construction or a resize,
+    // in which case we still need to populate it once so it isn't blank.
+    const bool needsInit = (displayWidth != pixW || lastWritePos < 0);
 
-    if (displayWidth != pixW || lastWritePos < 0)
-        initialiseDisplayBuffer(pixW);
-    else
-        updateDisplayBuffer(pixW, wp);
-
-    if (scWaveformBuffer != nullptr && scLastWritePos >= 0 && displayWidth == pixW)
+    if (! paused || needsInit)
     {
-        const int scWp = scWaveformBuffer->writePos.load(std::memory_order_acquire);
-        updateScDisplayBuffer(pixW, scWp);
+        const int wp = waveformBuffer.writePos.load(std::memory_order_acquire);
+
+        if (needsInit)
+            initialiseDisplayBuffer(pixW);
+        else
+            updateDisplayBuffer(pixW, wp);
+
+        if (scWaveformBuffer != nullptr && scLastWritePos >= 0 && displayWidth == pixW)
+        {
+            const int scWp = scWaveformBuffer->writePos.load(std::memory_order_acquire);
+            updateScDisplayBuffer(pixW, scWp);
+        }
     }
 
+    // paint() always re-reads live params (threshold/ratio/knee/attack/
+    // release) every frame regardless of pause state, so the transfer-curve
+    // overlay keeps animating even while the trace itself is frozen.
     repaint();
 }
 
@@ -473,5 +510,17 @@ void WaveformDisplay::paint(juce::Graphics& g)
         g.setColour(Theme::ice);
         g.setFont(Theme::label(14.0f));
         g.drawText("SC DUCKING", stamp, juce::Justification::centred, false);
+    }
+
+    // Paused stamp — bottom-left, clear of both the top-left SC stamp and
+    // the bottom-right title badge. Click-to-pause is input-only.
+    if (paused)
+    {
+        const auto stamp = juce::Rectangle<int>(int(waveX) + 4, screen.getBottom() - 22 - 4, 78, 22);
+        g.setColour(Theme::accent.withAlpha(0.60f));
+        g.drawRect(stamp, 1);
+        g.setColour(Theme::accent);
+        g.setFont(Theme::label(14.0f));
+        g.drawText("PAUSED", stamp, juce::Justification::centred, false);
     }
 }

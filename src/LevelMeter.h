@@ -28,6 +28,14 @@ private:
                 float alpha) const;
     static void drawSideLabel(juce::Graphics& g, juce::Rectangle<float> bar, const juce::String& text, float alpha);
     static void drawBottomValue(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb, float alpha);
+    // Prints a hardware-meter-style scale directly on the bar: a tick line
+    // plus a small number at each of `levels`, for whichever fall inside
+    // [floorDb, ceilDb]. Shared by the dB and LUFS bars, each with their own
+    // set of common reference levels (see the kDbNotches/kLufsNotches
+    // definitions in the .cpp).
+    static void drawNotches(juce::Graphics& g, juce::Rectangle<float> bar,
+                            float floorDb, float ceilDb,
+                            const float* levels, int numLevels, float alpha);
 
     VisualCompProcessor& processor;
     bool  revealed     = false;

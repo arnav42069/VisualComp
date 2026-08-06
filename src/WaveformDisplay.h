@@ -1,6 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include <atomic>
+#include <functional>
 #include <vector>
 
 struct WaveformBuffer;
@@ -17,12 +18,26 @@ public:
                     std::atomic<float>* ratioParam       = nullptr,
                     std::atomic<float>* kneeParam        = nullptr,
                     std::atomic<float>* attackParam      = nullptr,
-                    std::atomic<float>* releaseParam     = nullptr);
+                    std::atomic<float>* releaseParam     = nullptr,
+                    bool                clickToPause     = false);
 
     ~WaveformDisplay() override = default;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+
+    // Left click toggles pause (only when constructed with clickToPause =
+    // true — the input display only, per user request); right click always
+    // fires onRightClick regardless, so the owning editor can offer an
+    // "enlarge" menu on both displays.
+    void mouseDown(const juce::MouseEvent&) override;
+
+    bool isPaused() const { return paused; }
+
+    // Fired on right-click (popup-menu trigger); the owning editor builds
+    // and shows the themed enlarge/enlarge-both menu, since only it knows
+    // about the other display and the shared look-and-feel.
+    std::function<void(const juce::MouseEvent&)> onRightClick;
 
 private:
     void timerCallback() override;
@@ -40,6 +55,12 @@ private:
     juce::Colour        waveColour;
     WaveformBuffer&     waveformBuffer;
     std::atomic<float>* thresholdParamDb;
+
+    // Click-to-pause: freezes the trace/fill in place while dynamics
+    // overlays (ducking curve, threshold line) keep updating live in
+    // paint(), since those read their atomics fresh every frame regardless.
+    bool paused          = false;
+    bool allowClickPause = false;
 
     // Pre-computed min/max per pixel column — only touched on the message thread
     std::vector<float> dispMin, dispMax;
