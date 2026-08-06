@@ -4,9 +4,13 @@ Instructions for working in this repo. Read this before making changes.
 
 ## What this is
 
-VisualComp 2.21 — a JUCE compressor/EQ plugin (VST3 + Standalone) branded **Azazel Audio**
+VisualComp — a JUCE compressor/EQ plugin (VST3 + Standalone) branded **Azazel Audio**
 ("by Arnav Singh"). The repo folder is still named `SimpleCompressor` from an earlier
-project name; that has not been renamed and doesn't need to be.
+project name; that has not been renamed and doesn't need to be. The version number is
+deliberately not repeated here: as of 2026-08-06 it increments on every
+`/package-release` run (see `bump-version.ps1`, under "Building" below), so a specific
+number hardcoded in this file would go stale within a build or two — check
+`CMakeLists.txt`'s `VC2_VERSION_STRING` for the actual current version.
 
 - PRODUCT_NAME / plugin code: `Vc22`. Bumping the version string renames the built `.vst3`
   and its plugin ID — that's the mechanism for making FL Studio (or any host) rescan it as
@@ -182,24 +186,35 @@ project name; that has not been renamed and doesn't need to be.
   `Build Final\Standalone Test\` and launches it. Use this for quick iteration;
   `/package-release` is for an actual release cut.
 - Whenever a new `.cpp`/`.h` pair is added, update `CMakeLists.txt`'s `target_sources`.
-- Bumping the version means updating it in **all** of these places, not just `PRODUCT_NAME`:
-  `CMakeLists.txt`'s `VC2_VERSION_STRING` (drives `PRODUCT_NAME` and, see below, the
-  `DIST_DIR` post-build block), `package.ps1`'s `$version`, the `.claude/skills/
-  package-release/SKILL.md` doc, the two `installer/Install|Uninstall VisualComp
-  <version>.bat` filenames + their internal title text, `installer/install.ps1`/
-  `uninstall.ps1`, `docs/manual.html` (title/cover/TOC/footer — see "Screenshots &
-  manual" below for the PDF regeneration step), `About VisualComp <version>.md`
-  (repo root — rename the file itself, don't just edit its contents), and
+- **Bumping the version is automated as of 2026-08-06** by `bump-version.ps1` (repo
+  root), run automatically as step 1 of `/package-release` (see that skill's
+  "Auto-versioning" section) — every packaged release now gets a fresh
+  `PRODUCT_NAME`/plugin ID on its own, which is the mechanism that makes FL Studio (or
+  any host) detect it as a new plugin on rescan instead of reusing a stale, locked
+  one. It increments the integer after the last `.` (`2.21` → `2.22`) and rewrites
+  every place that needs to match: `CMakeLists.txt`'s `VC2_VERSION_STRING` (drives
+  `PRODUCT_NAME` and, see below, the `DIST_DIR` post-build block) and its `project()`
+  version, `package.ps1`'s `$version`, both `.claude/skills/*/SKILL.md` docs, the two
+  `installer/Install|Uninstall VisualComp <version>.bat` filenames + their internal
+  title text, `installer/install.ps1`/`uninstall.ps1` (the latter additionally keeps
+  the outgoing version in its "earlier releases" legacy-cleanup list, rather than
+  losing track of it — see the script), `installer/README.txt`, `docs/manual.html`'s
+  version *stamps* (title/cover/footer — NOT its dedicated per-release changelog
+  section, which is deliberately left frozen as history; see "Screenshots & manual"
+  below for the PDF regeneration step, which the script also runs), `About
+  VisualComp <version>.md` (repo root — renamed, not just edited), and
   `build-macos/build.sh` + `build-macos/README.txt` (both hand-authored, hardcode the
   version in comments/`PLUGIN_NAME`/install-path text — these were gitignored until
   2026-08-06 so a prior bump silently left them at "2.1" for two full release cycles
-  with nothing to catch it; they're tracked now, so a stale version there will at least
-  show up in `git diff`). Missing one of these doesn't necessarily fail loudly:
-  `package.ps1`'s manual-PDF path did exactly this silently for a full release cycle
-  (2.1→2.2) until the 2.2→2.21 bump turned it into a hard `throw` instead once the
-  stale-named PDF was deleted (see below) — CMake's `DIST_DIR` post-build step (next
-  paragraph) failed the same way, as a build *error* rather than a silent staleness,
-  since it's a required `COMMAND`, not an optional copy.
+  with nothing to catch it; they're tracked now). Before this script existed, missing
+  one of these places didn't necessarily fail loudly: `package.ps1`'s manual-PDF path
+  did exactly that silently for a full release cycle (2.1→2.2) until the 2.2→2.21 bump
+  turned it into a hard `throw` instead once the stale-named PDF was deleted (see
+  below) — CMake's `DIST_DIR` post-build step (next paragraph) failed the same way, as
+  a build *error* rather than a silent staleness, since it's a required `COMMAND`, not
+  an optional copy. Scripting the whole checklist closes off that entire class of bug;
+  if a new place needs to track the version in the future, add it to
+  `bump-version.ps1` rather than relying on this checklist being followed by hand.
 - **`DIST_DIR` post-build step** (`CMakeLists.txt`, `if(WIN32 AND VC2_INSTALL_PLUGIN)`
   block): every `VisualComp_VST3` build refreshes a full `VisualComp <version> - Win and
   Mac/` distribution folder at the repo root (Windows VST3 + a Mac build-scripts folder +
@@ -268,8 +283,10 @@ project name; that has not been renamed and doesn't need to be.
   recapture.
 - The Standalone build persists its host state (APVTS + custom processor state, i.e. the
   equivalent of a DAW project's plugin chunk) at
-  `%APPDATA%\VisualComp 2.21\VisualComp 2.settings` — note the folder carries the current
-  product name but the filename still doesn't have ".2"/".21" on it. A screenshot script must
+  `%APPDATA%\VisualComp <version>\VisualComp 2.settings` — the folder carries the
+  current `PRODUCT_NAME` (so it moves every time `bump-version.ps1` runs, see
+  "Building" above) but the filename itself still doesn't have the point-release
+  number on it, just the fixed "VisualComp 2". A screenshot script must
   delete this exact file before each launch, or stale state (e.g. the EQ panel having been
   left open in a previous run) silently leaks into the next capture — the window opens
   wider/narrower than the script assumes, and a size-based crop then grabs the wrong

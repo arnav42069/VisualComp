@@ -1,15 +1,27 @@
 ---
 name: package-release
-description: Build VisualComp 2.21 (VST3 + Standalone, AU on Mac) in Release, code-sign the Windows binaries if a certificate is configured, and assemble the distributable zip via package.ps1. Use when asked to "package the release", "build the release zip", "cut a release build", or "/package-release".
+description: Build VisualComp 2.22 (VST3 + Standalone, AU on Mac) in Release, code-sign the Windows binaries if a certificate is configured, and assemble the distributable zip via package.ps1. Use when asked to "package the release", "build the release zip", "cut a release build", or "/package-release".
 ---
 
 # Package Release
 
-Builds VisualComp 2.21 and assembles the Windows+Mac distributable zip in `Build Final\`.
+Builds VisualComp 2.22 and assembles the Windows+Mac distributable zip in `Build Final\`.
 
 ## Workflow
 
-1. **Build the Release targets** (Claude builds — the user does not build manually; see CLAUDE.md):
+1. **Bump the version** (every packaging run does this — see "Auto-versioning" below):
+   ```
+   powershell -ExecutionPolicy Bypass -File ./bump-version.ps1
+   ```
+   - Increments the point-release number by one and rewrites it across every file
+     that needs to match — CMakeLists.txt, package.ps1, installer scripts/filenames,
+     build-macos scripts, both skill docs, `About VisualComp <version>.md`, and the
+     manual's version stamps (regenerating its PDF). Prints a summary of what changed.
+   - Must run *before* the CMake build below — `PRODUCT_NAME` (and therefore the
+     built `.vst3`/`.exe` filenames and plugin ID) come from the version this step
+     just wrote into CMakeLists.txt.
+
+2. **Build the Release targets** (Claude builds — the user does not build manually; see CLAUDE.md):
    ```
    cmake --build build --config Release --target VisualComp_VST3 --target VisualComp_Standalone
    ```
@@ -17,17 +29,38 @@ Builds VisualComp 2.21 and assembles the Windows+Mac distributable zip in `Build
    - If the build fails because the plugin DLL is locked, FL Studio has an instance loaded — ask the user to close that instance (not necessarily all of FL) and retry.
    - This only builds Windows formats (VST3 + Standalone) — AU can't be built here. See "AU (Mac)" below.
 
-2. **Run the packaging script**:
+3. **Run the packaging script**:
    ```
    powershell -ExecutionPolicy Bypass -File ./package.ps1
    ```
-   - Assembles `Build Final\VisualComp 2.21 - Windows and Mac.zip` from whichever of `build\` / `build-pkg\` holds the newer `VisualComp 2.21.vst3` (the script checks both — see CLAUDE.md).
+   - Assembles `Build Final\VisualComp <version> - Windows and Mac.zip` from whichever of `build\` / `build-pkg\` holds the newer `VisualComp <version>.vst3` (the script checks both — see CLAUDE.md).
    - Bundles: Windows install/uninstall scripts + VST3 + standalone exe, the user manual PDF, and Mac source + build steps (which now build AU in addition to VST3 — see below).
-   - Also drops a loose, unzipped `Build Final\VisualComp 2.21.exe` (same binary as inside the zip) so the user can launch and test it directly without unzipping — this happens on every packaging run, not just on request.
+   - Also drops a loose, unzipped `Build Final\VisualComp <version>.exe` (same binary as inside the zip) so the user can launch and test it directly without unzipping — this happens on every packaging run, not just on request.
    - Signs the Windows `.exe` and the VST3's inner binary with `signtool` if a certificate is configured (see "Code signing" below); otherwise packages unsigned and prints a yellow warning — that warning is expected and not a failure.
    - The script `throw`s if any expected artifact (vst3 / exe / manual) is missing — surface that error to the user rather than retrying blindly. It also `throw`s if signing env vars are set but `signtool.exe` can't be found (Windows SDK not installed).
 
-3. **Report** the final zip path, size, the loose test-exe path, and whether the build was signed back to the user.
+4. **Report** the new version number, final zip path, size, the loose test-exe path, and whether the build was signed back to the user.
+
+## Auto-versioning
+
+- As of 2026-08-06, every `/package-release` run bumps the version — this exists so
+  each release gets a distinct `PRODUCT_NAME`/plugin ID, which is how FL Studio (or
+  any host) is made to detect it as a new plugin on rescan rather than reusing a
+  stale, already-loaded (and often file-locked) one. See CLAUDE.md's PRODUCT_NAME
+  note.
+- `bump-version.ps1` increments the integer after the last `.` by one each run.
+  For anything else — a major bump, skipping ahead — run it with an explicit
+  argument first: `./bump-version.ps1 -NewVersion '3.0'`.
+- It does **not** author new manual changelog prose — it only moves the manual's
+  "current version" stamps (title, cover, footer) forward and regenerates the PDF
+  under the new filename. The dedicated per-release changelog section (see
+  `docs/manual.html`'s existing "Section 19" changelog entry as a template) is frozen as history and
+  left untouched. Add a new one by hand when there's user-facing material worth
+  documenting — this is a deliberate scope cut, not an oversight.
+- If packaging the *same* version again without bumping is ever needed (e.g.
+  re-signing after only adding a certificate, no code changes), skip step 1 and run
+  the CMake build + `package.ps1` directly — but that's the exception. Default to
+  bumping every time, per the workflow above, unless the user says otherwise.
 
 ## AU (Mac)
 
@@ -47,5 +80,7 @@ Builds VisualComp 2.21 and assembles the Windows+Mac distributable zip in `Build
 
 ## Notes
 
-- The version string lives in `package.ps1` (`$version = '2.21'`) — bump it there (and the CMake `PRODUCT_NAME`, per CLAUDE.md) before packaging a new version.
+- The version string lives in `package.ps1` (`$version = '2.22'`) and `CMakeLists.txt`
+  (`VC2_VERSION_STRING`) — both are now kept in sync automatically by
+  `bump-version.ps1` (see "Auto-versioning" above), not hand-edited.
 - Ignore/do not use anything referencing `SimpleCompressor` as a build target, `Source/` as a directory, or a script at `scripts/package_release.ps1` — those don't match this codebase's actual CMake targets (`VisualComp_VST3`/`VisualComp_Standalone`) or layout (`src/`), and appear to be stale leftovers from an earlier/different project.

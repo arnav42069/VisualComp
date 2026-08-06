@@ -1,7 +1,6 @@
 @echo off
-title VisualComp 2.21 Installer - Azazel Audio
+title VisualComp 2.22 Uninstaller - Azazel Audio
 
-rem Re-launch with administrator rights if we do not already have them
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Requesting administrator permission...
@@ -9,7 +8,7 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0uninstall.ps1"
 
 echo.
 pause
