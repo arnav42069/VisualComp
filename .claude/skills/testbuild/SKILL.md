@@ -1,6 +1,6 @@
 ---
 name: testbuild
-description: Build just the VisualComp 2.23 Standalone target, drop it into "Build Final\Standalone Test", and launch it for a fast test loop. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
+description: Build just the VisualComp 2.25 Standalone target, drop it into "Build Final\Standalone Test", and launch it for a fast test loop. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
 ---
 
 # Test Build
@@ -42,4 +42,4 @@ zip bundling that `/package-release` does), copies the exe to
   exe for manual testing.
 - Clear any stale Standalone settings first if a clean UI state is needed to
   test against — see CLAUDE.md's screenshot-workflow note about
-  `%APPDATA%\VisualComp 2.23\VisualComp 2.settings`.
+  `%APPDATA%\VisualComp 2.25\VisualComp 2.settings`.

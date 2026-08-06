@@ -1,4 +1,4 @@
-VisualComp 2.23 — macOS Build Guide
+VisualComp 2.25 — macOS Build Guide
 Azazel Audio
 ===============================
 
@@ -10,8 +10,8 @@ WHAT YOU GET
 ------------
 A universal VST3 AND AU (Apple Silicon + Intel, macOS 10.13+), both built
 in one pass and installed into their standard plugin folders automatically:
-  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.23.vst3
-  ~/Library/Audio/Plug-Ins/Components/VisualComp 2.23.component
+  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.25.vst3
+  ~/Library/Audio/Plug-Ins/Components/VisualComp 2.25.component
 
 PREREQUISITES (one-time setup on the Mac)
 -----------------------------------------
@@ -31,14 +31,14 @@ BUILD STEPS
 3. Wait for both "SUCCESS — ... installed at: ..." lines (the first build
    takes a few minutes because it downloads and compiles the JUCE framework).
 4. Open your DAW and rescan plugins. The plugin appears as
-   "VisualComp 2.23" by Azazel Audio.
+   "VisualComp 2.25" by Azazel Audio.
 
 NOTES FOR MAC USERS
 -------------------
 - Gatekeeper: these plugins are not code-signed. If the DAW refuses to
   load one, run:
-     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.23.vst3"
-     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/"VisualComp 2.23.component"
+     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.25.vst3"
+     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/"VisualComp 2.25.component"
 - Logic Pro only loads AU plugins, not VST3 — that's why build.sh builds
   both formats in one pass; no manual CMakeLists.txt edit needed.
 - Rebuilding after code changes: run ./build.sh again — it recompiles
@@ -49,10 +49,10 @@ NOTES FOR MAC USERS
 FILE LOCATIONS SUMMARY
 ----------------------
 Windows plugin (VST3 only — no AU on Windows, it's an Apple-only format):
-  C:\Program Files\Common Files\VST3\VisualComp 2.23.vst3
+  C:\Program Files\Common Files\VST3\VisualComp 2.25.vst3
 macOS plugins (after running build.sh):
-  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.23.vst3
-  ~/Library/Audio/Plug-Ins/Components/VisualComp 2.23.component
+  ~/Library/Audio/Plug-Ins/VST3/VisualComp 2.25.vst3
+  ~/Library/Audio/Plug-Ins/Components/VisualComp 2.25.component
 
 The full user manual (PDF) is in the Documentation folder of the
 release bundle.

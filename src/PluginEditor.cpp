@@ -477,7 +477,10 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         juce::Path gear;
         for (int t = 0; t < kTeeth * 2; ++t)
         {
-            const float ang = (float(t) / float(kTeeth * 2)) * juce::MathConstants<float>::twoPi;
+            // Offset by valueAngle so the tooth pattern turns with the knob,
+            // like a real machined dial rather than a static ring the
+            // pointer sweeps past.
+            const float ang = (float(t) / float(kTeeth * 2)) * juce::MathConstants<float>::twoPi + valueAngle;
             const float rad = (t % 2 == 0) ? bezelOuter : bezelValley;
             const float sa = std::sin(ang), ca = -std::cos(ang);
             const juce::Point<float> pnt(cx + rad * sa, cy + rad * ca);
@@ -550,24 +553,23 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         g.fillEllipse(gx - bodyR * 0.44f, gy - bodyR * 0.34f, bodyR * 0.88f, bodyR * 0.68f);
     }
 
-    // Pointer
+    // Pointer — stretched all the way out to the cogwheel rim's outer tooth
+    // radius (rather than stopping short inside the body) so it reads as one
+    // continuous needle against the bezel; no accent-coloured halo behind it,
+    // just a plain drop shadow under the white line/dot.
     {
         const float sa = std::sin(valueAngle), ca = -std::cos(valueAngle);
-        const float r0 = bodyR * 0.30f, r1 = bodyR * 0.86f;
+        const float r0 = bodyR * 0.30f, r1 = bezelOuter;
 
         g.setColour(juce::Colour(0x70000000));
         g.drawLine(cx + r0 * sa + 0.8f, cy + r0 * ca + 1.0f,
                    cx + r1 * sa + 0.8f, cy + r1 * ca + 1.0f, 2.4f);
-        g.setColour(Theme::accent.withAlpha(0.30f));
-        g.drawLine(cx + r0 * sa, cy + r0 * ca, cx + r1 * sa, cy + r1 * ca, 4.2f);
         g.setColour(juce::Colours::white);
         g.drawLine(cx + r0 * sa, cy + r0 * ca, cx + r1 * sa, cy + r1 * ca, 1.9f);
 
         const float dotR = juce::jlimit(1.8f, 3.4f, bodyR * 0.09f);
-        const float dx = cx + bodyR * 0.86f * sa;
-        const float dy = cy + bodyR * 0.86f * ca;
-        g.setColour(Theme::accent.withAlpha(0.35f));
-        g.fillEllipse(dx - dotR * 2.0f, dy - dotR * 2.0f, dotR * 4.0f, dotR * 4.0f);
+        const float dx = cx + r1 * sa;
+        const float dy = cy + r1 * ca;
         g.setColour(juce::Colours::white);
         g.fillEllipse(dx - dotR, dy - dotR, dotR * 2.0f, dotR * 2.0f);
     }
@@ -2540,8 +2542,16 @@ void VisualCompEditor::resized()
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
     // Preset name now lives up here, left of SoftClip — same row/height as
     // bypassButton/clipModeButton. Worst case (Curve/GR collapsed) leaves
-    // 290px between logoZone's right edge and clipModeButton's left edge.
-    presetButton.setBounds(ox + 130, 14, 270, kTitleH - 28);
+    // 290px between logoZone's right edge and clipModeButton's left edge;
+    // centred in that gap (rather than flush against the logo) so it sits
+    // perfectly between the two, not just clear of both.
+    {
+        constexpr int presetW = 270;
+        const int gapLeft  = logoZone.getRight();
+        const int gapRight = clipModeButton.getX();
+        const int presetX  = gapLeft + (gapRight - gapLeft - presetW) / 2;
+        presetButton.setBounds(presetX, 14, presetW, kTitleH - 28);
+    }
 
     // Preset strip — EQ toggle sits directly to the left of the Mode button.
     // presetButton's old slot here now holds the Author field instead.
