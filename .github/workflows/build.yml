@@ -1,0 +1,119 @@
+name: Build
+
+# Ordinary pushes to master and PRs just build unsigned Release artifacts, so
+# every change gets a Windows build check. Pushing a tag like `v2.25` also
+# submits that build to SignPath for code signing and attaches the signed
+# result to a draft GitHub Release. See the `sign` job below for the
+# placeholder values you need to fill in once a SignPath project exists.
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # only needed for the release job (creates/updates a GitHub Release)
+  actions: read      # required so SignPath can pull the unsigned artifact from this run
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from CMakeLists.txt
+        id: version
+        shell: pwsh
+        run: |
+          $line = Select-String -Path CMakeLists.txt -Pattern 'set\(VC2_VERSION_STRING "([^"]+)"\)'
+          $version = $line.Matches[0].Groups[1].Value
+          Write-Host "Version: $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      # VC2_INSTALL_PLUGIN=OFF: skip copying the VST3 into
+      # C:\Program Files\Common Files\VST3 (not writable/needed on a CI
+      # runner) and skip the DIST_DIR post-build step, which expects release
+      # artifacts (manual PDF, installer scripts) that a plain CI checkout
+      # doesn't need to produce.
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DVC2_INSTALL_PLUGIN=OFF
+
+      - name: Build VST3 + Standalone
+        run: cmake --build build --config Release --target VisualComp_VST3 --target VisualComp_Standalone
+
+      - name: Stage unsigned artifacts
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $out = "unsigned"
+          New-Item -ItemType Directory -Force -Path "$out/VST3" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$out/Standalone" | Out-Null
+          Copy-Item -Recurse -Force "build\VisualComp_artefacts\Release\VST3\VisualComp $version.vst3" "$out\VST3\"
+          Copy-Item -Force "build\VisualComp_artefacts\Release\Standalone\VisualComp $version.exe" "$out\Standalone\"
+
+      - name: Upload unsigned artifacts
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: VisualComp-${{ steps.version.outputs.version }}-unsigned
+          path: unsigned/**
+          if-no-files-found: error
+
+  # Only runs on tag pushes (v*) -- see the trigger comment at the top.
+  # Requires a SignPath project to already exist (created in the SignPath
+  # dashboard: https://app.signpath.io), with:
+  #   - a repo secret SIGNPATH_API_TOKEN (SignPath API token)
+  #   - the four placeholder values below filled in from that project
+  # SignPath's dashboard will generate this exact step for you once the
+  # project is set up -- prefer pasting that over hand-editing the
+  # placeholders if the two ever disagree.
+  sign:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit signing request to SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
+          organization-id: "REPLACE_WITH_SIGNPATH_ORGANIZATION_ID"
+          project-slug: "REPLACE_WITH_SIGNPATH_PROJECT_SLUG"
+          signing-policy-slug: "release-signing"
+          artifact-configuration-slug: "windows"
+          github-artifact-id: "${{ needs.build.outputs.version && 'VisualComp-' }}${{ needs.build.outputs.version }}-unsigned"
+          wait-for-completion: true
+          output-artifact-directory: "signed"
+
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: VisualComp-${{ needs.build.outputs.version }}-signed
+          path: signed/**
+          if-no-files-found: error
+
+  # Attaches the signed build to a draft GitHub Release for the pushed tag.
+  # Remove this job (or flip the draft flag) if you'd rather publish releases
+  # by hand after downloading the signed artifact.
+  release:
+    needs: [build, sign]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download signed artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: VisualComp-${{ needs.build.outputs.version }}-signed
+          path: signed
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: VisualComp ${{ needs.build.outputs.version }}
+          files: |
+            signed/**/*.vst3/**
+            signed/**/*.exe
