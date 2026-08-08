@@ -149,5 +149,13 @@ private:
     EqCloseButton    closeButton;
     NodeIsland       nodeIsland;
 
+    // EQ-only dry/wet mix, independent of the main editor's overall Mix
+    // knob -- blends just this panel's tone-shaping, bound to the "eqMix"
+    // APVTS parameter. Compact knob + label in the header, left of
+    // closeButton (see resized()).
+    juce::Slider     eqMixKnob;
+    juce::Label      eqMixLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eqMixAttachment;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EqPanel)
 };

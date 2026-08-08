@@ -45,6 +45,24 @@ EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
     nodeIsland.onNodeEdited = [this](int i) { if (onNodeEdited) onNodeEdited(i); };
     addChildComponent(nodeIsland);
 
+    // EQ-only dry/wet mix (header, left of closeButton). Bound directly to
+    // the "eqMix" APVTS parameter via SliderAttachment, so no manual
+    // range/onValueChange wiring is needed -- matches NodeIsland's compact
+    // knob styling, minus the readout (kept uncluttered, same as those).
+    eqMixKnob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+    eqMixKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+    eqMixKnob.setMouseDragSensitivity(700);
+    addAndMakeVisible(eqMixKnob);
+    eqMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        processor.apvts, "eqMix", eqMixKnob);
+
+    eqMixLabel.setText("MIX", juce::dontSendNotification);
+    eqMixLabel.setJustificationType(juce::Justification::centredRight);
+    eqMixLabel.setFont(Theme::label(11.0f));
+    eqMixLabel.setColour(juce::Label::textColourId, Theme::textDim);
+    eqMixLabel.setInterceptsMouseClicks(false, false);
+    addAndMakeVisible(eqMixLabel);
+
     // 60Hz, not 20 -- the response curve and per-band gain-reduction dips are
     // the only animated elements in the interface still updating this slowly,
     // which reads as visibly choppy next to everything else (VuMeter 60Hz,
@@ -645,6 +663,12 @@ void EqPanel::timerCallback()
 void EqPanel::resized()
 {
     closeButton.setBounds(getWidth() - 28, 8, 22, 22);
+
+    constexpr int kEqMixKnobSz = 24;
+    const int knobX = closeButton.getX() - 8 - kEqMixKnobSz;
+    eqMixKnob.setBounds(knobX, 8, kEqMixKnobSz, 22);
+    eqMixLabel.setBounds(knobX - 4 - 40, 8, 40, 22);
+
     updateIslandBounds();
 }
 

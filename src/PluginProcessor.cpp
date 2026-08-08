@@ -64,6 +64,14 @@ VisualCompProcessor::createParameterLayout()
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"mix", 1}, "Mix",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 1.0f));
+    // EQ-only dry/wet, independent of the overall Mix above -- blends just
+    // the parametric EQ's tone-shaping (see the per-sample loop's "EQ
+    // dry/wet" block), not the compressor/saturation. Defaults to fully wet
+    // (1.0) so every existing session/preset predating this parameter still
+    // sounds identical after loading.
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"eqMix", 1}, "EQ Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 1.0f));
     return { params.begin(), params.end() };
 }
 
@@ -130,6 +138,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // ── Parameter snapshot ────────────────────────────────────────────────────
     const float mixAmt      = apvts.getRawParameterValue("mix")->load();
+    const float eqMixAmt    = apvts.getRawParameterValue("eqMix")->load();
     const float attackMs    = apvts.getRawParameterValue("attack")->load();
     const float releaseMs   = apvts.getRawParameterValue("release")->load();
     const float thresholdDb = apvts.getRawParameterValue("threshold")->load();
@@ -334,7 +343,17 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // here, independent of whether the node's own gain is boosting/cutting.
         float l = chSamples[0];
         float r = (numChannels > 1) ? chSamples[1] : chSamples[0];
+        const float eqDryL = l, eqDryR = r;
         eq.processSample(l, r);
+        // EQ-only dry/wet blend -- independent of the overall Mix knob's
+        // end-of-block blend below. Local per-sample floats already hold
+        // both the dry (pre-EQ) and wet (post-EQ) values, so this needs no
+        // separate full-buffer dry copy the way the global mix does.
+        if (eqMixAmt < 0.9999f)
+        {
+            l = l * eqMixAmt + eqDryL * (1.0f - eqMixAmt);
+            r = r * eqMixAmt + eqDryR * (1.0f - eqMixAmt);
+        }
         buffer.setSample(0, i, l);
         if (numChannels > 1) buffer.setSample(1, i, r);
 
