@@ -2837,3 +2837,30 @@ void VisualCompEditor::resized()
     if (enlargeOverlay)
         enlargeOverlay->setBounds(getLocalBounds());
 }
+
+bool VisualCompEditor::keyPressed(const juce::KeyPress& key)
+{
+    // Ctrl+Z: Undo
+    if (key.isKeyCode(juce::KeyPress::createFromDescription("ctrl+z").getKeyCode()))
+    {
+        if (audioProcessor.undoRedoManager.canUndo())
+        {
+            audioProcessor.undoRedoManager.undo();
+            return true;
+        }
+    }
+
+    // Ctrl+Y or Ctrl+Shift+Z: Redo
+    if (key.isKeyCode(juce::KeyPress::createFromDescription("ctrl+y").getKeyCode()) ||
+        key.isKeyCode(juce::KeyPress::createFromDescription("ctrl+shift+z").getKeyCode()))
+    {
+        if (audioProcessor.undoRedoManager.canRedo())
+        {
+            audioProcessor.undoRedoManager.redo();
+            return true;
+        }
+    }
+
+    // Let the base class handle any other keys
+    return false;
+}

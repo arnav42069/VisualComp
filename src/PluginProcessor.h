@@ -5,6 +5,8 @@
 #include "EqEngine.h"
 #include "ClipEngine.h"
 #include "LoudnessMeter.h"
+#include "UndoRedoManager.h"
+#include "SmoothMeter.h"
 
 enum class CompMode { VCA = 0, FET, Optical, Tube };
 
@@ -105,11 +107,26 @@ public:
     // has nothing to "keep" a confirm dialog about yet).
     std::atomic<bool> eqDirtySincePreset { false };
 
+    // ─── LEGACY: Kept for compatibility, use smoothMeter* below instead ───
     // Post-output metering (peak/RMS dB + approximate LUFS) — GUI read-only
     std::atomic<float> meterPeakDb     { -100.0f };
     std::atomic<float> meterRmsDb      { -100.0f };
     std::atomic<float> meterMomLufs    { -100.0f };
     std::atomic<float> meterShortLufs  { -100.0f };
+
+    // ─── SMOOTH METERS: Low-latency, interpolated meter values ───
+    // Lock-free, smooth-interpolating meter displays (attack/release ballistics)
+    // Audio thread writes to these atomically; UI reads and calls updateSmoothing()
+    // at 120Hz for butter-smooth animation.
+    SmoothMeterValue smoothMeterPeak   { 5.0f,   200.0f };   // 5ms attack, 200ms release
+    SmoothMeterValue smoothMeterRms    { 10.0f,  300.0f };   // 10ms attack, 300ms release
+    SmoothMeterValue smoothMeterLufs   { 10.0f,  400.0f };   // 10ms attack, 400ms release
+
+    // Lock-free queue for batch meter updates (optional, for lower-latency pushes)
+    MeterUpdateQueue meterUpdateQueue;
+
+    // Undo/Redo manager (message thread only, safe to access from editor)
+    VisualCompUndo::UndoRedoManager undoRedoManager { 100 };   // Keep 100 undo steps
 
     // Smart Master+ capture buffer: a real 8-10s excerpt of raw (pre-
     // processing) input, captured on demand so the wizard can analyze a full

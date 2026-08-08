@@ -190,6 +190,9 @@ private:
     // default (unlinked) broadband compressor knobs.
     void mouseDown(const juce::MouseEvent&) override;
 
+    // Handle Ctrl+Z (undo) and Ctrl+Y/Ctrl+Shift+Z (redo) keyboard shortcuts
+    bool keyPressed(const juce::KeyPress& key) override;
+
     VisualCompProcessor& audioProcessor;
 
     AzazelLookAndFeel laf;

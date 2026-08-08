@@ -42,9 +42,9 @@ private:
     float revealAmount = 0.0f;   // eased 0..1
 
     // Rolling history of the instantaneous peak reading, sampled once per
-    // timer tick (30Hz), so the peak-hold readout can show the true max over
+    // timer tick (120Hz), so the peak-hold readout can show the true max over
     // the trailing window rather than an ordinary decaying peak-hold.
-    static constexpr int kPeakHoldFrames = 90;   // 3s @ 30Hz
+    static constexpr int kPeakHoldFrames = 360;   // 3s @ 120Hz
     std::array<float, kPeakHoldFrames> peakHistory;
     int peakHistoryPos = 0;
 

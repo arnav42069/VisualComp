@@ -509,6 +509,11 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         meterRmsDb.store(loudness.rmsDb(), std::memory_order_relaxed);
         meterMomLufs.store(loudness.momentaryLufs(), std::memory_order_relaxed);
         meterShortLufs.store(loudness.shortTermLufs(), std::memory_order_relaxed);
+
+        // Feed into smooth meter atomics for butter-smooth 120Hz interpolation
+        smoothMeterPeak.update(loudness.peakDb());
+        smoothMeterRms.update(loudness.rmsDb());
+        smoothMeterLufs.update(loudness.shortTermLufs());
     }
 
     // ── Output waveform capture (post-clip: matches what is actually heard) ──

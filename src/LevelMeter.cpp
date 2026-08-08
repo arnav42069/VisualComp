@@ -28,7 +28,7 @@ LevelMeter::LevelMeter(VisualCompProcessor& proc) : processor(proc)
         revealed     = true;
         revealAmount = 1.0f;
     }
-    startTimerHz(30);
+    startTimerHz(120);   // 120Hz for ultra-smooth meter animation
 }
 
 LevelMeter::~LevelMeter() { stopTimer(); }
@@ -40,11 +40,22 @@ void LevelMeter::mouseUp(const juce::MouseEvent&)
 
 void LevelMeter::timerCallback()
 {
+    constexpr float deltaTimeMs = 1000.0f / 120.0f;   // ~8.33ms per frame at 120Hz
+
+    // Update smooth meter interpolation (attack/release ballistics)
+    processor.smoothMeterPeak.updateSmoothing(deltaTimeMs);
+    processor.smoothMeterRms.updateSmoothing(deltaTimeMs);
+    processor.smoothMeterLufs.updateSmoothing(deltaTimeMs);
+
+    // Update smooth meter peak-hold tracking
+    processor.smoothMeterPeak.updatePeakHold(deltaTimeMs);
+
     const float target = revealed ? 1.0f : 0.0f;
     revealAmount += (target - revealAmount) * 0.35f;
     if (std::abs(target - revealAmount) < 0.01f) revealAmount = target;
 
-    peakHistory[size_t(peakHistoryPos)] = processor.meterPeakDb.load(std::memory_order_relaxed);
+    // Sample the smooth display value into peak history for rolling 3-second max
+    peakHistory[size_t(peakHistoryPos)] = processor.smoothMeterPeak.getDisplayValue();
     peakHistoryPos = (peakHistoryPos + 1) % kPeakHoldFrames;
 
     repaint();
@@ -167,7 +178,7 @@ void LevelMeter::paint(juce::Graphics& g)
     const auto lufsBar = juce::Rectangle<float>(full.getX() + 2.0f + groupW + 3.0f, full.getY() + kTopPad,
                                                 barW, full.getHeight() - kTopPad - kBottomPad);
 
-    const float peakDb = processor.meterPeakDb.load(std::memory_order_relaxed);
+    const float peakDb = processor.smoothMeterPeak.getDisplayValue();
     drawBar(g, dbBar, peakDb, -48.0f, 0.0f, -18.0f, -6.0f, 1.0f);
     drawNotches(g, dbBar, -48.0f, 0.0f, kDbNotches, int(sizeof(kDbNotches) / sizeof(kDbNotches[0])), 1.0f);
     drawSideLabel(g, dbBar, "dB", 1.0f);
@@ -175,7 +186,7 @@ void LevelMeter::paint(juce::Graphics& g)
 
     if (revealAmount > 0.01f)
     {
-        const float stLufs = processor.meterShortLufs.load(std::memory_order_relaxed);
+        const float stLufs = processor.smoothMeterLufs.getDisplayValue();
         drawBar(g, lufsBar, stLufs, -36.0f, 0.0f, -18.0f, -10.0f, revealAmount);
         drawNotches(g, lufsBar, -36.0f, 0.0f, kLufsNotches, int(sizeof(kLufsNotches) / sizeof(kLufsNotches[0])), revealAmount);
         drawSideLabel(g, lufsBar, "LUFS", revealAmount);
