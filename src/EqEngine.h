@@ -23,6 +23,15 @@ namespace EqTypes
 {
     enum NodeType { Bell = 0, LowShelf, HighShelf, HighPass, LowPass, Notch, kNumTypes };
     static const char* const kNames[kNumTypes] = { "BELL", "LO SHELF", "HI SHELF", "HPF", "LPF", "NOTCH" };
+
+    // HPF/LPF/Notch have no meaningful static gain -- their node dot always
+    // sits on the 0dB line and isn't gain-editable. Shared here (rather than
+    // duplicated per file) so EqPanel.cpp's graph dragging and NodeIsland's
+    // gain knob agree on exactly which types this applies to.
+    inline bool isGainlessType(int type) noexcept
+    {
+        return type == HighPass || type == LowPass || type == Notch;
+    }
 }
 
 struct Biquad

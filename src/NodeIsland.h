@@ -17,14 +17,17 @@
 // gain AND (via its sign) chooses downward vs upward — positive Range
 // auto-engages Upward, mirrored by the direction button below, which
 // remains the manual override. Freq mirrors the node's own x-axis position
-// on the graph (EqNodeState::freqHz, 20Hz..20kHz log), and Comp toggles
+// on the graph (EqNodeState::freqHz, 20Hz..20kHz log); Gain mirrors the
+// node's y-axis position (EqNodeState::gainDb, +/-18dB, same range as the
+// graph's vertical drag — disabled for HPF/LPF/Notch, see
+// EqTypes::isGainlessType). Comp toggles
 // EqNodeState::linked (whether this band feeds the multiband-aware
 // compressor detector) — the same field the graph's right-click "Link to
 // Compressor" menu item controls.
 class NodeIsland : public juce::Component
 {
 public:
-    static constexpr int kWidth  = 312;
+    static constexpr int kWidth  = 372;
     static constexpr int kHeight = 118;
 
     explicit NodeIsland(VisualCompProcessor& proc);
@@ -89,6 +92,8 @@ private:
     juce::Label      rangeLabel;
     juce::Slider     freqKnob;
     juce::Label      freqLabel;
+    juce::Slider     gainKnob;
+    juce::Label      gainLabel;
     juce::TextButton directionButton;
     juce::TextButton compButton;
     juce::TextButton typeButton;

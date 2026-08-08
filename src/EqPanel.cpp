@@ -111,10 +111,11 @@ juce::Rectangle<float> EqPanel::graphArea() const
 namespace
 {
     // HPF/LPF/Notch have no meaningful static gain — their node dot always
-    // sits on the 0dB line and isn't vertically draggable.
+    // sits on the 0dB line and isn't vertically draggable. Canonical check
+    // lives in EqTypes (EqEngine.h) so NodeIsland's gain knob agrees.
     bool isGainlessType(int type) noexcept
     {
-        return type == EqTypes::HighPass || type == EqTypes::LowPass || type == EqTypes::Notch;
+        return EqTypes::isGainlessType(type);
     }
 
     // "500Hz" / "1.2kHz" — same short form as the frequency-axis gridline

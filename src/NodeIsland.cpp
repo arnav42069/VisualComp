@@ -116,6 +116,34 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     freqLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(freqLabel);
 
+    // Node's own y-axis position on the graph. Range matches EqPanel's own
+    // kGainRange (+/-18dB); no-op for HPF/LPF/Notch, which stay pinned to
+    // 0dB the same way the graph itself refuses to drag them vertically
+    // (see EqTypes::isGainlessType).
+    gainKnob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+    gainKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+    gainKnob.setRange(-18.0, 18.0);
+    gainKnob.setDoubleClickReturnValue(true, 0.0);
+    gainKnob.setMouseDragSensitivity(700);
+    gainKnob.getProperties().set("centerFill", true);
+    gainKnob.onValueChange = [this]
+    {
+        if (target < 0) return;
+        auto n = processor.eq.getNode(target);
+        if (EqTypes::isGainlessType(n.type)) return;
+        n.gainDb = float(gainKnob.getValue());
+        processor.eq.setNode(target, n);
+        if (onNodeEdited) onNodeEdited(target);
+    };
+    addAndMakeVisible(gainKnob);
+
+    gainLabel.setText("GAIN", juce::dontSendNotification);
+    gainLabel.setJustificationType(juce::Justification::centred);
+    gainLabel.setFont(Theme::label(11.0f));
+    gainLabel.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    gainLabel.setInterceptsMouseClicks(false, false);
+    addAndMakeVisible(gainLabel);
+
     // Manual override for the direction Range's sign already implies (see
     // EqNodeState::upward).
     directionButton.setClickingTogglesState(true);
@@ -204,6 +232,14 @@ void NodeIsland::refreshFromProcessor()
         rangeKnob.setValue(n.rangeDb, juce::dontSendNotification);
     if (!freqKnob.isMouseButtonDown())
         freqKnob.setValue(n.freqHz, juce::dontSendNotification);
+    // HPF/LPF/Notch have no static gain to edit -- pin the knob at 0dB and
+    // disable it outright (rather than merely ignoring drags in
+    // onValueChange) so it can't visually drift away from 0 mid-drag only to
+    // snap back on the next poll tick once released.
+    const bool gainEditable = !EqTypes::isGainlessType(n.type);
+    gainKnob.setEnabled(gainEditable);
+    if (!gainKnob.isMouseButtonDown())
+        gainKnob.setValue(gainEditable ? n.gainDb : 0.0f, juce::dontSendNotification);
     directionButton.setToggleState(n.upward, juce::dontSendNotification);
     directionButton.setButtonText(n.upward ? "UP" : "DOWN");
     compButton.setToggleState(n.linked, juce::dontSendNotification);
@@ -255,6 +291,11 @@ void NodeIsland::resized()
     auto freqArea = knobRow.removeFromLeft(54);
     freqLabel.setBounds(freqArea.removeFromTop(13));
     freqKnob.setBounds(freqArea);
+
+    knobRow.removeFromLeft(6);
+    auto gainArea = knobRow.removeFromLeft(54);
+    gainLabel.setBounds(gainArea.removeFromTop(13));
+    gainKnob.setBounds(gainArea);
 
     knobRow.removeFromLeft(6);
     compButton.setBounds(knobRow.getX(), knobRow.getCentreY() - 13, knobRow.getWidth(), 26);
