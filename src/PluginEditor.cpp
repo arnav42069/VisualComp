@@ -2,6 +2,7 @@
 #include "Presets.h"
 #include "Theme.h"
 #include "LogoSvg.h"
+#include "UndoableParameterAction.h"
 
 namespace
 {
@@ -915,6 +916,16 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
       limiterAtt  (p.apvts, "limiter",   limiterButton)
 {
     setLookAndFeel(&laf);
+
+    // Wire undo/redo into parameter knobs
+    gainInFader.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "gainIn");
+    gainOutFader.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "gainOut");
+    thresholdKnob.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "threshold");
+    kneeKnob.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "knee");
+    ratioKnob.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "ratio");
+    attackKnob.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "attack");
+    releaseKnob.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "release");
+    mixKnob.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "mix");
 
     setupFader(gainInFader,  gainInFaderLabel,  "GAIN IN",  "gainIn");
     setupFader(gainOutFader, gainOutFaderLabel, "GAIN OUT", "gainOut");

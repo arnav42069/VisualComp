@@ -1,6 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "UndoableParameterAction.h"
 #include "WaveformDisplay.h"
 #include "VuMeter.h"
 #include "GrCurveDisplay.h"
@@ -10,16 +11,31 @@
 #include <vector>
 
 //==============================================================================
-// Slider that supports Ctrl (or Cmd) held for fine adjustment.
+// Slider that supports Ctrl (or Cmd) held for fine adjustment + undo/redo.
+// Call setUndoManagerAndParamId() to enable undo tracking for this slider.
 //==============================================================================
 class DragSlider : public juce::Slider
 {
 public:
+    void setUndoManagerAndParamId(VisualCompUndo::UndoRedoManager* manager,
+                                   juce::AudioProcessorValueTreeState* apvts,
+                                   const juce::String& paramId)
+    {
+        undoManager = manager;
+        apvtsPtr = apvts;
+        parameterID = paramId;
+    }
+
     void mouseDown(const juce::MouseEvent& e) override
     {
         baseSensitivity = getMouseDragSensitivity();
         if (e.mods.isCtrlDown() || e.mods.isCommandDown())
             setMouseDragSensitivity(baseSensitivity * 8);
+
+        // Capture starting value for undo action
+        if (auto param = apvtsPtr ? apvtsPtr->getParameter(parameterID) : nullptr)
+            startValue = param->getValue();
+
         juce::Slider::mouseDown(e);
     }
 
@@ -27,10 +43,29 @@ public:
     {
         juce::Slider::mouseUp(e);
         setMouseDragSensitivity(baseSensitivity);
+
+        // Create undo action if the value changed
+        if (undoManager && apvtsPtr && !parameterID.isEmpty())
+        {
+            if (auto param = apvtsPtr->getParameter(parameterID))
+            {
+                float endValue = param->getValue();
+                if (std::abs(endValue - startValue) > 1e-5f)
+                {
+                    auto action = std::make_unique<VisualCompUndo::UndoableParameterAction>(
+                        *apvtsPtr, parameterID, endValue, startValue);
+                    undoManager->perform(std::move(action));
+                }
+            }
+        }
     }
 
 private:
     int baseSensitivity = 1000;
+    float startValue = 0.0f;
+    VisualCompUndo::UndoRedoManager* undoManager = nullptr;
+    juce::AudioProcessorValueTreeState* apvtsPtr = nullptr;
+    juce::String parameterID;
 };
 
 //==============================================================================

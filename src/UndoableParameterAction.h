@@ -10,6 +10,7 @@ namespace VisualCompUndo
 class UndoableParameterAction : public UndoableAction
 {
 public:
+    // Constructor without explicit oldValue: captures current parameter value
     UndoableParameterAction(juce::AudioProcessorValueTreeState& apvts,
                            const juce::String& paramID,
                            float newValue)
@@ -17,6 +18,15 @@ public:
     {
         if (auto param = apvts.getParameter(paramID))
             oldValue = param->getValue();
+    }
+
+    // Constructor with explicit oldValue: use when old value is known (e.g., captured on mouse-down)
+    UndoableParameterAction(juce::AudioProcessorValueTreeState& apvts,
+                           const juce::String& paramID,
+                           float newValue,
+                           float oldValue)
+        : apvts(apvts), paramID(paramID), newValue(newValue), oldValue(oldValue)
+    {
     }
 
     void execute() override
