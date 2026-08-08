@@ -319,6 +319,24 @@ private:
     void setPresetAuthor(const juce::String& author);
     static juce::File getUserPresetDir();
 
+    // Gates any operation that would replace the live EQ (loading a user
+    // preset, applying a factory preset, running Smart Master+) behind a
+    // "keep current EQ?" confirm dialog, but only if the EQ has actually
+    // been hand-edited since the last preset load/generation
+    // (audioProcessor.eqDirtySincePreset). If not dirty, applyFn runs
+    // immediately with no dialog. Either way the dirty flag is cleared once
+    // the outcome is resolved -- both "replace" and "keep current" settle
+    // the divergence from a preset context. onSettled (optional) always
+    // runs once the outcome is known, whether or not applyFn actually ran --
+    // for callers (runAutoAnalyze) with follow-up work that shouldn't race
+    // the confirm dialog, e.g. showing a completion message.
+    void confirmAndApplyEq(std::function<void()> applyFn,
+                            std::function<void()> onSettled = nullptr);
+    // Mirrors setStateInformation's per-node EQ property read loop, applying
+    // a saved .vcpreset's EQ nodes (property prefix "eqN_...") onto the live
+    // ParametricEq. Called (wrapped in confirmAndApplyEq) from loadUserPreset().
+    void applyEqFromState(const juce::ValueTree& state);
+
     // Waveform enlarge overlay -- right-click on either WaveformDisplay
     // (wired via its onRightClick) opens a themed popup menu, same styling
     // as showPresetMenu(), offering "enlarge this display" / "enlarge both";

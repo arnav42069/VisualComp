@@ -1034,6 +1034,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // instead of waiting for the 30Hz timerCallback() poll below.
     eqPanel->onNodeEdited = [this](int i)
     {
+        audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         if (i == selectedBand) refreshBandButtons();
     };
     addChildComponent(*eqPanel);
@@ -1157,6 +1158,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         auto n = audioProcessor.eq.getNode(selectedBand);
         n.attackMs = float(bandAttackKnob.getValue());
         audioProcessor.eq.setNode(selectedBand, n);
+        audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
     };
     bandReleaseKnob.onValueChange = [this]
@@ -1165,6 +1167,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         auto n = audioProcessor.eq.getNode(selectedBand);
         n.releaseMs = float(bandReleaseKnob.getValue());
         audioProcessor.eq.setNode(selectedBand, n);
+        audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
     };
     bandThresholdKnob.onValueChange = [this]
@@ -1173,6 +1176,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         auto n = audioProcessor.eq.getNode(selectedBand);
         n.thresholdDb = float(bandThresholdKnob.getValue());
         audioProcessor.eq.setNode(selectedBand, n);
+        audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
     };
     bandKneeKnob.onValueChange = [this]
@@ -1181,6 +1185,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         auto n = audioProcessor.eq.getNode(selectedBand);
         n.kneeDb = float(bandKneeKnob.getValue());
         audioProcessor.eq.setNode(selectedBand, n);
+        audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
     };
     bandRatioKnob.onValueChange = [this]
@@ -1189,6 +1194,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         auto n = audioProcessor.eq.getNode(selectedBand);
         n.ratio = float(bandRatioKnob.getValue());
         audioProcessor.eq.setNode(selectedBand, n);
+        audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
     };
 
@@ -1268,6 +1274,20 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         juce::Timer::callAfterDelay(700, [safe]
         {
             if (safe != nullptr) safe->saveUserPreset();
+        });
+    }
+
+    // Documentation aid, same pattern as VC2_FORCE_SAVE_PRESET_DIALOG: marks
+    // the EQ dirty and pops the "Replace your EQ?" confirm dialog on launch
+    // so it can be screenshotted reproducibly. Inert unless set.
+    if (juce::SystemStats::getEnvironmentVariable("VC2_FORCE_EQ_CONFIRM_DIALOG", {}).isNotEmpty())
+    {
+        juce::Component::SafePointer<VisualCompEditor> safe(this);
+        juce::Timer::callAfterDelay(700, [safe]
+        {
+            if (safe == nullptr) return;
+            safe->audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
+            safe->confirmAndApplyEq([] {});
         });
     }
 }
@@ -1649,6 +1669,15 @@ void VisualCompEditor::applyFactoryPreset(int index)
     clipModeButton.setButtonText(OutputClipper::modeName(static_cast<ClipMode>(fp.clipMode)));
     setPresetName(fp.name);
     setPresetAuthor("Arnav Singh");   // all factory presets are credited to Arnav Singh
+
+    // Factory presets carry no authored EQ curve of their own (see
+    // FactoryPreset in Presets.h) -- treat them as a flat/empty EQ position,
+    // same as any other preset "position" the user might switch to.
+    confirmAndApplyEq([this]
+    {
+        for (int i = 0; i < kMaxEqNodes; ++i)
+            audioProcessor.eq.setNode(i, EqNodeState{});
+    });
 }
 
 void VisualCompEditor::stepPreset(int delta)
@@ -1709,6 +1738,31 @@ void VisualCompEditor::launchSavePresetFileChooser(const juce::String& author)
             state.setProperty("clipMode",
                 audioProcessor.clipMode.load(std::memory_order_relaxed), nullptr);
             state.setProperty("presetAuthor", author, nullptr);
+
+            // EQ nodes -- mirrors VisualCompProcessor::getStateInformation's
+            // eqN_ property write loop, so a saved preset also captures the
+            // EQ curve, not just the compressor knobs.
+            for (int i = 0; i < kMaxEqNodes; ++i)
+            {
+                const auto n = audioProcessor.eq.getNode(i);
+                const juce::String p = "eq" + juce::String(i) + "_";
+                state.setProperty(p + "enabled", n.enabled, nullptr);
+                state.setProperty(p + "linked",  n.linked,  nullptr);
+                state.setProperty(p + "freq",    n.freqHz,  nullptr);
+                state.setProperty(p + "gain",    n.gainDb,  nullptr);
+                state.setProperty(p + "q",       n.q,       nullptr);
+                state.setProperty(p + "type",    n.type,    nullptr);
+                state.setProperty(p + "attackMs",  n.attackMs,  nullptr);
+                state.setProperty(p + "releaseMs", n.releaseMs, nullptr);
+                state.setProperty(p + "thresholdDb", n.thresholdDb, nullptr);
+                state.setProperty(p + "kneeDb",      n.kneeDb,      nullptr);
+                state.setProperty(p + "ratio",       n.ratio,       nullptr);
+                state.setProperty(p + "rangeDb",     n.rangeDb,     nullptr);
+                state.setProperty(p + "bwLowOct",    n.bwLowOct,    nullptr);
+                state.setProperty(p + "bwHighOct",   n.bwHighOct,   nullptr);
+                state.setProperty(p + "upward",      n.upward,      nullptr);
+            }
+
             if (auto xml = state.createXml())
                 if (xml->writeTo(file))
                 {
@@ -1735,7 +1789,69 @@ void VisualCompEditor::loadUserPreset(const juce::File& file)
             // Blank for presets saved before this field existed -- clears
             // any stale tooltip left over from whatever was loaded before.
             setPresetAuthor(state.getProperty("presetAuthor", "").toString());
+            confirmAndApplyEq([this, state] { applyEqFromState(state); });
         }
+    }
+}
+
+void VisualCompEditor::confirmAndApplyEq(std::function<void()> applyFn,
+                                          std::function<void()> onSettled)
+{
+    if (!audioProcessor.eqDirtySincePreset.load(std::memory_order_relaxed))
+    {
+        if (applyFn) applyFn();
+        if (onSettled) onSettled();
+        return;
+    }
+
+    // The live EQ has hand-edits since the last preset load/generation --
+    // ask before silently discarding them. Same AlertWindow-then-continue
+    // shape as saveUserPreset()'s author prompt.
+    auto* aw = new juce::AlertWindow("Replace your EQ?",
+        "This preset comes with its own EQ curve, but you've made changes to the "
+        "EQ since the last preset was loaded or generated. Keep your current EQ, "
+        "or replace it with the preset's?",
+        juce::AlertWindow::QuestionIcon);
+    aw->setLookAndFeel(&laf);
+    aw->addButton("Replace EQ", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    aw->addButton("Keep Mine",  0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+    wizardWindow.reset(aw);
+    aw->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this, applyFn, onSettled](int result)
+        {
+            wizardWindow.reset();
+            audioProcessor.eqDirtySincePreset.store(false, std::memory_order_relaxed);
+            if (result == 1 && applyFn) applyFn();
+            if (onSettled) onSettled();
+        }), false);
+}
+
+void VisualCompEditor::applyEqFromState(const juce::ValueTree& state)
+{
+    for (int i = 0; i < kMaxEqNodes; ++i)
+    {
+        const juce::String p = "eq" + juce::String(i) + "_";
+        EqNodeState n;
+        n.enabled = bool(state.getProperty(p + "enabled", false));
+        n.linked  = bool(state.getProperty(p + "linked",  false));
+        n.freqHz  = float(state.getProperty(p + "freq",   1000.0));
+        n.gainDb  = float(state.getProperty(p + "gain",   0.0));
+        n.q       = float(state.getProperty(p + "q",      0.9));
+        n.type    = int  (state.getProperty(p + "type",   0));
+        n.attackMs  = float(state.getProperty(p + "attackMs",  0.2));
+        n.releaseMs = float(state.getProperty(p + "releaseMs", 45.0));
+        n.upward      = bool (state.getProperty(p + "upward",       false));
+        // Same clamp/fallback logic as PluginProcessor::setStateInformation
+        // -- see its comment for why.
+        n.thresholdDb = juce::jlimit(-60.0f, 0.0f,
+                            float(state.getProperty(p + "thresholdDb", -20.0)));
+        n.kneeDb      = float(state.getProperty(p + "kneeDb",        6.0));
+        n.ratio       = float(state.getProperty(p + "ratio",         2.0));
+        n.rangeDb     = float(state.getProperty(p + "rangeDb", n.upward ? 30.0 : -30.0));
+        n.bwLowOct    = float(state.getProperty(p + "bwLowOct",      1.0));
+        n.bwHighOct   = float(state.getProperty(p + "bwHighOct",     1.0));
+        audioProcessor.eq.setNode(i, n);
     }
 }
 
@@ -2061,7 +2177,11 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
     // ---- EQ nodes: one per tonal band, tilt-correcting toward the genre's
     // reference curve; the bass and presence bands are additionally linked
     // into their own multiband compressor for glue/de-essing. Node 7 is left
-    // free (only 7 bands are defined).
+    // free (only 7 bands are defined). Built into a local array first rather
+    // than written straight to audioProcessor.eq, so confirmAndApplyEq below
+    // can gate the actual apply behind a "keep current EQ?" prompt if the
+    // live EQ has hand-edits since the last preset load/generation.
+    std::array<EqNodeState, kMaxEqNodes> nodes;
     int nodesUsed = 0;
     for (int b = 0; b < SmartMasterAnalysis::kNumBands; ++b)
     {
@@ -2071,7 +2191,7 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
 
         EqNodeState n;
         n.enabled = isDynamicsBand || worthCorrecting;
-        if (!n.enabled) { audioProcessor.eq.setNode(b, n); continue; }
+        if (!n.enabled) { nodes[size_t(b)] = n; continue; }
 
         n.type   = EqTypes::Bell;
         n.freqHz = std::sqrt(kSmartBandLo[b] * kSmartBandHi[b]);
@@ -2097,24 +2217,34 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
             n.bwHighOct   = isBass ? 0.8f : 0.5f;
         }
 
-        audioProcessor.eq.setNode(b, n);
+        nodes[size_t(b)] = n;
         ++nodesUsed;
     }
-    { EqNodeState off; audioProcessor.eq.setNode(SmartMasterAnalysis::kNumBands, off); }   // node 7, unused
+    nodes[size_t(SmartMasterAnalysis::kNumBands)] = EqNodeState{};   // node 7, unused
 
     const juce::String name = "Smart Master+: " + genre + "  " + juce::String(targetLufs, 1) + " LU";
-    setPresetName(name);
-    setPresetAuthor({});   // generated, not loaded/saved from a user preset file
 
-    juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::InfoIcon,
-        "Smart Master+ complete",
-        "Generated \"" + name + "\" from "
-            + juce::String(int(VisualCompProcessor::kSmartMasterCaptureSeconds))
-            + "s of captured audio (" + juce::String(analysis.crestDb, 1) + " dB crest factor, "
-            + juce::String(analysis.integratedLufs, 1) + " LUFS measured): broadband compression, "
-            + juce::String(nodesUsed) + " spectrum-matching EQ nodes, and bass/presence multiband "
-              "dynamics.\n\nThis is a heuristic starting point, not a mastering-grade AI -- refine "
-              "by ear, especially threshold, ratio and the EQ node gains.");
+    confirmAndApplyEq(
+        [this, nodes]
+        {
+            for (int i = 0; i < kMaxEqNodes; ++i)
+                audioProcessor.eq.setNode(i, nodes[size_t(i)]);
+        },
+        [this, name, nodesUsed, analysis]
+        {
+            setPresetName(name);
+            setPresetAuthor({});   // generated, not loaded/saved from a user preset file
+
+            juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::InfoIcon,
+                "Smart Master+ complete",
+                "Generated \"" + name + "\" from "
+                    + juce::String(int(VisualCompProcessor::kSmartMasterCaptureSeconds))
+                    + "s of captured audio (" + juce::String(analysis.crestDb, 1) + " dB crest factor, "
+                    + juce::String(analysis.integratedLufs, 1) + " LUFS measured): broadband compression, "
+                    + juce::String(nodesUsed) + " spectrum-matching EQ nodes, and bass/presence multiband "
+                      "dynamics.\n\nThis is a heuristic starting point, not a mastering-grade AI -- refine "
+                      "by ear, especially threshold, ratio and the EQ node gains.");
+        });
 }
 
 //==============================================================================

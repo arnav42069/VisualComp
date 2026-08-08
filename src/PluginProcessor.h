@@ -95,6 +95,16 @@ public:
     // itself is kept only because the DSP branches on it internally).
     std::atomic<bool> multibandEnabled { true };
 
+    // True whenever the live EQ (node freq/gain/Q/type/link/dynamics — any
+    // edit that funnels through EqPanel::onNodeEdited or the main editor's
+    // band-context Threshold/Knee/Ratio/Attack/Release knobs) has diverged
+    // from whatever was last loaded via a preset. Gates the "keep current
+    // EQ?" confirm dialog in VisualCompEditor::loadUserPreset()/
+    // runAutoAnalyze() — GUI-only bookkeeping, not persisted (see
+    // setStateInformation, which never touches it: a fresh DAW project load
+    // has nothing to "keep" a confirm dialog about yet).
+    std::atomic<bool> eqDirtySincePreset { false };
+
     // Post-output metering (peak/RMS dB + approximate LUFS) — GUI read-only
     std::atomic<float> meterPeakDb     { -100.0f };
     std::atomic<float> meterRmsDb      { -100.0f };
