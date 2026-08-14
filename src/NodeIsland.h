@@ -67,6 +67,15 @@ public:
     // already does for the graph's own mouse-wheel Q adjustment.
     std::function<void(int nodeIndex, float qRatio)> onQRatioChanged;
 
+    // Fired after threshold/range/freq/gain knob changes, with the delta or
+    // ratio applied — EqPanel uses these to propagate changes across a
+    // multi-selection (additive delta for threshold/range/gain, multiplicative
+    // ratio for freq, same as graph drag/wheel operations).
+    std::function<void(int nodeIndex, float deltaDb)> onThresholdChanged;
+    std::function<void(int nodeIndex, float deltaDb)> onRangeChanged;
+    std::function<void(int nodeIndex, float freqRatio)> onFreqChanged;
+    std::function<void(int nodeIndex, float deltaDb)> onGainChanged;
+
     // Fired after any knob/button here writes a new value straight to
     // processor.eq (Q, Threshold, Range, Freq, direction, Comp) — EqPanel
     // relays this to the main editor so its Dynamics-pane progress bars can

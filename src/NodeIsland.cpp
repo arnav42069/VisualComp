@@ -44,8 +44,12 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     {
         if (target < 0) return;
         auto n = processor.eq.getNode(target);
-        n.thresholdDb = float(thresholdKnob.getValue());
+        const float oldThreshold = n.thresholdDb;
+        const float newThreshold = float(thresholdKnob.getValue());
+        const float delta = newThreshold - oldThreshold;
+        n.thresholdDb = newThreshold;
         processor.eq.setNode(target, n);
+        if (onThresholdChanged) onThresholdChanged(target, delta);
         if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(thresholdKnob);
@@ -74,7 +78,10 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     {
         if (target < 0) return;
         auto n = processor.eq.getNode(target);
-        n.rangeDb = float(rangeKnob.getValue());
+        const float oldRange = n.rangeDb;
+        const float newRange = float(rangeKnob.getValue());
+        const float delta = newRange - oldRange;
+        n.rangeDb = newRange;
         // Range's sign directly drives direction, live, every time it's
         // touched — positive is always Upward, negative (or zero) is always
         // Downward. The direction button below still works as a one-off
@@ -83,6 +90,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         processor.eq.setNode(target, n);
         directionButton.setToggleState(n.upward, juce::dontSendNotification);
         directionButton.setButtonText(n.upward ? "UP" : "DOWN");
+        if (onRangeChanged) onRangeChanged(target, delta);
         if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(rangeKnob);
@@ -106,8 +114,12 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     {
         if (target < 0) return;
         auto n = processor.eq.getNode(target);
-        n.freqHz = float(freqKnob.getValue());
+        const float oldFreq = n.freqHz;
+        const float newFreq = float(freqKnob.getValue());
+        const float ratio = (oldFreq > 0.0f) ? newFreq / oldFreq : 1.0f;
+        n.freqHz = newFreq;
         processor.eq.setNode(target, n);
+        if (onFreqChanged) onFreqChanged(target, ratio);
         if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(freqKnob);
@@ -134,8 +146,12 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         if (target < 0) return;
         auto n = processor.eq.getNode(target);
         if (EqTypes::isGainlessType(n.type)) return;
-        n.gainDb = float(gainKnob.getValue());
+        const float oldGain = n.gainDb;
+        const float newGain = float(gainKnob.getValue());
+        const float delta = newGain - oldGain;
+        n.gainDb = newGain;
         processor.eq.setNode(target, n);
+        if (onGainChanged) onGainChanged(target, delta);
         if (onNodeEdited) onNodeEdited(target);
     };
     addAndMakeVisible(gainKnob);

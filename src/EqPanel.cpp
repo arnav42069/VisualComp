@@ -42,6 +42,10 @@ EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
     addAndMakeVisible(closeButton);
 
     nodeIsland.onQRatioChanged = [this](int anchor, float ratio) { applyRelativeQ(anchor, ratio); };
+    nodeIsland.onThresholdChanged = [this](int anchor, float deltaDb) { applyRelativeThreshold(anchor, deltaDb); };
+    nodeIsland.onRangeChanged = [this](int anchor, float deltaDb) { applyRelativeRange(anchor, deltaDb); };
+    nodeIsland.onFreqChanged = [this](int anchor, float freqRatio) { applyRelativeGainFreq(anchor, 0.0f, freqRatio); };
+    nodeIsland.onGainChanged = [this](int anchor, float deltaDb) { applyRelativeGainFreq(anchor, deltaDb, 1.0f); };
     nodeIsland.onNodeEdited = [this](int i) { if (onNodeEdited) onNodeEdited(i); };
     nodeIsland.onLinkedToggled = [this](int i, bool newLinkedState)
     {
@@ -418,6 +422,38 @@ void EqPanel::applyRelativeQ(int anchor, float qRatio)
         if (i == anchor || !multiSelected[size_t(i)] || !localNodes[size_t(i)].enabled) continue;
         auto& n = localNodes[size_t(i)];
         n.q = juce::jlimit(0.15f, 10.0f, n.q * qRatio);
+        pushNode(i);
+    }
+    repaint();
+}
+
+void EqPanel::applyRelativeThreshold(int anchor, float deltaDb)
+{
+    int count = 0;
+    for (int i = 0; i < kMaxEqNodes; ++i) if (multiSelected[size_t(i)]) ++count;
+    if (count < 2) return;
+
+    for (int i = 0; i < kMaxEqNodes; ++i)
+    {
+        if (i == anchor || !multiSelected[size_t(i)] || !localNodes[size_t(i)].enabled) continue;
+        auto& n = localNodes[size_t(i)];
+        n.thresholdDb = juce::jlimit(-60.0f, 0.0f, n.thresholdDb + deltaDb);
+        pushNode(i);
+    }
+    repaint();
+}
+
+void EqPanel::applyRelativeRange(int anchor, float deltaDb)
+{
+    int count = 0;
+    for (int i = 0; i < kMaxEqNodes; ++i) if (multiSelected[size_t(i)]) ++count;
+    if (count < 2) return;
+
+    for (int i = 0; i < kMaxEqNodes; ++i)
+    {
+        if (i == anchor || !multiSelected[size_t(i)] || !localNodes[size_t(i)].enabled) continue;
+        auto& n = localNodes[size_t(i)];
+        n.rangeDb = juce::jlimit(-30.0f, 30.0f, n.rangeDb + deltaDb);
         pushNode(i);
     }
     repaint();

@@ -127,12 +127,14 @@ private:
     float sampleRateForDisplay() const;   // processor's rate, or a sane default pre-prepare
 
     // Multi-select helpers (see the class comment above for the Ctrl+Click
-    // and relative-edit model). applyRelativeGainFreq/applyRelativeQ
+    // and relative-edit model). applyRelativeGainFreq/applyRelativeQ/etc.
     // propagate a change on node `anchor` to the rest of multiSelected.
     void  selectOnly(int i);
     void  toggleMultiSelect(int i);
     void  applyRelativeGainFreq(int anchor, float deltaGainDb, float freqRatio);
     void  applyRelativeQ(int anchor, float qRatio);
+    void  applyRelativeThreshold(int anchor, float deltaDb);
+    void  applyRelativeRange(int anchor, float deltaDb);
     void  updateIslandBounds();
 
     VisualCompProcessor& processor;
