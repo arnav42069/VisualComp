@@ -47,6 +47,7 @@ private:
     static constexpr int kPeakHoldFrames = 360;   // 3s @ 120Hz
     std::array<float, kPeakHoldFrames> peakHistory;
     int peakHistoryPos = 0;
+    bool peakHistoryWrapped = false;   // True after first complete cycle through buffer
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LevelMeter)
 };

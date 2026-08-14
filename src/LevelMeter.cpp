@@ -57,6 +57,10 @@ void LevelMeter::timerCallback()
     // Sample the smooth display value into peak history for rolling 3-second max
     peakHistory[size_t(peakHistoryPos)] = processor.smoothMeterPeak.getDisplayValue();
     peakHistoryPos = (peakHistoryPos + 1) % kPeakHoldFrames;
+    // Mark that we've completed at least one full cycle through the buffer,
+    // so paint() knows all slots contain valid data and can iterate the entire array
+    if (peakHistoryPos == 0)
+        peakHistoryWrapped = true;
 
     repaint();
 }
@@ -196,8 +200,18 @@ void LevelMeter::paint(juce::Graphics& g)
     // Peak-hold: highest dB peak seen in the trailing ~3 seconds (a true
     // rolling max, not an ordinary slowly-decaying peak-hold line), shown as
     // a bright readout above the bars.
+    // During the first 3 seconds, peakHistoryWrapped is false and only the
+    // range [0, peakHistoryPos) contains valid samples. After the first
+    // wrap-around, all 360 slots are valid, so we iterate the full array.
     float peak3s = -100.0f;
-    for (float v : peakHistory) peak3s = juce::jmax(peak3s, v);
+    if (peakHistoryWrapped)
+    {
+        for (float v : peakHistory) peak3s = juce::jmax(peak3s, v);
+    }
+    else
+    {
+        for (int i = 0; i < peakHistoryPos; ++i) peak3s = juce::jmax(peak3s, peakHistory[size_t(i)]);
+    }
     const juce::String peakText = (peak3s <= -99.5f) ? juce::String("--") : juce::String(peak3s, 1);
     g.setColour(juce::Colours::white);
     g.setFont(Theme::mono(9.5f, juce::Font::bold));
