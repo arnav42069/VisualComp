@@ -3,6 +3,9 @@
 
 NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
 {
+    // Load any previously-saved Island positions from processor state
+    syncPositionsFromProcessor();
+
     qKnob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
     qKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
     qKnob.setRange(0.15, 10.0);
@@ -194,10 +197,24 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
 
 void NodeIsland::setTargetNode(int index)
 {
-    if (index != target) userMoved = false;   // new node: re-dock under it by default
-    target = index;
+    if (index != target)
+    {
+        userMoved = false;   // new node: re-dock under it by default
+        target = index;
+        // Try to restore any previously-saved position for this node
+        if (index >= 0)
+            restoreSavedPosition();
+    }
+    else
+    {
+        target = index;
+    }
     setVisible(index >= 0);
-    if (index >= 0) refreshFromProcessor();
+    if (index >= 0)
+    {
+        refreshFromProcessor();
+        syncPositionsToProcessor();  // Ensure processor state is current
+    }
 }
 
 void NodeIsland::mouseDown(const juce::MouseEvent& e)
@@ -219,6 +236,8 @@ void NodeIsland::mouseDrag(const juce::MouseEvent& e)
     pos.y = juce::jlimit(bounds.getY(), juce::jmax(bounds.getY(), bounds.getBottom() - getHeight()), pos.y);
     setTopLeftPosition(pos);
     userMoved = true;
+    saveCurrentNodePosition();
+    syncPositionsToProcessor();
 }
 
 void NodeIsland::refreshFromProcessor()
@@ -321,4 +340,40 @@ void NodeIsland::paint(juce::Graphics& g)
 
     g.setColour(Theme::accent.withAlpha(0.7f));
     g.drawRoundedRectangle(r, 10.0f, 1.4f);
+}
+
+void NodeIsland::saveCurrentNodePosition()
+{
+    if (target < 0 || target >= kMaxEqNodes) return;
+    savedPositions[target].x = getX();
+    savedPositions[target].y = getY();
+    savedPositions[target].hasPosition = true;
+}
+
+void NodeIsland::restoreSavedPosition()
+{
+    if (target < 0 || target >= kMaxEqNodes) return;
+    if (savedPositions[target].hasPosition)
+    {
+        setTopLeftPosition(savedPositions[target].x, savedPositions[target].y);
+        userMoved = true;
+    }
+}
+
+void NodeIsland::syncPositionsFromProcessor()
+{
+    // Load Island positions from processor's persisted state
+    for (int i = 0; i < kMaxEqNodes; ++i)
+    {
+        savedPositions[i] = processor.islandPositions[i];
+    }
+}
+
+void NodeIsland::syncPositionsToProcessor()
+{
+    // Save Island positions to processor's persisted state
+    for (int i = 0; i < kMaxEqNodes; ++i)
+    {
+        processor.islandPositions[i] = savedPositions[i];
+    }
 }

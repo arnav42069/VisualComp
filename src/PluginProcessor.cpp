@@ -566,6 +566,18 @@ void VisualCompProcessor::getStateInformation(juce::MemoryBlock& destData)
         state.setProperty(p + "upward",      n.upward,      nullptr);
     }
 
+    // Dynamic Island position persistence per-node
+    for (int i = 0; i < 8; ++i)
+    {
+        const juce::String p = "islandNode" + juce::String(i) + "_";
+        state.setProperty(p + "hasPosition", islandPositions[i].hasPosition, nullptr);
+        if (islandPositions[i].hasPosition)
+        {
+            state.setProperty(p + "x", islandPositions[i].x, nullptr);
+            state.setProperty(p + "y", islandPositions[i].y, nullptr);
+        }
+    }
+
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -622,6 +634,18 @@ void VisualCompProcessor::setStateInformation(const void* data, int sizeInBytes)
                 n.bwLowOct    = float(state.getProperty(p + "bwLowOct",      1.0));
                 n.bwHighOct   = float(state.getProperty(p + "bwHighOct",     1.0));
                 eq.setNode(i, n);
+            }
+
+            // Restore Dynamic Island positions per-node
+            for (int i = 0; i < 8; ++i)
+            {
+                const juce::String p = "islandNode" + juce::String(i) + "_";
+                islandPositions[i].hasPosition = bool(state.getProperty(p + "hasPosition", false));
+                if (islandPositions[i].hasPosition)
+                {
+                    islandPositions[i].x = int(state.getProperty(p + "x", 0));
+                    islandPositions[i].y = int(state.getProperty(p + "y", 0));
+                }
             }
         }
 }

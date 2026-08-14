@@ -168,6 +168,10 @@ public:
     bool         eqPanelOpen       { false };
     bool         curveGrPanelOpen  { false };
 
+    // Dynamic Island position persistence per node (8 max nodes)
+    struct IslandPosition { int x = 0; int y = 0; bool hasPosition = false; };
+    std::array<IslandPosition, 8> islandPositions {};
+
 private:
     // License manager initialization flag
     std::atomic<bool> licenseMgrInitialized { false };

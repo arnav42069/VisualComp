@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include <functional>
+#include <array>
 
 // Small rounded floating popup ("Dynamic Island") that EqPanel shows above
 // the currently-selected EQ node. Hosts the node-level controls that used
@@ -56,6 +57,10 @@ public:
     // refreshes localNodes).
     void refreshFromProcessor();
 
+    // Sync position state to/from processor's persisted state
+    void syncPositionsFromProcessor();
+    void syncPositionsToProcessor();
+
     // Fired after a Q-knob drag changes the target node's Q, with the
     // multiplicative ratio applied (newQ / oldQ) — EqPanel uses this to
     // propagate the same ratio across a multi-selection, the same way it
@@ -87,6 +92,18 @@ private:
     // only fires for clicks on the Island's own background/padding.
     juce::Point<int> dragAnchor;
     bool userMoved = false;
+
+    // Per-node manual position persistence: tracks where the Island was
+    // dragged to for each node, so switching away and back re-applies the
+    // saved position. Array indexed by node index (0..kMaxEqNodes-1).
+    // Uses VisualCompProcessor::IslandPosition to stay in sync with processor state.
+    static constexpr int kMaxEqNodes = 8;  // Must match EqEngine.h
+    std::array<VisualCompProcessor::IslandPosition, kMaxEqNodes> savedPositions {};
+
+    // Called after dragging to save the current position to the saved array
+    void saveCurrentNodePosition();
+    // Called when setting a target node to restore its saved position if any
+    void restoreSavedPosition();
 
     juce::Slider     qKnob;
     juce::Label      qLabel;
