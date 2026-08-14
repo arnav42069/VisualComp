@@ -90,6 +90,9 @@ target_sources(VisualComp PRIVATE
     src/EqPanel.cpp
     src/NodeIsland.cpp
     src/LevelMeter.cpp
+    src/LicenseVerifier.cpp
+    src/LicenseManager.cpp
+    src/DemoModeIndicator.cpp
 )
 
 target_include_directories(VisualComp PRIVATE src)

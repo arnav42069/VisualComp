@@ -60,11 +60,20 @@ private:
 class UndoableEqNodeEdit : public UndoableAction
 {
 public:
+    // Constructor without explicit oldState: captures current node state
     UndoableEqNodeEdit(ParametricEq& eq, int nodeIndex,
                       const EqNodeState& newState)
         : eq(eq), nodeIndex(nodeIndex), newState(newState)
     {
         oldState = eq.getNode(nodeIndex);
+    }
+
+    // Constructor with explicit oldState: use when old state is known (e.g., captured on mouse-down)
+    UndoableEqNodeEdit(ParametricEq& eq, int nodeIndex,
+                      const EqNodeState& newState,
+                      const EqNodeState& oldState)
+        : eq(eq), nodeIndex(nodeIndex), newState(newState), oldState(oldState)
+    {
     }
 
     void execute() override

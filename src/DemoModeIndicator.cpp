@@ -1,0 +1,200 @@
+// DemoModeIndicator.cpp
+#include "DemoModeIndicator.h"
+#include "Theme.h"
+
+// ════════════════════════════════════════════════════════════════════════════════
+// LicenseActivationWindow::Content
+// ════════════════════════════════════════════════════════════════════════════════
+
+LicenseActivationWindow::Content::Content(LicenseManager& licenseManager,
+                                          std::function<void()> onSuccess,
+                                          LicenseActivationWindow& parentWindow)
+    : licenseMgr(licenseManager), onSuccessCallback(onSuccess), parent(parentWindow)
+{
+    // Instruction label
+    instructionLabel.setText(
+        "Paste your Base64-encoded license key below:",
+        juce::dontSendNotification);
+    instructionLabel.setJustificationType(juce::Justification::topLeft);
+    addAndMakeVisible(instructionLabel);
+
+    // License key text editor
+    licenseKeyEditor.setMultiLine(true);
+    licenseKeyEditor.setReturnKeyStartsNewLine(true);
+    licenseKeyEditor.setTextToShowWhenEmpty("License key (Base64)...", juce::Colours::grey);
+    licenseKeyEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff2a2a2a));
+    licenseKeyEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xffffffff));
+    licenseKeyEditor.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xff555555));
+    addAndMakeVisible(licenseKeyEditor);
+
+    // Activate button
+    activateButton.onClick = [this] { onActivateClicked(); };
+    activateButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff7a1f));
+    activateButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffffffff));
+    addAndMakeVisible(activateButton);
+
+    // Cancel button
+    cancelButton.onClick = [this] { onCancelClicked(); };
+    cancelButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff555555));
+    cancelButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffffffff));
+    addAndMakeVisible(cancelButton);
+
+    // Feedback label
+    feedbackLabel.setJustificationType(juce::Justification::centred);
+    feedbackLabel.setColour(juce::Label::textColourId, juce::Colour(0xffff6b6b));
+    addAndMakeVisible(feedbackLabel);
+
+    setSize(500, 320);
+}
+
+void LicenseActivationWindow::Content::resized()
+{
+    auto bounds = getLocalBounds().reduced(16);
+
+    instructionLabel.setBounds(bounds.removeFromTop(24));
+    bounds.removeFromTop(8);
+
+    licenseKeyEditor.setBounds(bounds.removeFromTop(120));
+    bounds.removeFromTop(12);
+
+    feedbackLabel.setBounds(bounds.removeFromTop(30));
+    bounds.removeFromTop(8);
+
+    auto buttonArea = bounds.removeFromBottom(40);
+    auto buttonWidth = (buttonArea.getWidth() - 8) / 2;
+    activateButton.setBounds(buttonArea.removeFromLeft(buttonWidth));
+    buttonArea.removeFromLeft(8);
+    cancelButton.setBounds(buttonArea);
+}
+
+void LicenseActivationWindow::Content::updateFeedback(const juce::String& message, bool isError)
+{
+    feedbackLabel.setText(message, juce::dontSendNotification);
+    if (isError)
+    {
+        feedbackLabel.setColour(juce::Label::textColourId, juce::Colour(0xffff6b6b));
+    }
+    else
+    {
+        feedbackLabel.setColour(juce::Label::textColourId, juce::Colour(0xff51cf66));
+    }
+}
+
+void LicenseActivationWindow::Content::onActivateClicked()
+{
+    auto licenseKey = licenseKeyEditor.getText().toStdString();
+
+    if (licenseKey.empty())
+    {
+        updateFeedback("Please enter a license key", true);
+        return;
+    }
+
+    // Try to activate the license
+    if (licenseMgr.activateLicense(licenseKey))
+    {
+        updateFeedback("License activated successfully!", false);
+
+        // Close the window after a short delay
+        juce::Timer::callAfterDelay(800, [this]
+        {
+            if (onSuccessCallback)
+                onSuccessCallback();
+            parent.closeButtonPressed();
+        });
+    }
+    else
+    {
+        updateFeedback("Invalid license key. Please check and try again.", true);
+    }
+}
+
+void LicenseActivationWindow::Content::onCancelClicked()
+{
+    parent.closeButtonPressed();
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// LicenseActivationWindow
+// ════════════════════════════════════════════════════════════════════════════════
+
+LicenseActivationWindow::LicenseActivationWindow(LicenseManager& licenseManager,
+                                                 std::function<void()> onSuccess)
+    : juce::DialogWindow("Activate License", juce::Colour(0xff1d1d1b), true, false)
+{
+    content = std::make_unique<Content>(licenseManager, onSuccess, *this);
+    setContentOwned(content.release(), false);
+    setResizable(false, false);
+    centreWithSize(getWidth(), getHeight());
+    setAlwaysOnTop(true);
+}
+
+void LicenseActivationWindow::closeButtonPressed()
+{
+    juce::DialogWindow::closeButtonPressed();
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// DemoModeIndicator
+// ════════════════════════════════════════════════════════════════════════════════
+
+DemoModeIndicator::DemoModeIndicator(LicenseManager& licenseManager)
+    : licenseMgr(licenseManager)
+{
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+}
+
+void DemoModeIndicator::paint(juce::Graphics& g)
+{
+    if (!licenseMgr.isDemoMode())
+    {
+        // No watermark for licensed product
+        return;
+    }
+
+    auto bounds = getLocalBounds().toFloat();
+    juce::String text = licenseMgr.getDemoWatermarkText();
+
+    // Semi-transparent dark background
+    g.setColour(juce::Colour(0, 0, 0).withAlpha(0.4f));
+    g.fillRect(bounds);
+
+    // Accent-orange text for demo indicator
+    auto accentColour = juce::Colour(0xff7a1f);
+    g.setColour(accentColour.withAlpha(0.9f));
+
+    auto font = juce::Font(12.0f, juce::Font::bold);
+    g.setFont(font);
+
+    g.drawText(text,
+               bounds.reduced(4.0f),
+               juce::Justification::centred,
+               true);
+}
+
+void DemoModeIndicator::resized()
+{
+    // Small fixed-height indicator
+}
+
+void DemoModeIndicator::mouseUp(const juce::MouseEvent&)
+{
+    if (licenseMgr.isDemoMode())
+    {
+        showLicenseActivationDialog();
+    }
+}
+
+void DemoModeIndicator::showLicenseActivationDialog()
+{
+    // Create and show the license activation window
+    auto* licenseWindow = new LicenseActivationWindow(
+        licenseMgr,
+        [this]()
+        {
+            if (onLicenseActivated)
+                onLicenseActivated();
+        });
+
+    licenseWindow->enterModalState(true, nullptr, true);
+}

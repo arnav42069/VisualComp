@@ -917,6 +917,9 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
 {
     setLookAndFeel(&laf);
 
+    // Initialize license/demo mode system
+    audioProcessor.initializeLicenseManager();
+
     // Wire undo/redo into parameter knobs
     gainInFader.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "gainIn");
     gainOutFader.setUndoManagerAndParamId(&audioProcessor.undoRedoManager, &audioProcessor.apvts, "gainOut");
@@ -1093,6 +1096,9 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     logoZone.onClick = [this] { showLogoMenu(); };
     addAndMakeVisible(logoZone);
 
+    // Demo mode watermark indicator
+    addAndMakeVisible(demoModeIndicator);
+
     // Mix knob
     mixKnob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
     mixKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
@@ -1163,6 +1169,11 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     bandThresholdKnob.setTextValueSuffix(" dB");
     bandKneeKnob.setTextValueSuffix(" dB");
     bandRatioKnob.setTextValueSuffix(":1");
+    bandAttackKnob.onMouseDownCallback = [this]
+    {
+        if (selectedBand >= 0)
+            oldBandNodeStateAtMouseDown = audioProcessor.eq.getNode(selectedBand);
+    };
     bandAttackKnob.onValueChange = [this]
     {
         if (selectedBand < 0) return;
@@ -1171,6 +1182,20 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         audioProcessor.eq.setNode(selectedBand, n);
         audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
+    };
+    bandAttackKnob.onUndoEditComplete = [this](float oldValue, float newValue)
+    {
+        if (selectedBand < 0) return;
+        if (std::abs(newValue - oldValue) < 1e-5f) return;
+        auto newState = audioProcessor.eq.getNode(selectedBand);
+        auto action = std::make_unique<VisualCompUndo::UndoableEqNodeEdit>(
+            audioProcessor.eq, selectedBand, newState, oldBandNodeStateAtMouseDown);
+        audioProcessor.undoRedoManager.perform(std::move(action));
+    };
+    bandReleaseKnob.onMouseDownCallback = [this]
+    {
+        if (selectedBand >= 0)
+            oldBandNodeStateAtMouseDown = audioProcessor.eq.getNode(selectedBand);
     };
     bandReleaseKnob.onValueChange = [this]
     {
@@ -1181,6 +1206,20 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
     };
+    bandReleaseKnob.onUndoEditComplete = [this](float oldValue, float newValue)
+    {
+        if (selectedBand < 0) return;
+        if (std::abs(newValue - oldValue) < 1e-5f) return;
+        auto newState = audioProcessor.eq.getNode(selectedBand);
+        auto action = std::make_unique<VisualCompUndo::UndoableEqNodeEdit>(
+            audioProcessor.eq, selectedBand, newState, oldBandNodeStateAtMouseDown);
+        audioProcessor.undoRedoManager.perform(std::move(action));
+    };
+    bandThresholdKnob.onMouseDownCallback = [this]
+    {
+        if (selectedBand >= 0)
+            oldBandNodeStateAtMouseDown = audioProcessor.eq.getNode(selectedBand);
+    };
     bandThresholdKnob.onValueChange = [this]
     {
         if (selectedBand < 0) return;
@@ -1189,6 +1228,20 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         audioProcessor.eq.setNode(selectedBand, n);
         audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
+    };
+    bandThresholdKnob.onUndoEditComplete = [this](float oldValue, float newValue)
+    {
+        if (selectedBand < 0) return;
+        if (std::abs(newValue - oldValue) < 1e-5f) return;
+        auto newState = audioProcessor.eq.getNode(selectedBand);
+        auto action = std::make_unique<VisualCompUndo::UndoableEqNodeEdit>(
+            audioProcessor.eq, selectedBand, newState, oldBandNodeStateAtMouseDown);
+        audioProcessor.undoRedoManager.perform(std::move(action));
+    };
+    bandKneeKnob.onMouseDownCallback = [this]
+    {
+        if (selectedBand >= 0)
+            oldBandNodeStateAtMouseDown = audioProcessor.eq.getNode(selectedBand);
     };
     bandKneeKnob.onValueChange = [this]
     {
@@ -1199,6 +1252,20 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
     };
+    bandKneeKnob.onUndoEditComplete = [this](float oldValue, float newValue)
+    {
+        if (selectedBand < 0) return;
+        if (std::abs(newValue - oldValue) < 1e-5f) return;
+        auto newState = audioProcessor.eq.getNode(selectedBand);
+        auto action = std::make_unique<VisualCompUndo::UndoableEqNodeEdit>(
+            audioProcessor.eq, selectedBand, newState, oldBandNodeStateAtMouseDown);
+        audioProcessor.undoRedoManager.perform(std::move(action));
+    };
+    bandRatioKnob.onMouseDownCallback = [this]
+    {
+        if (selectedBand >= 0)
+            oldBandNodeStateAtMouseDown = audioProcessor.eq.getNode(selectedBand);
+    };
     bandRatioKnob.onValueChange = [this]
     {
         if (selectedBand < 0) return;
@@ -1207,6 +1274,15 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         audioProcessor.eq.setNode(selectedBand, n);
         audioProcessor.eqDirtySincePreset.store(true, std::memory_order_relaxed);
         repaint(0, kCtrlY, kContentW, kCtrlH);
+    };
+    bandRatioKnob.onUndoEditComplete = [this](float oldValue, float newValue)
+    {
+        if (selectedBand < 0) return;
+        if (std::abs(newValue - oldValue) < 1e-5f) return;
+        auto newState = audioProcessor.eq.getNode(selectedBand);
+        auto action = std::make_unique<VisualCompUndo::UndoableEqNodeEdit>(
+            audioProcessor.eq, selectedBand, newState, oldBandNodeStateAtMouseDown);
+        audioProcessor.undoRedoManager.perform(std::move(action));
     };
 
     // Documentation aid, same pattern as VC2_FORCE_EQ_OPEN: selects a given
@@ -2681,6 +2757,8 @@ void VisualCompEditor::resized()
     bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104, 14, 100, kTitleH - 28);
     clipModeButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104 - 100 - 8, 14, 96, kTitleH - 28);
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
+    // Demo mode watermark indicator — positioned in top-right corner, fixed 24px height
+    demoModeIndicator.setBounds(ox + kWidth - cshift - 224, 8, 216, 24);
     // Preset name now lives up here, left of SoftClip — same row/height as
     // bypassButton/clipModeButton. Worst case (Curve/GR collapsed) leaves
     // 290px between logoZone's right edge and clipModeButton's left edge;

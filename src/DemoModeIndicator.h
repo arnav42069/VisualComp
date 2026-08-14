@@ -1,0 +1,68 @@
+// DemoModeIndicator.h
+// Visual watermark indicator showing demo mode status and remaining trial time
+#pragma once
+
+#include <JuceHeader.h>
+#include "LicenseManager.h"
+
+// Custom dialog for license key entry
+class LicenseActivationWindow : public juce::DialogWindow
+{
+public:
+    LicenseActivationWindow(LicenseManager& licenseManager, std::function<void()> onSuccess);
+    ~LicenseActivationWindow() override = default;
+
+    void closeButtonPressed() override;
+
+private:
+    class Content : public juce::Component
+    {
+    public:
+        Content(LicenseManager& licenseManager, std::function<void()> onSuccess, LicenseActivationWindow& parentWindow);
+        void resized() override;
+
+    private:
+        LicenseManager& licenseMgr;
+        std::function<void()> onSuccessCallback;
+        LicenseActivationWindow& parent;
+
+        juce::Label instructionLabel;
+        juce::TextEditor licenseKeyEditor;
+        juce::TextButton activateButton { "Activate" };
+        juce::TextButton cancelButton { "Cancel" };
+        juce::Label feedbackLabel;
+
+        void updateFeedback(const juce::String& message, bool isError);
+        void onActivateClicked();
+        void onCancelClicked();
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content)
+    };
+
+    std::unique_ptr<Content> content;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LicenseActivationWindow)
+};
+
+class DemoModeIndicator : public juce::Component
+{
+public:
+    explicit DemoModeIndicator(LicenseManager& licenseManager);
+    ~DemoModeIndicator() override = default;
+
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+
+    // Click handler for showing license activation dialog
+    void mouseUp(const juce::MouseEvent& e) override;
+
+    // Callback when license is activated
+    std::function<void()> onLicenseActivated;
+
+private:
+    LicenseManager& licenseMgr;
+
+    void showLicenseActivationDialog();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DemoModeIndicator)
+};

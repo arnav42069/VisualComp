@@ -7,6 +7,7 @@
 #include "LoudnessMeter.h"
 #include "UndoRedoManager.h"
 #include "SmoothMeter.h"
+#include "LicenseManager.h"
 
 enum class CompMode { VCA = 0, FET, Optical, Tube };
 
@@ -56,6 +57,23 @@ public:
 
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
+
+    // Initialize license/demo mode (safe to call multiple times)
+    void initializeLicenseManager()
+    {
+        if (!licenseMgrInitialized.load())
+        {
+            licenseManager.initialize();
+            licenseMgrInitialized.store(true);
+        }
+    }
+
+    // ── Public state for GUI access ──
+    // License manager (demo mode, trial period, license verification)
+    LicenseManager licenseManager;
+
+    // Undo/Redo manager (message thread only, safe to access from editor)
+    VisualCompUndo::UndoRedoManager undoRedoManager { 100 };   // Keep 100 undo steps
 
     juce::AudioProcessorValueTreeState apvts;
 
@@ -125,9 +143,6 @@ public:
     // Lock-free queue for batch meter updates (optional, for lower-latency pushes)
     MeterUpdateQueue meterUpdateQueue;
 
-    // Undo/Redo manager (message thread only, safe to access from editor)
-    VisualCompUndo::UndoRedoManager undoRedoManager { 100 };   // Keep 100 undo steps
-
     // Smart Master+ capture buffer: a real 8-10s excerpt of raw (pre-
     // processing) input, captured on demand so the wizard can analyze a full
     // representative passage -- spectrum, crest factor, integrated loudness
@@ -154,6 +169,9 @@ public:
     bool         curveGrPanelOpen  { false };
 
 private:
+    // License manager initialization flag
+    std::atomic<bool> licenseMgrInitialized { false };
+
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // Per-mode state

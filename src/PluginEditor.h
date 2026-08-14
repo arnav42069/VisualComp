@@ -7,6 +7,7 @@
 #include "GrCurveDisplay.h"
 #include "EqPanel.h"
 #include "LevelMeter.h"
+#include "DemoModeIndicator.h"
 #include <functional>
 #include <vector>
 
@@ -36,6 +37,10 @@ public:
         if (auto param = apvtsPtr ? apvtsPtr->getParameter(parameterID) : nullptr)
             startValue = param->getValue();
 
+        // Fire callback to allow capturing additional context (e.g., EQ node state)
+        if (onMouseDownCallback)
+            onMouseDownCallback();
+
         juce::Slider::mouseDown(e);
     }
 
@@ -58,7 +63,18 @@ public:
                 }
             }
         }
+
+        // Fire custom undo callback if provided
+        if (onUndoEditComplete)
+            onUndoEditComplete(startValue, getValue());
     }
+
+public:
+    // Callback fired when mouse button is pressed, before any value changes
+    std::function<void()> onMouseDownCallback;
+
+    // Callback for custom undo actions (e.g., EQ node edits that aren't APVTS parameters)
+    std::function<void(float oldValue, float newValue)> onUndoEditComplete;
 
 private:
     int baseSensitivity = 1000;
@@ -238,6 +254,9 @@ private:
     // live somewhere in its hierarchy.
     juce::TooltipWindow tooltipWindow { this };
 
+    // Demo mode watermark indicator
+    DemoModeIndicator demoModeIndicator { audioProcessor.licenseManager };
+
     WaveformDisplay inputDisplay;
     WaveformDisplay outputDisplay;
     VuMeter         vuMeter;
@@ -310,6 +329,10 @@ private:
     void selectBand(int i);
 
     DragSlider bandAttackKnob, bandReleaseKnob;
+
+    // Captured at mouseDown for band knob edits: the old EQ node state before
+    // the drag starts, used by onUndoEditComplete to create proper undo actions
+    EqNodeState oldBandNodeStateAtMouseDown {};
 
     // Threshold/Knee/Ratio band-context counterparts — same pattern as
     // bandAttackKnob/bandReleaseKnob above: manually wired to the selected
