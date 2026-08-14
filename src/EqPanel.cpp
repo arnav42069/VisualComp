@@ -43,6 +43,19 @@ EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
 
     nodeIsland.onQRatioChanged = [this](int anchor, float ratio) { applyRelativeQ(anchor, ratio); };
     nodeIsland.onNodeEdited = [this](int i) { if (onNodeEdited) onNodeEdited(i); };
+    nodeIsland.onLinkedToggled = [this](int i, bool newLinkedState)
+    {
+        if (newLinkedState)
+        {
+            // Snap edges to nearby linked nodes when linking
+            for (int e = 0; e < 2; ++e)
+            {
+                const float snappedHz = trySnapEdge(i, e, edgeHzOf(i, e));
+                setEdgeHz(i, e, snappedHz);
+            }
+            repaint();
+        }
+    };
     addChildComponent(nodeIsland);
 
     // EQ-only dry/wet mix (header, left of closeButton). Bound directly to
@@ -198,7 +211,13 @@ int EqPanel::findEdgeNear(juce::Point<float> p, int& whichEdge, float radius) co
 {
     whichEdge = -1;
     const auto r = graphArea();
-    if (p.y < r.getY() - radius || p.y > r.getBottom() + radius) return -1;
+    // Only allow selection from top or bottom (near the flags), not the middle.
+    // Flag is at r.getY() + 6, so we want +/- radius from top,
+    // and +/- radius from bottom of the graph.
+    const float topThreshold = r.getY() + 15.0f;   // flag at 6, so ~15 is safe upper bound
+    const bool nearTop = p.y < topThreshold;
+    const bool nearBottom = p.y > r.getBottom() - 15.0f;
+    if (!nearTop && !nearBottom) return -1;
 
     const float sr = sampleRateForDisplay();
     int best = -1; float bestD = radius;
@@ -607,7 +626,20 @@ void EqPanel::showNodeMenu(int i)
         else if (result == 1)
         {
             node.linked = !node.linked;
-            if (!node.linked) { unlinkEdge(i, 0); unlinkEdge(i, 1); }   // edges no longer shown/meaningful
+            if (node.linked)
+            {
+                // Snap edges to nearby linked nodes when linking
+                for (int e = 0; e < 2; ++e)
+                {
+                    const float snappedHz = trySnapEdge(i, e, edgeHzOf(i, e));
+                    setEdgeHz(i, e, snappedHz);
+                }
+            }
+            else
+            {
+                unlinkEdge(i, 0);
+                unlinkEdge(i, 1);   // edges no longer shown/meaningful
+            }
         }
         else if (result == 2)
         {

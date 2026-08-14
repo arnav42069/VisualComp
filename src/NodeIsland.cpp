@@ -180,6 +180,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
         n.linked = compButton.getToggleState();
         processor.eq.setNode(target, n);
         if (onNodeEdited) onNodeEdited(target);
+        if (onLinkedToggled) onLinkedToggled(target, n.linked);
     };
     addAndMakeVisible(compButton);
 

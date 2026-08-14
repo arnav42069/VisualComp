@@ -68,6 +68,10 @@ public:
     // repaint immediately rather than waiting for a poll tick.
     std::function<void(int nodeIndex)> onNodeEdited;
 
+    // Fired when the comp (linked) button is toggled, with the new linked state.
+    // EqPanel uses this to snap edges when a node becomes linked.
+    std::function<void(int nodeIndex, bool newLinkedState)> onLinkedToggled;
+
 private:
     void showTypeMenu();
 
