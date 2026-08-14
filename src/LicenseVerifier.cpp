@@ -2,11 +2,18 @@
 // Cryptographic license signature verification with Ed25519 support
 #include "LicenseVerifier.h"
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <sstream>
 
-static std::optional<std::vector<uint8_t>> decodeBase64Impl(const std::string& encoded)
+static std::optional<std::vector<uint8_t>> decodeBase64Impl(const std::string& encoded, std::string& errorMsg)
 {
+    if (encoded.empty())
+    {
+        errorMsg = "License key is empty";
+        return std::nullopt;
+    }
+
     static const char base64_chars[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -17,10 +24,60 @@ static std::optional<std::vector<uint8_t>> decodeBase64Impl(const std::string& e
     for (int i = 0; i < 64; ++i)
         table[static_cast<unsigned char>(base64_chars[i])] = i;
 
+    // Check for invalid characters early
+    int invalidCharIndex = -1;
+    int equalCount = 0;
+    int charIndex = 0;
+    for (unsigned char c : encoded)
+    {
+        if (c == '=')
+        {
+            // Padding characters - should only appear at the end
+            if (charIndex < static_cast<int>(encoded.size()) - 2)
+                equalCount++;
+            else if (equalCount > 0)
+            {
+                // Multiple consecutive '=' characters are suspicious
+                equalCount++;
+            }
+            else
+            {
+                equalCount = 1;
+            }
+        }
+        else if (table[c] == -1)
+        {
+            // Invalid character found
+            invalidCharIndex = charIndex;
+            break;
+        }
+        charIndex++;
+    }
+
+    if (invalidCharIndex >= 0)
+    {
+        char invalidChar = encoded[invalidCharIndex];
+        std::ostringstream oss;
+        oss << "Invalid character in Base64 string at position " << invalidCharIndex
+            << " ('" << (isprint(invalidChar) ? invalidChar : '?') << "')";
+        errorMsg = oss.str();
+        return std::nullopt;
+    }
+
+    if (encoded.length() % 4 != 0)
+    {
+        std::ostringstream oss;
+        oss << "Invalid Base64 length (must be multiple of 4, got " << encoded.length() << ")";
+        errorMsg = oss.str();
+        return std::nullopt;
+    }
+
     int val = 0, bits = -6;
     for (unsigned char c : encoded)
     {
+        if (c == '=') break;  // Padding
         if (table[c] == -1) break;
+
         val = (val << 6) + table[c];
         bits += 6;
 
@@ -32,14 +89,17 @@ static std::optional<std::vector<uint8_t>> decodeBase64Impl(const std::string& e
     }
 
     if (decoded.empty())
+    {
+        errorMsg = "Failed to decode Base64 string (possibly all padding)";
         return std::nullopt;
+    }
 
     return decoded;
 }
 
-std::optional<std::vector<uint8_t>> LicenseVerifier::decodeBase64(const std::string& encoded)
+std::optional<std::vector<uint8_t>> LicenseVerifier::decodeBase64(const std::string& encoded, std::string& errorMsg)
 {
-    return decodeBase64Impl(encoded);
+    return decodeBase64Impl(encoded, errorMsg);
 }
 
 std::vector<uint8_t> LicenseVerifier::computeHmacSha256(const uint8_t* data, size_t dataLen)
@@ -154,9 +214,10 @@ LicenseVerifier::VerificationResult LicenseVerifier::verify(const std::string& b
     if (base64LicenseKey.empty())
         return { false, "License key is empty" };
 
-    auto decoded = decodeBase64(base64LicenseKey);
+    std::string decodeErrorMsg;
+    auto decoded = decodeBase64(base64LicenseKey, decodeErrorMsg);
     if (!decoded)
-        return { false, "Failed to decode Base64 license key (invalid Base64 format)" };
+        return { false, decodeErrorMsg };
 
     if (decoded->empty())
         return { false, "Decoded license key is empty" };

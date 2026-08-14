@@ -22,6 +22,13 @@ public:
         OfflineLicense    // License verified offline from persistent storage
     };
 
+    // Activation result with detailed error reporting
+    struct ActivationResult
+    {
+        bool success;
+        std::string errorMessage;
+    };
+
     explicit LicenseManager();
     ~LicenseManager() = default;
 
@@ -31,8 +38,8 @@ public:
     // Attempt to load and verify a license from a file
     bool loadLicenseFromFile(const juce::File& licenseFile);
 
-    // Attempt to verify and save a license key (base64 encoded)
-    bool activateLicense(const std::string& base64LicenseKey);
+    // Attempt to verify and save a license key (base64 encoded) with detailed error reporting
+    ActivationResult activateLicense(const std::string& base64LicenseKey);
 
     // Get current license state
     State getState() const { return state.load(); }

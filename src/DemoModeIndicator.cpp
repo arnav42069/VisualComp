@@ -120,7 +120,8 @@ void LicenseActivationWindow::Content::onActivateClicked()
     }
 
     // Try to activate the license
-    if (licenseMgr.activateLicense(licenseKey))
+    auto activation = licenseMgr.activateLicense(licenseKey);
+    if (activation.success)
     {
         updateFeedback("License activated successfully!", false);
 
@@ -134,7 +135,9 @@ void LicenseActivationWindow::Content::onActivateClicked()
     }
     else
     {
-        updateFeedback("Invalid license key. Please check and try again.", true);
+        // Use the detailed error message from the license verification
+        juce::String errorDisplay = "License error: " + juce::String(activation.errorMessage);
+        updateFeedback(errorDisplay, true);
     }
 }
 

@@ -43,22 +43,23 @@ void LicenseManager::initialize()
     }
 }
 
-bool LicenseManager::activateLicense(const std::string& base64LicenseKey)
+LicenseManager::ActivationResult LicenseManager::activateLicense(const std::string& base64LicenseKey)
 {
     // Verify the license signature
     auto result = verifier.verify(base64LicenseKey);
     if (!result.isValid)
     {
         DBG("License verification failed: " << result.errorMessage);
-        return false;
+        return { false, result.errorMessage };
     }
 
     // Save the license to disk
     juce::File licenseDir = getLicenseStateDirectory();
     if (!licenseDir.createDirectory().wasOk())
     {
-        DBG("Failed to create license directory: " << licenseDir.getFullPathName());
-        return false;
+        std::string errMsg = "Failed to create license directory: " + std::string(licenseDir.getFullPathName().toStdString());
+        DBG(errMsg);
+        return { false, errMsg };
     }
 
     juce::File licenseFile = getLicenseXmlFile();
@@ -74,11 +75,11 @@ bool LicenseManager::activateLicense(const std::string& base64LicenseKey)
         persistedLicenseKey = base64LicenseKey.c_str();
         state.store(State::Licensed);
         DBG("License activated and saved to: " << licenseFile.getFullPathName());
-        return true;
+        return { true, "" };
     }
 
     DBG("Failed to save license to disk");
-    return false;
+    return { false, "Failed to save license to disk" };
 }
 
 juce::File LicenseManager::getLicenseStateDirectory()

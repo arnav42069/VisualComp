@@ -48,7 +48,9 @@ private:
     static constexpr size_t ED25519_SIGNATURE_BYTES = 64;
     static constexpr size_t SHA256_HASH_BYTES = 32;
 
-    std::optional<std::vector<uint8_t>> decodeBase64(const std::string& encoded);
+    // Decodes Base64 with detailed error reporting. Returns the decoded bytes,
+    // or nullopt and sets errorMsg to a human-readable description of what failed.
+    std::optional<std::vector<uint8_t>> decodeBase64(const std::string& encoded, std::string& errorMsg);
     VerificationResult verifyPayload(const std::vector<uint8_t>& data);
 
     // Compute HMAC-SHA256 for payload integrity validation
