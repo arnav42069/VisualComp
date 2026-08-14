@@ -113,6 +113,7 @@ target_link_libraries(VisualComp
         juce::juce_gui_basics
         juce::juce_graphics
         juce::juce_dsp
+        juce::juce_cryptography
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
