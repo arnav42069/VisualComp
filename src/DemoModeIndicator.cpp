@@ -13,15 +13,34 @@ LicenseActivationWindow::Content::Content(LicenseManager& licenseManager,
 {
     // Instruction label
     instructionLabel.setText(
-        "Paste your Base64-encoded license key below:",
+        "VisualComp is in Demo mode. Enter your license key to unlock all features:",
         juce::dontSendNotification);
     instructionLabel.setJustificationType(juce::Justification::topLeft);
+    instructionLabel.setColour(juce::Label::textColourId, juce::Colour(0xffffffff));
     addAndMakeVisible(instructionLabel);
+
+    // Trial status label - shows remaining days
+    trialStatusLabel.setJustificationType(juce::Justification::topLeft);
+    trialStatusLabel.setColour(juce::Label::textColourId, juce::Colour(0xffff7a1f));
+    auto remainingDays = licenseMgr.getRemainingTrialDays();
+    if (remainingDays > 0)
+    {
+        trialStatusLabel.setText(
+            remainingDays == 1
+                ? "Demo expires in 1 day"
+                : "Demo expires in " + juce::String(remainingDays) + " days",
+            juce::dontSendNotification);
+    }
+    else
+    {
+        trialStatusLabel.setText("Demo period has expired", juce::dontSendNotification);
+    }
+    addAndMakeVisible(trialStatusLabel);
 
     // License key text editor
     licenseKeyEditor.setMultiLine(true);
     licenseKeyEditor.setReturnKeyStartsNewLine(true);
-    licenseKeyEditor.setTextToShowWhenEmpty("License key (Base64)...", juce::Colours::grey);
+    licenseKeyEditor.setTextToShowWhenEmpty("Paste license key here...", juce::Colours::grey);
     licenseKeyEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff2a2a2a));
     licenseKeyEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xffffffff));
     licenseKeyEditor.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xff555555));
@@ -33,38 +52,48 @@ LicenseActivationWindow::Content::Content(LicenseManager& licenseManager,
     activateButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffffffff));
     addAndMakeVisible(activateButton);
 
-    // Cancel button
-    cancelButton.onClick = [this] { onCancelClicked(); };
-    cancelButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff555555));
-    cancelButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffffffff));
-    addAndMakeVisible(cancelButton);
+    // Skip button - continue with trial
+    skipButton.onClick = [this] { onSkipClicked(); };
+    skipButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff444444));
+    skipButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xffffffff));
+    addAndMakeVisible(skipButton);
+
+    // Help link
+    helpLink.setColour(juce::HyperlinkButton::textColourId, juce::Colour(0xff7a9fff));
+    addAndMakeVisible(helpLink);
 
     // Feedback label
     feedbackLabel.setJustificationType(juce::Justification::centred);
     feedbackLabel.setColour(juce::Label::textColourId, juce::Colour(0xffff6b6b));
     addAndMakeVisible(feedbackLabel);
 
-    setSize(500, 320);
+    setSize(520, 400);
 }
 
 void LicenseActivationWindow::Content::resized()
 {
     auto bounds = getLocalBounds().reduced(16);
 
-    instructionLabel.setBounds(bounds.removeFromTop(24));
-    bounds.removeFromTop(8);
+    instructionLabel.setBounds(bounds.removeFromTop(28));
+    bounds.removeFromTop(6);
 
-    licenseKeyEditor.setBounds(bounds.removeFromTop(120));
+    trialStatusLabel.setBounds(bounds.removeFromTop(20));
     bounds.removeFromTop(12);
 
-    feedbackLabel.setBounds(bounds.removeFromTop(30));
+    licenseKeyEditor.setBounds(bounds.removeFromTop(100));
+    bounds.removeFromTop(12);
+
+    feedbackLabel.setBounds(bounds.removeFromTop(24));
     bounds.removeFromTop(8);
 
-    auto buttonArea = bounds.removeFromBottom(40);
+    helpLink.setBounds(bounds.removeFromTop(20));
+    bounds.removeFromTop(8);
+
+    auto buttonArea = bounds.removeFromBottom(36);
     auto buttonWidth = (buttonArea.getWidth() - 8) / 2;
-    activateButton.setBounds(buttonArea.removeFromLeft(buttonWidth));
+    skipButton.setBounds(buttonArea.removeFromLeft(buttonWidth));
     buttonArea.removeFromLeft(8);
-    cancelButton.setBounds(buttonArea);
+    activateButton.setBounds(buttonArea);
 }
 
 void LicenseActivationWindow::Content::updateFeedback(const juce::String& message, bool isError)
@@ -109,7 +138,7 @@ void LicenseActivationWindow::Content::onActivateClicked()
     }
 }
 
-void LicenseActivationWindow::Content::onCancelClicked()
+void LicenseActivationWindow::Content::onSkipClicked()
 {
     parent.closeButtonPressed();
 }

@@ -27,14 +27,16 @@ private:
         LicenseActivationWindow& parent;
 
         juce::Label instructionLabel;
+        juce::Label trialStatusLabel;
         juce::TextEditor licenseKeyEditor;
-        juce::TextButton activateButton { "Activate" };
-        juce::TextButton cancelButton { "Cancel" };
+        juce::TextButton activateButton { "Activate License" };
+        juce::TextButton skipButton { "Continue Trial" };
+        juce::HyperlinkButton helpLink { "Need a license? Visit our site", juce::URL("https://azazelaudio.com/licenses") };
         juce::Label feedbackLabel;
 
         void updateFeedback(const juce::String& message, bool isError);
         void onActivateClicked();
-        void onCancelClicked();
+        void onSkipClicked();
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content)
     };
