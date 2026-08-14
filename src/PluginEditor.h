@@ -222,6 +222,59 @@ public:
 };
 
 //==============================================================================
+// UndoRedoNotification: Brief toast notification for undo/redo feedback
+//==============================================================================
+class UndoRedoNotification : public juce::Component, private juce::Timer
+{
+public:
+    UndoRedoNotification()
+    {
+        setInterceptsMouseClicks(false, false);
+    }
+
+    void showNotification(const juce::String& actionName, bool isUndo)
+    {
+        notificationText = (isUndo ? "Undo: " : "Redo: ") + actionName;
+        alpha = 1.0f;
+        startTimer(50);  // 50ms refresh for fade animation
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        if (alpha < 0.01f)
+            return;
+
+        // Semi-transparent dark background rounded rectangle
+        g.setColour(juce::Colour(0xff000000).withAlpha(0.8f * alpha));
+        g.fillRoundedRectangle(getLocalBounds().toFloat(), 6.0f);
+
+        // Orange accent border
+        g.setColour(juce::Colour(0xff7a1f).withAlpha(0.7f * alpha));
+        g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 6.0f, 1.5f);
+
+        // Text
+        g.setColour(juce::Colours::white.withAlpha(0.95f * alpha));
+        g.setFont(juce::Font(11.0f));
+        g.drawText(notificationText, getLocalBounds(), juce::Justification::centred, true);
+    }
+
+private:
+    void timerCallback() override
+    {
+        alpha -= 0.08f;  // Fade out over ~600ms (50ms * 12 steps)
+        repaint();
+
+        if (alpha <= 0.0f)
+            stopTimer();
+    }
+
+    juce::String notificationText;
+    float alpha = 0.0f;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UndoRedoNotification)
+};
+
+//==============================================================================
 class VisualCompEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
 public:
@@ -256,6 +309,9 @@ private:
 
     // Demo mode watermark indicator
     DemoModeIndicator demoModeIndicator { audioProcessor.licenseManager };
+
+    // Undo/redo notification feedback
+    UndoRedoNotification undoRedoNotification;
 
     WaveformDisplay inputDisplay;
     WaveformDisplay outputDisplay;

@@ -51,10 +51,13 @@ public:
         auto action = std::move(undoStack.back());
         undoStack.pop_back();
 
+        juce::String actionName = action->getActionName();
         action->undo();
         redoStack.push_back(std::move(action));
 
         onStackChanged();
+        if (onUndoPerformed)
+            onUndoPerformed(actionName);
     }
 
     void redo()
@@ -64,10 +67,13 @@ public:
         auto action = std::move(redoStack.back());
         redoStack.pop_back();
 
+        juce::String actionName = action->getActionName();
         action->execute();
         undoStack.push_back(std::move(action));
 
         onStackChanged();
+        if (onRedoPerformed)
+            onRedoPerformed(actionName);
     }
 
     bool canUndo() const { return !undoStack.empty(); }
@@ -92,6 +98,10 @@ public:
 
     // Callback when stack changes (for UI updates)
     std::function<void()> onStackChanged = []() {};
+
+    // Callbacks when undo/redo is performed (for visual feedback)
+    std::function<void(const juce::String&)> onUndoPerformed = [](const juce::String&) {};
+    std::function<void(const juce::String&)> onRedoPerformed = [](const juce::String&) {};
 
 private:
     std::vector<std::unique_ptr<UndoableAction>> undoStack, redoStack;

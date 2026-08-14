@@ -1099,6 +1099,20 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // Demo mode watermark indicator
     addAndMakeVisible(demoModeIndicator);
 
+    // Undo/Redo visual feedback notification (fixed position overlay in top-right)
+    undoRedoNotification.setBounds(getWidth() - 220, 12, 208, 32);
+    addAndMakeVisible(undoRedoNotification);
+
+    // Wire undo/redo callbacks for visual feedback
+    audioProcessor.undoRedoManager.onUndoPerformed = [this](const juce::String& actionName)
+    {
+        undoRedoNotification.showNotification(actionName, true);
+    };
+    audioProcessor.undoRedoManager.onRedoPerformed = [this](const juce::String& actionName)
+    {
+        undoRedoNotification.showNotification(actionName, false);
+    };
+
     // Mix knob
     mixKnob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
     mixKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
@@ -2770,6 +2784,8 @@ void VisualCompEditor::resized()
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
     // Demo mode watermark indicator — positioned in top-right corner, fixed 24px height
     demoModeIndicator.setBounds(ox + kWidth - cshift - 224, 8, 216, 24);
+    // Undo/Redo notification — positioned in top-right, just below the title bar
+    undoRedoNotification.setBounds(ox + kWidth - cshift - 220, 12, 208, 32);
     // Preset name now lives up here, left of SoftClip — same row/height as
     // bypassButton/clipModeButton. Worst case (Curve/GR collapsed) leaves
     // 290px between logoZone's right edge and clipModeButton's left edge;
