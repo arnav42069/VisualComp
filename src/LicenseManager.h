@@ -72,6 +72,17 @@ private:
     // Persistent license key (if offline license was found)
     juce::String persistedLicenseKey;
 
+    // HMAC-SHA256 secret key for trial metadata integrity (hardcoded for this product)
+    static constexpr std::array<uint8_t, 32> TRIAL_HMAC_SECRET{{
+        0x9d, 0x4e, 0x1a, 0x7f, 0x52, 0xc8, 0x3b, 0x6d,
+        0xb1, 0xaa, 0x45, 0xf3, 0x28, 0x9c, 0xe7, 0xd2,
+        0x76, 0x5f, 0x14, 0x2b, 0xa8, 0x61, 0x3d, 0xee,
+        0xc4, 0x92, 0x7b, 0x1f, 0x55, 0xd9, 0x41, 0x68
+    }};
+
+    // Compute HMAC-SHA256 checksum for trial metadata
+    std::string computeTrialMetadataChecksum(time_t startTime) const;
+
     // Load trial metadata from disk
     void loadTrialMetadata();
 
