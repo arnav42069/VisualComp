@@ -59,10 +59,11 @@ public:
     // Callback when license is activated
     std::function<void()> onLicenseActivated;
 
+    // Publicly accessible method to show license activation dialog on startup
+    void showLicenseActivationDialog();
+
 private:
     LicenseManager& licenseMgr;
-
-    void showLicenseActivationDialog();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DemoModeIndicator)
 };

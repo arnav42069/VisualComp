@@ -1341,6 +1341,17 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // the click.
     addMouseListener(this, true);
 
+    // Show license activation dialog if trial is expiring soon (7 days or less)
+    if (audioProcessor.licenseManager.shouldShowLicenseOnStartup())
+    {
+        juce::Component::SafePointer<VisualCompEditor> safe(this);
+        juce::Timer::callAfterDelay(300, [safe]
+        {
+            if (safe != nullptr)
+                safe->demoModeIndicator.showLicenseActivationDialog();
+        });
+    }
+
     // First run: show the tour once the window has settled
     if (!hasSeenHelp())
     {
