@@ -24,7 +24,9 @@ public:
 
 private:
     // Keygen API endpoint and credentials
-    static constexpr const char* KEYGEN_API_URL = "https://api.keygen.sh/v1/licenses/validate";
+    // PASTE YOUR ACCOUNT ID HERE: Replace the placeholder with your actual Keygen Account ID
+    static constexpr const char* KEYGEN_ACCOUNT_ID = "71a3d257-6ef8-43ae-a509-580d2481af92";
+    static constexpr const char* KEYGEN_API_BASE = "https://api.keygen.sh/v1/accounts";
     static constexpr const char* PRODUCT_ID = "7c8bc57b-1356-4f36-b757-cf1511516f29";
     static constexpr const char* POLICY_ID = "b249f536-4179-4021-9567-a67327c2beae";
 

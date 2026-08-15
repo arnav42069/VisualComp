@@ -31,20 +31,19 @@ LicenseVerifier::VerificationResult LicenseVerifier::validateWithKeygen(const st
 {
     try
     {
-        // Build URL with query parameters for Keygen validation endpoint
-        juce::URL url(KEYGEN_API_URL);
+        // Build URL using the correct Keygen API format with Account ID
+        // Endpoint: POST /v1/accounts/{accountId}/licenses/actions/validate-key
+        std::string urlString = std::string(KEYGEN_API_BASE) + "/" + KEYGEN_ACCOUNT_ID + "/licenses/actions/validate-key";
+        juce::URL url(urlString);
         url = url.withParameter("key", licenseKey);
-        url = url.withParameter("productId", PRODUCT_ID);
-        url = url.withParameter("policyId", POLICY_ID);
 
         DBG("Validating license with Keygen: " << licenseKey);
+        DBG("API Endpoint: " << urlString);
 
-        // Create input stream (GET request)
-        // Set a timeout of 5 seconds
-        auto stream = url.createInputStream(
-            juce::URL::InputStreamOptions()
-                .withTimeoutMs(5000)
-                .withStatusCode(nullptr));
+        // Create input stream (POST request)
+        // First parameter: true = POST request, false = GET request
+        // Set a timeout of 5 seconds (timeout in ms)
+        auto stream = url.createInputStream(true, nullptr, nullptr, "", 5000);
 
         if (!stream)
         {
