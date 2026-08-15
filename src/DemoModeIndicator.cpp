@@ -9,7 +9,8 @@
 LicenseActivationWindow::Content::Content(LicenseManager& licenseManager,
                                           std::function<void()> onSuccess,
                                           LicenseActivationWindow& parentWindow)
-    : licenseMgr(licenseManager), onSuccessCallback(onSuccess), parent(parentWindow)
+    : juce::Thread("LicenseVerification"),
+      licenseMgr(licenseManager), onSuccessCallback(onSuccess), parent(parentWindow)
 {
     // Instruction label
     instructionLabel.setText(
@@ -70,6 +71,12 @@ LicenseActivationWindow::Content::Content(LicenseManager& licenseManager,
     setSize(520, 400);
 }
 
+LicenseActivationWindow::Content::~Content()
+{
+    // Ensure the background thread is stopped before destruction
+    stopThread(5000);  // Wait up to 5 seconds for thread to stop
+}
+
 void LicenseActivationWindow::Content::resized()
 {
     auto bounds = getLocalBounds().reduced(16);
@@ -119,26 +126,55 @@ void LicenseActivationWindow::Content::onActivateClicked()
         return;
     }
 
-    // Try to activate the license
-    auto activation = licenseMgr.activateLicense(licenseKey);
-    if (activation.success)
+    // Prevent multiple simultaneous verification attempts
+    if (isVerifying.exchange(true))
     {
-        updateFeedback("License activated successfully!", false);
+        updateFeedback("Verification in progress...", false);
+        return;
+    }
 
-        // Close the window after a short delay
-        juce::Timer::callAfterDelay(800, [this]
-        {
-            if (onSuccessCallback)
-                onSuccessCallback();
-            parent.closeButtonPressed();
-        });
-    }
-    else
+    // Store the key and disable buttons
+    licenseKeyToVerify = licenseKey.c_str();
+    activateButton.setEnabled(false);
+    skipButton.setEnabled(false);
+    licenseKeyEditor.setEnabled(false);
+    updateFeedback("Verifying license...", false);
+
+    // Start background verification thread
+    startThread();
+}
+
+void LicenseActivationWindow::Content::run()
+{
+    // This runs on a background thread - safe to make blocking HTTP calls here
+    auto activation = licenseMgr.activateLicense(licenseKeyToVerify.toStdString());
+
+    // Return to message thread to update UI and potentially close window
+    juce::MessageManager::callAsync([this, success = activation.success, errorMsg = activation.errorMessage]()
     {
-        // Use the detailed error message from the license verification
-        juce::String errorDisplay = "License error: " + juce::String(activation.errorMessage);
-        updateFeedback(errorDisplay, true);
-    }
+        isVerifying.store(false);
+        activateButton.setEnabled(true);
+        skipButton.setEnabled(true);
+        licenseKeyEditor.setEnabled(true);
+
+        if (success)
+        {
+            updateFeedback("License activated successfully!", false);
+
+            // Close the window after a short delay
+            juce::Timer::callAfterDelay(800, [this]
+            {
+                if (onSuccessCallback)
+                    onSuccessCallback();
+                parent.closeButtonPressed();
+            });
+        }
+        else
+        {
+            juce::String errorDisplay = "License error: " + juce::String(errorMsg);
+            updateFeedback(errorDisplay, true);
+        }
+    });
 }
 
 void LicenseActivationWindow::Content::onSkipClicked()

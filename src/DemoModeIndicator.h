@@ -15,11 +15,13 @@ public:
     void closeButtonPressed() override;
 
 private:
-    class Content : public juce::Component
+    class Content : public juce::Component, private juce::Thread
     {
     public:
         Content(LicenseManager& licenseManager, std::function<void()> onSuccess, LicenseActivationWindow& parentWindow);
+        ~Content() override;
         void resized() override;
+        void run() override;  // Background thread for license verification
 
     private:
         LicenseManager& licenseMgr;
@@ -34,9 +36,14 @@ private:
         juce::HyperlinkButton helpLink { "Need a license? Visit our site", juce::URL("https://azazelaudio.com/visualcomp") };
         juce::Label feedbackLabel;
 
+        // For background verification
+        std::atomic<bool> isVerifying { false };
+        juce::String licenseKeyToVerify;
+
         void updateFeedback(const juce::String& message, bool isError);
         void onActivateClicked();
         void onSkipClicked();
+        void onVerificationComplete(bool success, const juce::String& message);
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content)
     };
