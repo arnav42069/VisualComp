@@ -154,9 +154,17 @@ LicenseActivationWindow::LicenseActivationWindow(LicenseManager& licenseManager,
                                                  std::function<void()> onSuccess)
     : juce::DialogWindow("Activate License", juce::Colour(0xff1d1d1b), true, false)
 {
+    // Create content with fixed size (520x400)
     setContentOwned(new Content(licenseManager, onSuccess, *this), true);
     setResizable(false, false);
-    centreWithSize(getWidth(), getHeight());
+
+    // Explicitly set the window size to match the content size to avoid layout issues
+    setSize(520, 400);
+
+    // Center the window on screen after sizing
+    centreWithSize(520, 400);
+
+    // Ensure window stays on top of other windows
     setAlwaysOnTop(true);
 }
 
@@ -227,5 +235,12 @@ void DemoModeIndicator::showLicenseActivationDialog()
                 onLicenseActivated();
         });
 
-    licenseWindow->enterModalState(true, nullptr, true);
+    // Show as a non-blocking top-level window instead of using the blocking
+    // enterModalState() which can cause AppHangB1 hangs if any part of the
+    // component initialization or layout is slow/blocking.
+    // The window will stay on top and can be interacted with normally.
+    licenseWindow->addToDesktop(
+        juce::ComponentPeer::windowHasDropShadow |
+        juce::ComponentPeer::windowIsTemporary);
+    licenseWindow->toFront(true);
 }
