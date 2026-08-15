@@ -24,15 +24,18 @@ LicenseVerifier::VerificationResult LicenseVerifier::verify(const std::string& l
             return { false, "License key contains invalid characters" };
     }
 
-    // Validate with Keygen API
+    // Step 1: Validate with Keygen API to get license ID
+    // This may fail with "must have exactly 1 associated machine" error,
+    // but we'll extract the license ID from the response anyway
     auto validationResult = validateWithKeygen(trimmedKey);
 
-    // If validation succeeded and we got a license ID, register this machine
-    if (validationResult.isValid && !validationResult.licenseId.empty())
+    // If we got a license ID (validation succeeded or partially succeeded),
+    // proceed to register the machine
+    if (!validationResult.licenseId.empty())
     {
-        DBG("License validated successfully. License ID: " << validationResult.licenseId);
+        DBG("Extracted license ID: " << validationResult.licenseId);
 
-        // Generate machine fingerprint and register
+        // Step 2: Generate machine fingerprint and register it under the license
         std::string machineFingerprint = MachineFingerprint::getFingerprint();
         DBG("Registering machine fingerprint: " << machineFingerprint);
 
@@ -41,18 +44,34 @@ LicenseVerifier::VerificationResult LicenseVerifier::verify(const std::string& l
         if (machineResult.isValid)
         {
             DBG("Machine registered successfully. Machine ID: " << machineResult.machineId);
-            validationResult.machineId = machineResult.machineId;
-            return validationResult;
+
+            // Step 3: Retry validation now that machine is registered
+            DBG("Retrying license validation after machine registration");
+            auto retryResult = validateWithKeygen(trimmedKey);
+
+            if (retryResult.isValid)
+            {
+                retryResult.machineId = machineResult.machineId;
+                retryResult.licenseId = validationResult.licenseId;
+                DBG("License validation succeeded on retry");
+                return retryResult;
+            }
+            else
+            {
+                // If retry still fails, return the retry error
+                DBG("License validation still failed on retry: " << retryResult.errorMessage);
+                return retryResult;
+            }
         }
         else
         {
-            // Machine registration failed, but license was valid
-            // Return the error from registration
+            // Machine registration failed
             DBG("Machine registration failed: " << machineResult.errorMessage);
             return { false, machineResult.errorMessage };
         }
     }
 
+    // If we couldn't extract a license ID, return the original validation error
     return validationResult;
 }
 
@@ -124,6 +143,10 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseKeygenResponse(const j
     // Parse JSON response from Keygen using JSON:API format
     // Expected successful response: {"data":{"id":"..."},"meta":{"valid":true}}
     // Expected error response: {"meta":{"code":"...","detail":"..."}}
+    //
+    // IMPORTANT: We extract the license ID even if validation fails, because
+    // Keygen may reject validation if the machine isn't registered yet ("must have exactly 1 associated machine").
+    // We then proceed to register the machine and retry validation.
 
     if (responseBody.isEmpty())
         return { false, "Empty response from license service" };
@@ -139,7 +162,7 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseKeygenResponse(const j
 
     VerificationResult result { false, "" };
 
-    // Try to extract license ID from data object (present on successful validation)
+    // ALWAYS try to extract license ID from data object (present even if validation temporarily fails)
     if (jsonValue.hasProperty("data"))
     {
         auto dataObject = jsonValue.getProperty("data", juce::var());
@@ -171,6 +194,9 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseKeygenResponse(const j
                 }
                 else
                 {
+                    // Validation failed, but we might still proceed if we have a license ID
+                    // (machine registration will happen, then validation will be retried)
+
                     // Try to get error detail if present
                     if (metaObject.hasProperty("detail"))
                     {
@@ -179,6 +205,12 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseKeygenResponse(const j
                         {
                             DBG("Validation failed with detail: " << detail);
                             result.errorMessage = detail.toStdString();
+                            // Don't return yet if we have a license ID - let caller proceed to machine registration
+                            if (!result.licenseId.empty())
+                            {
+                                DBG("But we have a license ID, proceeding to machine registration");
+                                return result;  // Return with isValid=false but with licenseId set
+                            }
                             return result;
                         }
                     }
@@ -189,6 +221,11 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseKeygenResponse(const j
                         {
                             DBG("Validation failed with code: " << code);
                             result.errorMessage = ("License validation failed: " + code).toStdString();
+                            if (!result.licenseId.empty())
+                            {
+                                DBG("But we have a license ID, proceeding to machine registration");
+                                return result;
+                            }
                             return result;
                         }
                     }
@@ -255,19 +292,25 @@ LicenseVerifier::VerificationResult LicenseVerifier::registerMachine(const std::
 {
     try
     {
-        // Build URL to register machine: POST /v1/accounts/{accountId}/machines
-        // The machine will be associated with the license via the fingerprint
-        std::string urlString = std::string(KEYGEN_API_BASE) + "/" + KEYGEN_ACCOUNT_ID + "/machines";
+        // Build URL to register machine under a specific license:
+        // POST /v1/accounts/{accountId}/licenses/{licenseId}/machines
+        // This associates the machine fingerprint with the specific license
+        std::string urlString = std::string(KEYGEN_API_BASE) + "/" + KEYGEN_ACCOUNT_ID +
+                               "/licenses/" + licenseId + "/machines";
         juce::URL url(urlString);
 
         DBG("Registering machine with Keygen");
         DBG("API Endpoint: " << urlString);
         DBG("Machine fingerprint: " << machineFingerprint);
 
-        // Build the JSON request body with machine fingerprint and license association
+        // Build the JSON request body in proper JSON:API format
+        // Format: { "data": { "type": "machines", "attributes": { "fingerprint": "..." } } }
+        auto attributesObject = juce::var(new juce::DynamicObject());
+        attributesObject.getDynamicObject()->setProperty("fingerprint", juce::String(machineFingerprint));
+
         auto dataObject = juce::var(new juce::DynamicObject());
-        dataObject.getDynamicObject()->setProperty("fingerprint", juce::String(machineFingerprint));
-        dataObject.getDynamicObject()->setProperty("licenseId", juce::String(licenseId));
+        dataObject.getDynamicObject()->setProperty("type", juce::String("machines"));
+        dataObject.getDynamicObject()->setProperty("attributes", attributesObject);
 
         auto bodyObject = juce::var(new juce::DynamicObject());
         bodyObject.getDynamicObject()->setProperty("data", dataObject);
@@ -319,7 +362,11 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseMachineRegistrationRes
 {
     // Parse JSON response from Keygen machine registration
     // Expected successful response: {"data":{"id":"<machine-id>"}}
+    // Expected conflict response (already exists): HTTP 409 with conflict detail
     // Expected error response: various error formats
+    //
+    // We treat "machine already exists" as success since it means the machine
+    // is already registered with the license (idempotent operation)
 
     if (responseBody.isEmpty())
         return { false, "Empty response from license service" };
@@ -356,12 +403,50 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseMachineRegistrationRes
         if (errors.isArray() && errors.size() > 0)
         {
             auto firstError = errors[0];
-            if (firstError.isObject() && firstError.hasProperty("detail"))
+            if (firstError.isObject())
             {
-                juce::String detail = firstError.getProperty("detail", juce::var("Unknown error")).toString();
-                DBG("Machine registration error: " << detail);
-                result.errorMessage = detail.toStdString();
-                return result;
+                // Check for conflict/duplicate machine (treat as success - already registered)
+                if (firstError.hasProperty("status"))
+                {
+                    juce::String status = firstError.getProperty("status", juce::var("")).toString();
+                    if (status == "409")  // HTTP 409 Conflict
+                    {
+                        DBG("Machine already registered with this license (409 Conflict)");
+                        // Try to extract the machine ID from the conflict error or meta
+                        if (firstError.hasProperty("detail"))
+                        {
+                            juce::String detail = firstError.getProperty("detail", juce::var("")).toString();
+                            DBG("Conflict detail: " << detail);
+                            // Don't fail on 409 - machine is already registered
+                            result.isValid = true;
+                            result.machineId = "existing";  // Placeholder, will retry validation
+                            return result;
+                        }
+                        result.isValid = true;
+                        result.machineId = "existing";
+                        return result;
+                    }
+                }
+
+                // Check for other detailed errors
+                if (firstError.hasProperty("detail"))
+                {
+                    juce::String detail = firstError.getProperty("detail", juce::var("Unknown error")).toString();
+                    DBG("Machine registration error: " << detail);
+
+                    // Check if error mentions the machine already existing
+                    juce::String detailLower = detail.toLowerCase();
+                    if (detailLower.contains("already") && detailLower.contains("machine"))
+                    {
+                        DBG("Machine already associated with license");
+                        result.isValid = true;
+                        result.machineId = "existing";
+                        return result;
+                    }
+
+                    result.errorMessage = detail.toStdString();
+                    return result;
+                }
             }
         }
     }
@@ -369,14 +454,27 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseMachineRegistrationRes
     if (jsonValue.hasProperty("meta"))
     {
         auto metaObject = jsonValue.getProperty("meta", juce::var());
-        if (metaObject.isObject() && metaObject.hasProperty("detail"))
+        if (metaObject.isObject())
         {
-            juce::String detail = metaObject.getProperty("detail", juce::var("")).toString();
-            if (detail.isNotEmpty())
+            if (metaObject.hasProperty("detail"))
             {
-                DBG("Machine registration error detail: " << detail);
-                result.errorMessage = detail.toStdString();
-                return result;
+                juce::String detail = metaObject.getProperty("detail", juce::var("")).toString();
+                if (detail.isNotEmpty())
+                {
+                    DBG("Machine registration error detail: " << detail);
+
+                    // Check if it's an "already exists" message
+                    juce::String detailLower = detail.toLowerCase();
+                    if (detailLower.contains("already"))
+                    {
+                        result.isValid = true;
+                        result.machineId = "existing";
+                        return result;
+                    }
+
+                    result.errorMessage = detail.toStdString();
+                    return result;
+                }
             }
         }
     }
