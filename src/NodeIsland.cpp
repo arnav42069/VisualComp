@@ -289,6 +289,7 @@ void NodeIsland::showTypeMenu()
     const auto n = processor.eq.getNode(t);
 
     juce::PopupMenu menu;
+    menu.setLookAndFeel(&getLookAndFeel());
     for (int i = 0; i < EqTypes::kNumTypes; ++i)
         menu.addItem(100 + i, EqTypes::kNames[i], true, n.type == i);
 

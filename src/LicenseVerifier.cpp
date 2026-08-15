@@ -457,11 +457,19 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseMachineRegistrationRes
                     juce::String detail = firstError.getProperty("detail", juce::var("Unknown error")).toString();
                     DBG("Machine registration error: " << detail);
 
-                    // Check if error mentions the machine already existing
+                    // Check if the error just means this machine is already on the
+                    // license. Keygen reports that as a *validation* error on the
+                    // fingerprint attribute ("has already been taken"), typically with
+                    // HTTP 422 rather than 409, and the message never contains the word
+                    // "machine" — so match on "already" alone. Our fingerprint is
+                    // deterministic across launches (see MachineFingerprint.cpp), which
+                    // means every re-verify after the first activation lands here; it is
+                    // the normal path, not an error. Fall through to the caller's
+                    // re-validation, which is the authoritative check.
                     juce::String detailLower = detail.toLowerCase();
-                    if (detailLower.contains("already") && detailLower.contains("machine"))
+                    if (detailLower.contains("already"))
                     {
-                        DBG("Machine already associated with license");
+                        DBG("Machine already associated with license: " << detail);
                         result.isValid = true;
                         result.machineId = "existing";
                         return result;

@@ -11,14 +11,27 @@ LicenseManager::LicenseManager()
 
 void LicenseManager::initialize()
 {
-    // First, try to load a persistent license from disk
+    // First, try to load a persistent license from disk.
+    //
+    // This is deliberately a LOCAL-ONLY load — no call into LicenseVerifier, no
+    // network I/O. Three reasons:
+    //   1. initialize() runs on the message thread from the editor's constructor,
+    //      so a Keygen round-trip stalls the UI (and the host) on every launch.
+    //   2. Our machine fingerprint is deterministic (see MachineFingerprint.cpp),
+    //      so re-verifying re-POSTs the same fingerprint every single launch.
+    //   3. VerificationResult carries only `bool isValid` + a free-text message,
+    //      so a network outage is structurally indistinguishable from a genuine
+    //      rejection — re-verifying would silently drop a paying, activated user
+    //      back to demo mode whenever they're offline or Keygen hiccups.
+    // The online check happens once, at activateLicense() time; after that we
+    // trust the file. Tradeoff: revocation isn't enforced at launch.
     juce::File licenseFile = getLicenseXmlFile();
     if (licenseFile.existsAsFile())
     {
         if (auto xml = juce::parseXML(licenseFile))
         {
             auto vt = juce::ValueTree::fromXml(*xml);
-            if (verifyAndLoadLicenseData(vt))
+            if (loadLicenseDataFromDisk(vt))
             {
                 DBG("License loaded successfully from: " << licenseFile.getFullPathName());
                 state.store(State::OfflineLicense);
@@ -77,7 +90,10 @@ LicenseManager::ActivationResult LicenseManager::activateLicense(const std::stri
         DBG("Storing license ID: " << result.licenseId);
     }
 
-    if (!result.machineId.empty())
+    // "existing" is LicenseVerifier's placeholder for "this fingerprint was already
+    // registered against the license" — it isn't a real Keygen machine UUID, so
+    // don't write it to disk as if it were one.
+    if (!result.machineId.empty() && result.machineId != "existing")
     {
         licenseXml.setAttribute("machineId", result.machineId.c_str());
         DBG("Storing machine ID: " << result.machineId);
@@ -87,7 +103,8 @@ LicenseManager::ActivationResult LicenseManager::activateLicense(const std::stri
     {
         persistedLicenseKey = base64LicenseKey.c_str();
         storedLicenseId = result.licenseId.c_str();
-        storedMachineId = result.machineId.c_str();
+        storedMachineId = (result.machineId == "existing") ? juce::String()
+                                                           : juce::String(result.machineId.c_str());
         state.store(State::Licensed);
         DBG("License activated and saved to: " << licenseFile.getFullPathName());
         return { true, "" };
@@ -156,6 +173,35 @@ bool LicenseManager::verifyAndLoadLicenseData(const juce::ValueTree& data)
     persistedLicenseKey = keyStr.c_str();
 
     // Load stored machine ID and license ID if present
+    if (data.hasProperty("licenseId"))
+    {
+        storedLicenseId = data.getProperty("licenseId").toString();
+        DBG("Loaded license ID: " << storedLicenseId);
+    }
+
+    if (data.hasProperty("machineId"))
+    {
+        storedMachineId = data.getProperty("machineId").toString();
+        DBG("Loaded machine ID: " << storedMachineId);
+    }
+
+    return true;
+}
+
+bool LicenseManager::loadLicenseDataFromDisk(const juce::ValueTree& data)
+{
+    // Local-only counterpart to verifyAndLoadLicenseData(): same field loading,
+    // no verifier.verify() call. A key being present means activateLicense()
+    // previously completed a successful online validation and wrote this file.
+    if (!data.hasProperty("key"))
+        return false;
+
+    auto keyStr = data.getProperty("key").toString().trim();
+    if (keyStr.isEmpty())
+        return false;
+
+    persistedLicenseKey = keyStr;
+
     if (data.hasProperty("licenseId"))
     {
         storedLicenseId = data.getProperty("licenseId").toString();

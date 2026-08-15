@@ -630,14 +630,17 @@ void EqPanel::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDe
 void EqPanel::showNodeMenu(int i)
 {
     juce::PopupMenu menu;
+    menu.setLookAndFeel(&getLookAndFeel());
     auto& n = localNodes[size_t(i)];
 
     juce::PopupMenu typeMenu;
+    typeMenu.setLookAndFeel(&getLookAndFeel());
     for (int t = 0; t < EqTypes::kNumTypes; ++t)
         typeMenu.addItem(100 + t, EqTypes::kNames[t], true, n.type == t);
     menu.addSubMenu("Filter Type", typeMenu);
 
     juce::PopupMenu qMenu;
+    qMenu.setLookAndFeel(&getLookAndFeel());
     int closestQi = 0; float bestDiff = std::abs(kQPresets[0] - n.q);
     for (int qi = 1; qi < kNumQPresets; ++qi)
     {

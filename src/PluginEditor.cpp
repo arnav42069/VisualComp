@@ -2225,9 +2225,16 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
     const auto analysis = analyzeSmartMasterCapture();
     if (analysis.rmsDb <= -99.0f)
     {
-        juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
-            "Smart Master+", "No usable audio was captured -- make sure audio is actually "
-                              "playing through the plugin, then try again.");
+        auto* aw = new juce::AlertWindow("Smart Master+",
+            "No usable audio was captured -- make sure audio is actually "
+            "playing through the plugin, then try again.",
+            juce::AlertWindow::WarningIcon);
+        aw->setLookAndFeel(&laf);
+        aw->addButton("OK", 0, juce::KeyPress(juce::KeyPress::returnKey));
+
+        wizardWindow.reset(aw);
+        aw->enterModalState(true, juce::ModalCallbackFunction::create(
+            [this](int) { wizardWindow.reset(); }), false);
         return;
     }
 
@@ -2347,15 +2354,21 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
             setPresetName(name);
             setPresetAuthor({});   // generated, not loaded/saved from a user preset file
 
-            juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::InfoIcon,
-                "Smart Master+ complete",
+            auto* aw = new juce::AlertWindow("Smart Master+ complete",
                 "Generated \"" + name + "\" from "
                     + juce::String(int(VisualCompProcessor::kSmartMasterCaptureSeconds))
                     + "s of captured audio (" + juce::String(analysis.crestDb, 1) + " dB crest factor, "
                     + juce::String(analysis.integratedLufs, 1) + " LUFS measured): broadband compression, "
                     + juce::String(nodesUsed) + " spectrum-matching EQ nodes, and bass/presence multiband "
                       "dynamics.\n\nThis is a heuristic starting point, not a mastering-grade AI -- refine "
-                      "by ear, especially threshold, ratio and the EQ node gains.");
+                      "by ear, especially threshold, ratio and the EQ node gains.",
+                juce::AlertWindow::InfoIcon);
+            aw->setLookAndFeel(&laf);
+            aw->addButton("OK", 0, juce::KeyPress(juce::KeyPress::returnKey));
+
+            wizardWindow.reset(aw);
+            aw->enterModalState(true, juce::ModalCallbackFunction::create(
+                [this](int) { wizardWindow.reset(); }), false);
         });
 }
 

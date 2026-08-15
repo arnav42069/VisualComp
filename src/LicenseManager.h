@@ -100,8 +100,14 @@ private:
     // Save trial start time to disk
     void saveTrialMetadata();
 
-    // Verify and load a license from XML property tree
+    // Verify and load a license from XML property tree (performs a full online
+    // re-validation against Keygen — blocking network I/O, do not call at startup)
     bool verifyAndLoadLicenseData(const juce::ValueTree& data);
+
+    // Load a previously-activated license from its XML property tree WITHOUT any
+    // network call. Used at startup so an activated install stays activated across
+    // restarts (and works offline). See initialize() for why we don't re-verify.
+    bool loadLicenseDataFromDisk(const juce::ValueTree& data);
 
     // Get path to the trial metadata file
     static juce::File getTrialMetadataFile();
