@@ -13,6 +13,8 @@ public:
     {
         bool isValid;
         std::string errorMessage;
+        std::string licenseId;     // Keygen license ID (UUID) returned on successful validation
+        std::string machineId;     // Keygen machine ID (UUID) returned on machine registration
     };
 
     LicenseVerifier() = default;
@@ -20,7 +22,12 @@ public:
 
     // Verify a license key string by sending it to Keygen's API
     // Keygen handles all validation and returns whether the key is valid
+    // After successful validation, automatically registers this machine
     VerificationResult verify(const std::string& licenseKeyString);
+
+    // Register a machine fingerprint against a license
+    // Call this after successful license validation to create/link the machine resource
+    VerificationResult registerMachine(const std::string& licenseId, const std::string& machineFingerprint);
 
 private:
     // Keygen API endpoint and credentials
@@ -36,4 +43,7 @@ private:
 
     // Parse Keygen API response and extract validation result
     VerificationResult parseKeygenResponse(const juce::String& responseBody);
+
+    // Parse machine registration response
+    VerificationResult parseMachineRegistrationResponse(const juce::String& responseBody);
 };

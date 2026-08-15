@@ -79,6 +79,10 @@ private:
     // Persistent license key (if offline license was found)
     juce::String persistedLicenseKey;
 
+    // Stored machine ID and license ID from Keygen registration
+    juce::String storedMachineId;
+    juce::String storedLicenseId;
+
     // HMAC-SHA256 secret key for trial metadata integrity (hardcoded for this product)
     static constexpr std::array<uint8_t, 32> TRIAL_HMAC_SECRET{{
         0x9d, 0x4e, 0x1a, 0x7f, 0x52, 0xc8, 0x3b, 0x6d,

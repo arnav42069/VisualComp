@@ -45,7 +45,7 @@ void LicenseManager::initialize()
 
 LicenseManager::ActivationResult LicenseManager::activateLicense(const std::string& base64LicenseKey)
 {
-    // Verify the license signature
+    // Verify the license signature and register the machine
     auto result = verifier.verify(base64LicenseKey);
     if (!result.isValid)
     {
@@ -53,7 +53,7 @@ LicenseManager::ActivationResult LicenseManager::activateLicense(const std::stri
         return { false, result.errorMessage };
     }
 
-    // Save the license to disk
+    // Save the license to disk, including machine ID and license ID from Keygen
     juce::File licenseDir = getLicenseStateDirectory();
     if (!licenseDir.createDirectory().wasOk())
     {
@@ -64,15 +64,30 @@ LicenseManager::ActivationResult LicenseManager::activateLicense(const std::stri
 
     juce::File licenseFile = getLicenseXmlFile();
 
-    // Create XML with the license key
+    // Create XML with the license key, machine ID, and license ID
     juce::XmlElement licenseXml("License");
     licenseXml.setAttribute("key", base64LicenseKey.c_str());
     licenseXml.setAttribute("activatedAt", static_cast<int>(std::time(nullptr)));
     licenseXml.setAttribute("productName", "VisualComp 2");
 
+    // Store Keygen IDs for offline validation
+    if (!result.licenseId.empty())
+    {
+        licenseXml.setAttribute("licenseId", result.licenseId.c_str());
+        DBG("Storing license ID: " << result.licenseId);
+    }
+
+    if (!result.machineId.empty())
+    {
+        licenseXml.setAttribute("machineId", result.machineId.c_str());
+        DBG("Storing machine ID: " << result.machineId);
+    }
+
     if (licenseFile.replaceWithText(licenseXml.toString(), false, false, "UTF-8"))
     {
         persistedLicenseKey = base64LicenseKey.c_str();
+        storedLicenseId = result.licenseId.c_str();
+        storedMachineId = result.machineId.c_str();
         state.store(State::Licensed);
         DBG("License activated and saved to: " << licenseFile.getFullPathName());
         return { true, "" };
@@ -139,6 +154,20 @@ bool LicenseManager::verifyAndLoadLicenseData(const juce::ValueTree& data)
     }
 
     persistedLicenseKey = keyStr.c_str();
+
+    // Load stored machine ID and license ID if present
+    if (data.hasProperty("licenseId"))
+    {
+        storedLicenseId = data.getProperty("licenseId").toString();
+        DBG("Loaded license ID: " << storedLicenseId);
+    }
+
+    if (data.hasProperty("machineId"))
+    {
+        storedMachineId = data.getProperty("machineId").toString();
+        DBG("Loaded machine ID: " << storedMachineId);
+    }
+
     return true;
 }
 

@@ -92,6 +92,7 @@ target_sources(VisualComp PRIVATE
     src/LevelMeter.cpp
     src/LicenseVerifier.cpp
     src/LicenseManager.cpp
+    src/MachineFingerprint.cpp
     src/DemoModeIndicator.cpp
 )
 
