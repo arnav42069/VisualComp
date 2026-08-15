@@ -154,8 +154,7 @@ LicenseActivationWindow::LicenseActivationWindow(LicenseManager& licenseManager,
                                                  std::function<void()> onSuccess)
     : juce::DialogWindow("Activate License", juce::Colour(0xff1d1d1b), true, false)
 {
-    content = std::make_unique<Content>(licenseManager, onSuccess, *this);
-    setContentOwned(content.release(), false);
+    setContentOwned(new Content(licenseManager, onSuccess, *this), true);
     setResizable(false, false);
     centreWithSize(getWidth(), getHeight());
     setAlwaysOnTop(true);

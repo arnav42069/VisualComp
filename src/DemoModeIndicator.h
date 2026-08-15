@@ -41,8 +41,6 @@ private:
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content)
     };
 
-    std::unique_ptr<Content> content;
-
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LicenseActivationWindow)
 };
 
