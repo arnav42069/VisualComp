@@ -226,21 +226,37 @@ void DemoModeIndicator::mouseUp(const juce::MouseEvent&)
 
 void DemoModeIndicator::showLicenseActivationDialog()
 {
-    // Create and show the license activation window
-    auto* licenseWindow = new LicenseActivationWindow(
-        licenseMgr,
-        [this]()
-        {
-            if (onLicenseActivated)
-                onLicenseActivated();
-        });
+    // Defer window creation to avoid blocking the event thread during mouseUp.
+    // Using callAfterDelay(1ms) returns control to the message pump first, preventing
+    // AppHangB1 hangs that occur when expensive window creation blocks the event thread.
+    juce::Timer::callAfterDelay(1, [this]()
+    {
+        auto* licenseWindow = new LicenseActivationWindow(
+            licenseMgr,
+            [this]()
+            {
+                if (onLicenseActivated)
+                    onLicenseActivated();
+            });
 
-    // Show as a non-blocking top-level window instead of using the blocking
-    // enterModalState() which can cause AppHangB1 hangs if any part of the
-    // component initialization or layout is slow/blocking.
-    // The window will stay on top and can be interacted with normally.
-    licenseWindow->addToDesktop(
-        juce::ComponentPeer::windowHasDropShadow |
-        juce::ComponentPeer::windowIsTemporary);
-    licenseWindow->toFront(true);
+        // Show as a non-blocking top-level window instead of using the blocking
+        // enterModalState() which can cause AppHangB1 hangs if any part of the
+        // component initialization or layout is slow/blocking.
+        // The window will stay on top and can be interacted with normally.
+        //
+        // A freshly-constructed juce::Component defaults to invisible
+        // (visibleFlag == false), and DialogWindow's ctor here is called with
+        // addToDesktop=false, so nothing else along the construction path ever
+        // flips that flag. addToDesktop() creates the native peer but sets its
+        // visibility from isVisible() at that moment (Component::addToDesktop(),
+        // "peer->setVisible(isVisible())") — without an explicit setVisible(true)
+        // first, the peer is created hidden and toFront() alone does not reveal
+        // it (it only reorders z-order), so the dialog would silently never
+        // appear on screen.
+        licenseWindow->setVisible(true);
+        licenseWindow->addToDesktop(
+            juce::ComponentPeer::windowHasDropShadow |
+            juce::ComponentPeer::windowIsTemporary);
+        licenseWindow->toFront(true);
+    });
 }
