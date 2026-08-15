@@ -31,7 +31,7 @@ private:
         juce::TextEditor licenseKeyEditor;
         juce::TextButton activateButton { "Activate License" };
         juce::TextButton skipButton { "Continue Trial" };
-        juce::HyperlinkButton helpLink { "Need a license? Visit our site", juce::URL("https://azazelaudio.com/licenses") };
+        juce::HyperlinkButton helpLink { "Need a license? Visit our site", juce::URL("https://azazelaudio.com/visualcomp") };
         juce::Label feedbackLabel;
 
         void updateFeedback(const juce::String& message, bool isError);

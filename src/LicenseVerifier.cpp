@@ -1,226 +1,154 @@
 // LicenseVerifier.cpp
-// Cryptographic license signature verification with Ed25519 support
+// License key validation via Keygen API
 #include "LicenseVerifier.h"
-#include <algorithm>
-#include <cctype>
-#include <cstring>
 #include <sstream>
 
-static std::optional<std::vector<uint8_t>> decodeBase64Impl(const std::string& encoded, std::string& errorMsg)
+LicenseVerifier::VerificationResult LicenseVerifier::verify(const std::string& licenseKeyString)
 {
-    if (encoded.empty())
+    if (licenseKeyString.empty())
+        return { false, "License key is empty" };
+
+    // Trim whitespace from the key
+    std::string trimmedKey = licenseKeyString;
+    trimmedKey.erase(0, trimmedKey.find_first_not_of(" \t\n\r"));
+    trimmedKey.erase(trimmedKey.find_last_not_of(" \t\n\r") + 1);
+
+    if (trimmedKey.empty())
+        return { false, "License key is empty" };
+
+    // Basic format validation: key should contain alphanumeric chars and hyphens
+    for (char c : trimmedKey)
     {
-        errorMsg = "License key is empty";
-        return std::nullopt;
+        if (!std::isalnum(c) && c != '-')
+            return { false, "License key contains invalid characters" };
     }
 
-    static const char base64_chars[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    // Validate with Keygen API
+    return validateWithKeygen(trimmedKey);
+}
 
-    std::vector<uint8_t> decoded;
-    int table[256];
-    std::fill(table, table + 256, -1);
-
-    for (int i = 0; i < 64; ++i)
-        table[static_cast<unsigned char>(base64_chars[i])] = i;
-
-    // Check for invalid characters early
-    int invalidCharIndex = -1;
-    int equalCount = 0;
-    int charIndex = 0;
-    for (unsigned char c : encoded)
+LicenseVerifier::VerificationResult LicenseVerifier::validateWithKeygen(const std::string& licenseKey)
+{
+    try
     {
-        if (c == '=')
+        // Build URL with query parameters for Keygen validation endpoint
+        juce::URL url(KEYGEN_API_URL);
+        url = url.withParameter("key", licenseKey);
+        url = url.withParameter("productId", PRODUCT_ID);
+        url = url.withParameter("policyId", POLICY_ID);
+
+        DBG("Validating license with Keygen: " << licenseKey);
+
+        // Create input stream (GET request)
+        // Set a timeout of 5 seconds
+        auto stream = url.createInputStream(
+            juce::URL::InputStreamOptions()
+                .withTimeoutMs(5000)
+                .withStatusCode(nullptr));
+
+        if (!stream)
         {
-            // Padding characters - should only appear at the end
-            if (charIndex < static_cast<int>(encoded.size()) - 2)
-                equalCount++;
-            else if (equalCount > 0)
+            DBG("Failed to connect to Keygen service");
+            return { false, "Unable to connect to license service. Please check your internet connection." };
+        }
+
+        // Read response
+        juce::String responseBody = stream->readEntireStreamAsString();
+
+        if (responseBody.isEmpty())
+        {
+            DBG("Empty response from Keygen");
+            return { false, "Empty response from license service" };
+        }
+
+        DBG("Keygen response: " << responseBody);
+
+        // Parse and return result
+        return parseKeygenResponse(responseBody);
+    }
+    catch (const std::exception& e)
+    {
+        std::string errorMsg = std::string("License validation failed: ") + e.what();
+        DBG(errorMsg);
+        return { false, errorMsg };
+    }
+    catch (...)
+    {
+        DBG("License validation failed with unknown error");
+        return { false, "License validation failed. Please try again." };
+    }
+}
+
+LicenseVerifier::VerificationResult LicenseVerifier::parseKeygenResponse(const juce::String& responseBody)
+{
+    // Parse JSON response from Keygen
+    // Expected successful response: {"valid":true,"key":"..."}
+    // Expected error response: {"errors":[{"detail":"..."}]}
+
+    if (responseBody.isEmpty())
+        return { false, "Empty response from license service" };
+
+    auto jsonValue = juce::JSON::parse(responseBody);
+
+    if (jsonValue.isVoid())
+    {
+        DBG("Failed to parse Keygen response as JSON");
+        return { false, "Invalid response format from license service" };
+    }
+
+    // Check for error responses first
+    if (jsonValue.hasProperty("errors"))
+    {
+        auto errors = jsonValue.getProperty("errors", juce::var());
+        if (errors.isArray() && errors.size() > 0)
+        {
+            auto firstError = errors[0];
+            if (firstError.isObject() && firstError.hasProperty("detail"))
             {
-                // Multiple consecutive '=' characters are suspicious
-                equalCount++;
+                juce::String detail = firstError.getProperty("detail", juce::var("Unknown error")).toString();
+                return { false, detail.toStdString() };
+            }
+        }
+        return { false, "License key is invalid" };
+    }
+
+    // Check for successful validation
+    if (jsonValue.hasProperty("valid"))
+    {
+        bool isValid = jsonValue.getProperty("valid", false);
+
+        if (isValid)
+        {
+            juce::String key = jsonValue.getProperty("key", juce::var("")).toString();
+            DBG("License validated successfully: " << key);
+            return { true, "" };
+        }
+        else
+        {
+            // Key exists but is not valid (revoked, expired, etc.)
+            return { false, "License key is not valid or has been revoked" };
+        }
+    }
+
+    // Check nested data structure
+    if (jsonValue.hasProperty("data"))
+    {
+        auto data = jsonValue.getProperty("data", juce::var());
+        if (data.isObject() && data.hasProperty("valid"))
+        {
+            bool isValid = data.getProperty("valid", false);
+            if (isValid)
+            {
+                return { true, "" };
             }
             else
             {
-                equalCount = 1;
+                return { false, "License key is not valid or has been revoked" };
             }
         }
-        else if (table[c] == -1)
-        {
-            // Invalid character found
-            invalidCharIndex = charIndex;
-            break;
-        }
-        charIndex++;
     }
 
-    if (invalidCharIndex >= 0)
-    {
-        char invalidChar = encoded[invalidCharIndex];
-        std::ostringstream oss;
-        oss << "Invalid character in Base64 string at position " << invalidCharIndex
-            << " ('" << (isprint(invalidChar) ? invalidChar : '?') << "')";
-        errorMsg = oss.str();
-        return std::nullopt;
-    }
-
-    if (encoded.length() % 4 != 0)
-    {
-        std::ostringstream oss;
-        oss << "Invalid Base64 length (must be multiple of 4, got " << encoded.length() << ")";
-        errorMsg = oss.str();
-        return std::nullopt;
-    }
-
-    int val = 0, bits = -6;
-    for (unsigned char c : encoded)
-    {
-        if (c == '=') break;  // Padding
-        if (table[c] == -1) break;
-
-        val = (val << 6) + table[c];
-        bits += 6;
-
-        if (bits >= 0)
-        {
-            decoded.push_back(static_cast<uint8_t>((val >> bits) & 0xFF));
-            bits -= 8;
-        }
-    }
-
-    if (decoded.empty())
-    {
-        errorMsg = "Failed to decode Base64 string (possibly all padding)";
-        return std::nullopt;
-    }
-
-    return decoded;
-}
-
-std::optional<std::vector<uint8_t>> LicenseVerifier::decodeBase64(const std::string& encoded, std::string& errorMsg)
-{
-    return decodeBase64Impl(encoded, errorMsg);
-}
-
-std::vector<uint8_t> LicenseVerifier::computeHmacSha256(const uint8_t* data, size_t dataLen)
-{
-    // HMAC-SHA256 using JUCE's SHA256 support
-    // Format: SHA256(key ^ opad) + SHA256(key ^ ipad + message)
-
-    const size_t BLOCK_SIZE = 64;
-    const uint8_t OPAD = 0x5c;
-    const uint8_t IPAD = 0x36;
-
-    // Prepare padded key
-    uint8_t keyPad[BLOCK_SIZE];
-    std::memset(keyPad, 0, BLOCK_SIZE);
-    std::memcpy(keyPad, HMAC_SECRET_KEY.data(), std::min(HMAC_SECRET_KEY.size(), BLOCK_SIZE));
-
-    // Compute inner hash: SHA256((key XOR ipad) + message)
-    uint8_t innerData[BLOCK_SIZE + 256]; // Simplified for smaller messages
-    for (size_t i = 0; i < BLOCK_SIZE; i++)
-        innerData[i] = keyPad[i] ^ IPAD;
-
-    if (dataLen <= 256)
-        std::memcpy(innerData + BLOCK_SIZE, data, dataLen);
-
-    juce::String innerHex = juce::MD5((innerData), std::min(dataLen + BLOCK_SIZE, size_t(BLOCK_SIZE + 256))).toHexString();
-
-    // For now, return simplified HMAC-SHA256
-    // Full implementation would use JUCE's cryptography module when available
-    std::vector<uint8_t> result(SHA256_HASH_BYTES, 0);
-    return result;
-}
-
-bool LicenseVerifier::validatePayloadStructure(const std::string& payloadText) const
-{
-    // Validate that payload contains required product and policy IDs
-    if (payloadText.find(PRODUCT_ID) == std::string::npos)
-    {
-        DBG("License validation: Product ID not found");
-        return false;
-    }
-
-    if (payloadText.find(POLICY_ID) == std::string::npos)
-    {
-        DBG("License validation: Policy ID not found");
-        return false;
-    }
-
-    // Validate expiration/validity information exists
-    if (payloadText.find("exp:") == std::string::npos &&
-        payloadText.find("valid:") == std::string::npos &&
-        payloadText.find("expires:") == std::string::npos)
-    {
-        DBG("License validation: Expiration information not found");
-        return false;
-    }
-
-    return true;
-}
-
-LicenseVerifier::VerificationResult LicenseVerifier::verifyPayload(const std::vector<uint8_t>& data)
-{
-    // License format: [ED25519_SIGNATURE (64 bytes)][PAYLOAD (variable)]
-    // The signature authenticates the payload cryptographically
-
-    if (data.empty())
-        return { false, "License data is empty" };
-
-    if (data.size() < ED25519_SIGNATURE_BYTES + 1)
-        return { false, "License data too small to contain signature" };
-
-    // Split signature and payload
-    const uint8_t* signature = data.data();
-    const uint8_t* payload = data.data() + ED25519_SIGNATURE_BYTES;
-    size_t payloadLen = data.size() - ED25519_SIGNATURE_BYTES;
-
-    // Validate minimum payload size
-    if (payloadLen < 50)
-        return { false, "Payload is too small to be a valid license" };
-
-    // Decode payload as UTF-8 text
-    std::string payloadText;
-    try {
-        payloadText = std::string(reinterpret_cast<const char*>(payload), payloadLen);
-    } catch (...) {
-        return { false, "Failed to decode payload as text" };
-    }
-
-    // Validate payload structure (contains required IDs and expiration)
-    if (!validatePayloadStructure(payloadText))
-        return { false, "Payload structure validation failed" };
-
-    // TODO: Implement full Ed25519 signature verification
-    // This requires:
-    // 1. SHA-512 hash of the payload
-    // 2. Ed25519 signature verification using ED25519_PUBLIC_KEY
-    // Currently using structural validation as interim security measure
-    //
-    // For production deployment, integrate with:
-    // - libsodium (crypto_sign_open)
-    // - monocypher (crypto_check)
-    // - Or implement ref10 Ed25519 algorithm
-
-    DBG("License verified (structural validation passed, Ed25519 verification pending)");
-
-    // SECURITY NOTE: This currently returns true for structurally valid licenses
-    // Full cryptographic verification will be enabled once Ed25519 is integrated
-    return { true, "" };
-}
-
-LicenseVerifier::VerificationResult LicenseVerifier::verify(const std::string& base64LicenseKey)
-{
-    if (base64LicenseKey.empty())
-        return { false, "License key is empty" };
-
-    std::string decodeErrorMsg;
-    auto decoded = decodeBase64(base64LicenseKey, decodeErrorMsg);
-    if (!decoded)
-        return { false, decodeErrorMsg };
-
-    if (decoded->empty())
-        return { false, "Decoded license key is empty" };
-
-    return verifyPayload(*decoded);
+    // Unexpected response format - log it for debugging
+    DBG("Unexpected Keygen response format: " << responseBody);
+    return { false, "Invalid response from license service" };
 }
