@@ -39,7 +39,7 @@ LicenseVerifier::VerificationResult LicenseVerifier::verify(const std::string& l
         std::string machineFingerprint = MachineFingerprint::getFingerprint();
         DBG("Registering machine fingerprint: " << machineFingerprint);
 
-        auto machineResult = registerMachine(validationResult.licenseId, machineFingerprint);
+        auto machineResult = registerMachine(validationResult.licenseId, trimmedKey, machineFingerprint);
 
         if (machineResult.isValid)
         {
@@ -288,29 +288,46 @@ LicenseVerifier::VerificationResult LicenseVerifier::parseKeygenResponse(const j
     return result;
 }
 
-LicenseVerifier::VerificationResult LicenseVerifier::registerMachine(const std::string& licenseId, const std::string& machineFingerprint)
+LicenseVerifier::VerificationResult LicenseVerifier::registerMachine(const std::string& licenseId,
+                                                                    const std::string& licenseKey,
+                                                                    const std::string& machineFingerprint)
 {
     try
     {
-        // Build URL to register machine under a specific license:
-        // POST /v1/accounts/{accountId}/licenses/{licenseId}/machines
-        // This associates the machine fingerprint with the specific license
-        std::string urlString = std::string(KEYGEN_API_BASE) + "/" + KEYGEN_ACCOUNT_ID +
-                               "/licenses/" + licenseId + "/machines";
+        // Machines are created at the TOP-LEVEL machines collection, with the owning
+        // license attached via a JSON:API relationship. The nested
+        // /licenses/{licenseId}/machines path is read-only and returns 404 on POST.
+        // POST /v1/accounts/{accountId}/machines
+        std::string urlString = std::string(KEYGEN_API_BASE) + "/" + KEYGEN_ACCOUNT_ID + "/machines";
         juce::URL url(urlString);
 
         DBG("Registering machine with Keygen");
         DBG("API Endpoint: " << urlString);
+        DBG("License ID: " << licenseId);
         DBG("Machine fingerprint: " << machineFingerprint);
 
-        // Build the JSON request body in proper JSON:API format
-        // Format: { "data": { "type": "machines", "attributes": { "fingerprint": "..." } } }
+        // Build the JSON:API request body:
+        // { "data": { "type": "machines",
+        //             "attributes": { "fingerprint": "...", "platform": "windows" },
+        //             "relationships": { "license": { "data": { "type": "licenses", "id": "..." } } } } }
         auto attributesObject = juce::var(new juce::DynamicObject());
         attributesObject.getDynamicObject()->setProperty("fingerprint", juce::String(machineFingerprint));
+        attributesObject.getDynamicObject()->setProperty("platform", juce::String("windows"));
+
+        auto licenseDataObject = juce::var(new juce::DynamicObject());
+        licenseDataObject.getDynamicObject()->setProperty("type", juce::String("licenses"));
+        licenseDataObject.getDynamicObject()->setProperty("id", juce::String(licenseId));
+
+        auto licenseRelationship = juce::var(new juce::DynamicObject());
+        licenseRelationship.getDynamicObject()->setProperty("data", licenseDataObject);
+
+        auto relationshipsObject = juce::var(new juce::DynamicObject());
+        relationshipsObject.getDynamicObject()->setProperty("license", licenseRelationship);
 
         auto dataObject = juce::var(new juce::DynamicObject());
         dataObject.getDynamicObject()->setProperty("type", juce::String("machines"));
         dataObject.getDynamicObject()->setProperty("attributes", attributesObject);
+        dataObject.getDynamicObject()->setProperty("relationships", relationshipsObject);
 
         auto bodyObject = juce::var(new juce::DynamicObject());
         bodyObject.getDynamicObject()->setProperty("data", dataObject);
@@ -318,10 +335,16 @@ LicenseVerifier::VerificationResult LicenseVerifier::registerMachine(const std::
         juce::String jsonBody = juce::JSON::toString(bodyObject);
         DBG("Keygen machine registration request body: " << jsonBody);
 
+        // Creating a machine requires authentication. Authenticate as the license
+        // itself using the end user's key, so no admin token has to ship in the binary.
+        juce::String headers = "Content-Type: application/vnd.api+json\r\n"
+                               "Accept: application/vnd.api+json\r\n"
+                               "Authorization: License " + juce::String(licenseKey);
+
         // Use JUCE 7.0.9 API: withPOSTData() on URL, then InputStreamOptions for headers/timeout
         auto stream = url.withPOSTData(jsonBody).createInputStream(
             juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inAddress)
-                .withExtraHeaders("Content-Type: application/vnd.api+json\r\nAccept: application/vnd.api+json")
+                .withExtraHeaders(headers)
                 .withConnectionTimeoutMs(5000)
         );
 

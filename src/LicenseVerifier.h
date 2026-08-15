@@ -25,9 +25,13 @@ public:
     // After successful validation, automatically registers this machine
     VerificationResult verify(const std::string& licenseKeyString);
 
-    // Register a machine fingerprint against a license
-    // Call this after successful license validation to create/link the machine resource
-    VerificationResult registerMachine(const std::string& licenseId, const std::string& machineFingerprint);
+    // Register a machine fingerprint against a license.
+    // POSTs to the top-level /machines collection, linking the license via a
+    // JSON:API relationship. Keygen requires authentication to create a machine,
+    // so the license key itself is sent as an "Authorization: License <key>" header.
+    VerificationResult registerMachine(const std::string& licenseId,
+                                       const std::string& licenseKey,
+                                       const std::string& machineFingerprint);
 
 private:
     // Keygen API endpoint and credentials
