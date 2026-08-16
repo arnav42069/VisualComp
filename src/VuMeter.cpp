@@ -3,6 +3,22 @@
 
 constexpr float VuMeter::kMarks[VuMeter::kNumMarks][2];
 
+namespace
+{
+    // GR severity -> colour, inverted relative to Theme::meterColour (0 GR is
+    // idle/safe here, more-negative GR is more active/hot) so the needle arc
+    // and tip read as a real level-dependent meter rather than a fixed
+    // orange accent regardless of how hard the compressor is working.
+    juce::Colour grColour(float grDb)
+    {
+        const float mag = -grDb;   // 0 .. ~20+, positive = more reduction
+        if (mag >= 15.0f) return Theme::meterHot;
+        if (mag >= 9.0f)  return Theme::meterMid;
+        if (mag >= 3.0f)  return Theme::accent;
+        return Theme::meterLow;
+    }
+}
+
 VuMeter::VuMeter(std::atomic<float>& grDb) : gainReductionDb(grDb)
 {
     startTimerHz(60);
@@ -37,20 +53,13 @@ void VuMeter::paint(juce::Graphics& g)
     const float faceH      = faceB - faceT;
     const juce::Rectangle<float> faceRect(faceL, faceT, faceW, faceH);
 
-    // Bezel shadow
+    // Bezel shadow (soft drop shadow, not an outline)
     g.setColour(juce::Colour(0x55000000));
     g.fillRoundedRectangle(faceRect.expanded(2.5f), 4.0f);
 
-    // Recessed glass face
-    {
-        juce::ColourGradient face(
-            juce::Colour(0xff1a1a18), faceL, faceT,
-            juce::Colour(0xff0d0d0c), faceL, faceB, false);
-        g.setGradientFill(face);
-        g.fillRoundedRectangle(faceRect, 3.0f);
-    }
-    g.setColour(Theme::line);
-    g.drawRoundedRectangle(faceRect, 3.0f, 1.0f);
+    // Recessed glass face -- sunk into the chassis, no border; depth alone
+    // separates it, per the three-surface-depth rule.
+    Theme::drawRecess(g, faceRect, 4.0f);
 
     // === Scale geometry ===
     const float pivX = w * 0.5f;
@@ -77,19 +86,21 @@ void VuMeter::paint(juce::Graphics& g)
         arcTrack.addCentredArc(pivX, pivY, tickOuter, tickOuter, 0.0f,
                                juce::degreesToRadians(-35.0f),
                                juce::degreesToRadians(35.0f), true);
-        g.setColour(Theme::text.withAlpha(0.55f));
+        g.setColour(Theme::textFaint);
         g.strokePath(arcTrack, juce::PathStrokeType(1.2f));
     }
 
-    // === Active arc — orange, tracks the needle ===
+    // === Active arc — tracks the needle, coloured by GR severity so it
+    // reads as live signal rather than a static accent decoration ===
     {
         juce::Path live;
         live.addCentredArc(pivX, pivY, tickOuter, tickOuter, 0.0f,
                            juce::degreesToRadians(needleAngleDeg),
                            juce::degreesToRadians(35.0f), true);
-        g.setColour(Theme::accent.withAlpha(0.22f));
+        const auto liveCol = grColour(gainReductionDb.load(std::memory_order_relaxed));
+        g.setColour(liveCol.withAlpha(0.22f));
         g.strokePath(live, juce::PathStrokeType(6.0f));
-        g.setColour(Theme::accent);
+        g.setColour(liveCol);
         g.strokePath(live, juce::PathStrokeType(1.8f));
     }
 
@@ -104,12 +115,12 @@ void VuMeter::paint(juce::Graphics& g)
         const auto inner = angleToXY(angDeg, tickInner);
         const auto outer = angleToXY(angDeg, tickOuter);
 
-        g.setColour(Theme::text.withAlpha(isMajor ? 0.90f : 0.45f));
+        g.setColour(isMajor ? Theme::textMid : Theme::textFaint);
         g.drawLine(inner.x, inner.y, outer.x, outer.y, isMajor ? 1.4f : 0.8f);
 
         const auto labelPt = angleToXY(angDeg, labelRadius);
         g.setFont(Theme::mono(fontSize, isMajor ? juce::Font::bold : juce::Font::plain));
-        g.setColour(Theme::text.withAlpha(isMajor ? 0.80f : 0.55f));
+        g.setColour(isMajor ? Theme::textMid : Theme::textFaint);
         const juce::String lbl = grVal == 0.0f ? "0" : juce::String(int(grVal));
         const float lblW = fontSize * 2.2f;
         const float lblH = fontSize * 1.5f;
@@ -118,30 +129,30 @@ void VuMeter::paint(juce::Graphics& g)
                    juce::Justification::centred, false);
     }
 
-    // Face caption as a header tab (keeps the needle sweep and pivot clear)
+    // Face caption -- letterspaced micro-label sitting directly on the
+    // recessed glass, no background box (keeps the needle sweep and pivot
+    // clear without drawing another bordered tab on top of the face).
     {
-        const juce::Rectangle<float> tab(faceL + 7.0f, faceT + 6.0f, 150.0f, 21.0f);
-        g.setColour(Theme::bg.withAlpha(0.80f));
-        g.fillRect(tab);
-        g.setColour(Theme::accentDim);
-        g.drawRect(tab, 1.0f);
-        g.setColour(Theme::accent);
-        g.setFont(Theme::label(14.0f));
-        g.drawText("GAIN REDUCTION", tab, juce::Justification::centred, false);
+        const juce::Rectangle<int> capArea(int(faceL + 7.0f), int(faceT + 5.0f), 150, 14);
+        g.setColour(Theme::textMid);
+        g.setFont(Theme::micro(9.5f));
+        Theme::drawTracked(g, "Gain Reduction", capArea, juce::Justification::left);
     }
 
     // === Needle ===
     const auto  tipPt   = angleToXY(needleAngleDeg, needleLen * 0.97f);
     const float needleW = juce::jlimit(1.2f, 2.2f, needleLen * 0.013f);
 
+    const auto needleCol = grColour(gainReductionDb.load(std::memory_order_relaxed));
+
     g.setColour(juce::Colour(0x40000000));
     g.drawLine(pivX + 1.2f, pivY + 1.2f, tipPt.x + 1.2f, tipPt.y + 1.2f, needleW);
     g.setColour(Theme::text);
     g.drawLine(pivX, pivY, tipPt.x, tipPt.y, needleW);
     const auto litStart = angleToXY(needleAngleDeg, needleLen * 0.80f);
-    g.setColour(Theme::accent.withAlpha(0.35f));
+    g.setColour(needleCol.withAlpha(0.35f));
     g.drawLine(litStart.x, litStart.y, tipPt.x, tipPt.y, needleW * 2.6f);
-    g.setColour(Theme::accent);
+    g.setColour(needleCol);
     g.drawLine(litStart.x, litStart.y, tipPt.x, tipPt.y, needleW);
 
     // Pivot
@@ -165,13 +176,13 @@ void VuMeter::paint(juce::Graphics& g)
     const float grNow  = gainReductionDb.load(std::memory_order_relaxed);
 
     g.setFont(Theme::mono(lbFont * 1.45f, juce::Font::bold));
-    g.setColour(Theme::accent);
+    g.setColour(Theme::textHi);
     g.drawText(juce::String(grNow, 1),
                juce::Rectangle<float>(0.0f, faceB + labelAreaH * 0.10f,
                                       w * 0.62f, labelAreaH * 0.52f).toNearestInt(),
                juce::Justification::centredRight, false);
     g.setFont(Theme::label(lbFont * 0.80f));
-    g.setColour(Theme::textDim);
+    g.setColour(Theme::textFaint);
     g.drawText("dB",
                juce::Rectangle<float>(w * 0.64f, faceB + labelAreaH * 0.10f,
                                       w * 0.12f, labelAreaH * 0.52f).toNearestInt(),
@@ -184,12 +195,10 @@ void VuMeter::paint(juce::Graphics& g)
         const float ledCX    = w * 0.845f;
         const float ledCY    = faceB + labelAreaH * 0.30f;
 
+        // Dark socket -- depth alone seats the lamp, no border ring.
         g.setColour(juce::Colour(0xff141412));
         g.fillEllipse(ledCX - ledR - 2.0f, ledCY - ledR - 2.0f,
                       (ledR + 2.0f) * 2.0f, (ledR + 2.0f) * 2.0f);
-        g.setColour(Theme::line);
-        g.drawEllipse(ledCX - ledR - 2.0f, ledCY - ledR - 2.0f,
-                      (ledR + 2.0f) * 2.0f, (ledR + 2.0f) * 2.0f, 1.0f);
 
         if (grActive)
         {
@@ -210,7 +219,7 @@ void VuMeter::paint(juce::Graphics& g)
         }
 
         g.setFont(Theme::label(13.0f));
-        g.setColour(grActive ? Theme::warn.brighter(0.2f) : Theme::textDim.withAlpha(0.6f));
+        g.setColour(grActive ? Theme::warn.brighter(0.2f) : Theme::textFaint.withAlpha(0.6f));
         g.drawText("ACTIVE", juce::Rectangle<float>(ledCX - 30.0f, ledCY + ledR + 4.0f,
                                                     60.0f, 13.0f),
                    juce::Justification::centred, false);

@@ -50,30 +50,28 @@ void GrCurveDisplay::paint(juce::Graphics& g)
     auto dbToX = [&](float db) { return plotX + plotW * (db - kDbMin) / kDbRange; };
     auto dbToY = [&](float db) { return plotB - plotH * (db - kDbMin) / kDbRange; };
 
-    // Recessed screen
-    g.setColour(Theme::bgDeep);
-    g.fillRect(plotX, plotY, plotW, plotH);
+    // Recessed screen -- sunk into the chassis, no outline; depth alone
+    // separates the plot from its surroundings.
+    Theme::drawRecess(g, juce::Rectangle<float>(float(plotX), float(plotY),
+                                                float(plotW), float(plotH)), 3.0f);
 
-    // === Grid ===
-    g.setFont(Theme::mono(14.0f));
+    // === Grid -- a quiet reference, must never compete with the curve ===
+    g.setFont(Theme::mono(9.5f));
     for (float db : { -60.0f, -40.0f, -20.0f, 0.0f })
     {
         const int gx = int(dbToX(db));
         const int gy = int(dbToY(db));
 
-        g.setColour(Theme::text.withAlpha(0.055f));
+        g.setColour(Theme::hairline.withAlpha(0.6f));
         g.drawVerticalLine(gx, float(plotY), float(plotB));
         g.drawHorizontalLine(gy, float(plotX), float(plotR));
 
-        g.setColour(Theme::textDim);
+        g.setColour(Theme::textFaint);
         const juce::String lbl = db == 0.0f ? "0" : juce::String(int(db));
         g.drawText(lbl, gx - 20, plotB + 5, 40, 17, juce::Justification::centred, false);
         g.drawText(lbl, bounds.getX(), gy - 9, kLeftM - 6, 18,
                    juce::Justification::centredRight, false);
     }
-
-    g.setColour(Theme::line);
-    g.drawRect(plotX, plotY, plotW, plotH, 1);
 
     // === Parameters ===
     const float thresh    = apvts.getRawParameterValue("threshold")->load();
@@ -87,7 +85,7 @@ void GrCurveDisplay::paint(juce::Graphics& g)
         juce::Path unity;
         unity.startNewSubPath(float(dbToX(kDbMin)), float(dbToY(kDbMin)));
         unity.lineTo(float(dbToX(kDbMax)), float(dbToY(kDbMax)));
-        g.setColour(Theme::text.withAlpha(0.14f));
+        g.setColour(Theme::textFaint.withAlpha(0.55f));
         const float dashes[] = { 3.0f, 3.0f };
         juce::Path dashed;
         juce::PathStrokeType(0.9f).createDashedStroke(dashed, unity, dashes, 2);
@@ -99,7 +97,7 @@ void GrCurveDisplay::paint(juce::Graphics& g)
     {
         const float x0 = dbToX(thresh - knee * 0.5f);
         const float x1 = dbToX(thresh + knee * 0.5f);
-        g.setColour(Theme::accent.withAlpha(0.07f));
+        g.setColour(Theme::surfRaised.withAlpha(0.30f));
         g.fillRect(juce::Rectangle<float>(x0, float(plotY), x1 - x0, float(plotH)));
     }
 
@@ -139,33 +137,31 @@ void GrCurveDisplay::paint(juce::Graphics& g)
         const float dx = dbToX(inDb);
         const float dy = juce::jlimit(float(plotY), float(plotB), dbToY(outDb));
 
-        g.setColour(juce::Colours::white.withAlpha(0.18f));
+        g.setColour(Theme::textHi.withAlpha(0.18f));
         g.fillEllipse(dx - 6.0f, dy - 6.0f, 12.0f, 12.0f);
-        g.setColour(juce::Colours::white);
+        g.setColour(Theme::textHi);
         g.fillEllipse(dx - 2.6f, dy - 2.6f, 5.2f, 5.2f);
     }
 
     // === Axis captions ===
-    g.setFont(Theme::label(13.0f));
-    g.setColour(Theme::textDim);
+    g.setFont(Theme::label(9.5f));
+    g.setColour(Theme::textFaint);
     g.drawText("IN dBFS", plotX, plotB + 20, plotW, 17, juce::Justification::centred, false);
 
-    // === Header tab ===
+    // === Header label -- letterspaced micro-label sitting directly on the
+    // recessed screen, no background tab/border (depth already separates the
+    // plot from the chassis, so a bordered box on top of it is redundant). ===
     {
-        const juce::Rectangle<float> tab(float(plotX) + 4.0f, float(plotY) + 4.0f, 142.0f, 21.0f);
-        g.setColour(Theme::bg.withAlpha(0.85f));
-        g.fillRect(tab);
-        g.setColour(Theme::accentDim);
-        g.drawRect(tab, 1.0f);
-        g.setColour(Theme::accent);
-        g.setFont(Theme::label(14.0f));
-        g.drawText("TRANSFER CURVE", tab, juce::Justification::centred, false);
+        const juce::Rectangle<int> capArea(plotX + 6, plotY + 5, 160, 12);
+        g.setColour(Theme::textMid);
+        g.setFont(Theme::micro(9.5f));
+        Theme::drawTracked(g, "Transfer Curve", capArea, juce::Justification::left);
     }
 
-    // === Timing read-out — sits under the tab, left of the rising curve ===
-    g.setFont(Theme::mono(12.0f));
-    g.setColour(Theme::textDim);
+    // === Timing read-out — sits under the label, left of the rising curve ===
+    g.setFont(Theme::mono(9.5f));
+    g.setColour(Theme::textFaint);
     g.drawText("ATK " + juce::String(attackMs, 1) + "  REL " + juce::String(releaseMs, 0),
-               plotX + 6, plotY + 29, plotW - 12, 16,
+               plotX + 6, plotY + 20, plotW - 12, 16,
                juce::Justification::centredLeft, false);
 }

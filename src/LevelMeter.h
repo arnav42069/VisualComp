@@ -22,20 +22,27 @@ public:
 
 private:
     void timerCallback() override;
-    static juce::Colour zoneColourForDb(float db, float greenBelow, float yellowBelow);
-    void drawBar(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb,
-                float floorDb, float ceilDb, float greenBelow, float yellowBelow,
-                float alpha) const;
-    static void drawSideLabel(juce::Graphics& g, juce::Rectangle<float> bar, const juce::String& text, float alpha);
-    static void drawBottomValue(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb, float alpha);
+
+    // Draws one meter channel as a recessed, segmented LED-style column:
+    // each lit segment is coloured via Theme::meterColour() at that
+    // segment's own dB position (the classic fixed-ramp hardware bargraph
+    // look), unlit segments are dim. No alpha parameter -- callers wanting
+    // a faded-in channel (the LUFS bar) wrap the call in a Graphics
+    // transparency layer instead, so every helper below can just paint
+    // opaque colours.
+    void drawChannel(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb,
+                     float floorDb, float ceilDb) const;
+    static void drawSideLabel(juce::Graphics& g, juce::Rectangle<float> bar, const juce::String& text);
+    static void drawBottomValue(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb);
     // Prints a hardware-meter-style scale directly on the bar: a tick line
-    // plus a small number at each of `levels`, for whichever fall inside
-    // [floorDb, ceilDb]. Shared by the dB and LUFS bars, each with their own
-    // set of common reference levels (see the kDbNotches/kLufsNotches
+    // for each of `levels` that falls inside [floorDb, ceilDb], with the
+    // 0 dB line singled out as a brighter, wider reference mark plus its
+    // own numeral. Shared by the dB and LUFS bars, each with their own set
+    // of common reference levels (see the kDbNotches/kLufsNotches
     // definitions in the .cpp).
     static void drawNotches(juce::Graphics& g, juce::Rectangle<float> bar,
                             float floorDb, float ceilDb,
-                            const float* levels, int numLevels, float alpha);
+                            const float* levels, int numLevels);
 
     VisualCompProcessor& processor;
     bool  revealed     = false;

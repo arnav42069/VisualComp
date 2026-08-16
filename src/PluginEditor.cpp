@@ -35,10 +35,15 @@ namespace
     constexpr int kCurveGrRightPad = 5;
 
     constexpr int kWaveY = kHeadH + 4;                // 112
-    constexpr int kWaveH = 232;
+    // Trimmed from 232: at the old height the input/output traces filled a
+    // wide, near-square box that was mostly flat baseline on anything but
+    // full-scale material — a letterbox strip reads as a scrolling monitor,
+    // not an empty panel, and reclaims height for the Dynamics pane below
+    // (AUTO GAIN/LIM/SC were the tightest-packed controls in the UI).
+    constexpr int kWaveH = 190;
 
-    constexpr int kCtrlY = kWaveY + kWaveH + 6;       // 350
-    constexpr int kCtrlH = kHeight - kCtrlY;          // 298
+    constexpr int kCtrlY = kWaveY + kWaveH + 6;       // 308
+    constexpr int kCtrlH = kHeight - kCtrlY;          // 340
 
     constexpr int kCtrlTopStripH = 30;   // band-selector button row, top of the Dynamics pane
 
@@ -760,34 +765,69 @@ void AzazelLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
         return;
     }
 
-    for (int i = 2; i >= 1; --i)
-    {
-        g.setColour(juce::Colour(0xff000000).withAlpha(0.13f * float(3 - i)));
-        g.fillRoundedRectangle(rect.translated(0.0f, float(i) * 0.9f), rad);
-    }
-
-    juce::ColourGradient bd(juce::Colour(0xff302e2a), rect.getX(), rect.getY(),
-                            juce::Colour(0xff141312), rect.getX(), rect.getBottom(), false);
-    bd.addColour(0.55, juce::Colour(0xff1f1e1c));
-    g.setGradientFill(bd);
-    g.fillRoundedRectangle(rect, rad);
+    // Ordinary control: one raised surface, depth-only (top highlight +
+    // bottom shadow, no perimeter outline) — accent only ever appears when
+    // the control is actually ON, per the accent-discipline rule. Hover/
+    // press are neutral brightness nudges, not accent tints, so an OFF
+    // button never reads as "a bit orange" just from a mouseover.
+    const bool on = button.getToggleState();
+    Theme::drawRaised(g, rect, rad, on);
 
     if (isDown)
     {
-        g.setColour(juce::Colour(0xff000000).withAlpha(0.30f));
+        g.setColour(juce::Colours::black.withAlpha(on ? 0.18f : 0.22f));
         g.fillRoundedRectangle(rect, rad);
     }
     else if (isHighlighted)
     {
-        g.setColour(Theme::accent.withAlpha(0.10f));
+        g.setColour(juce::Colours::white.withAlpha(on ? 0.06f : 0.05f));
         g.fillRoundedRectangle(rect, rad);
     }
+}
 
-    g.setColour(juce::Colours::white.withAlpha(0.10f));
-    g.drawLine(rect.getX() + 2.0f, rect.getY() + 1.0f,
-               rect.getRight() - 2.0f, rect.getY() + 1.0f, 1.0f);
-    g.setColour(isHighlighted ? Theme::accentMid : Theme::accentDim);
-    g.drawRoundedRectangle(rect, rad, 1.0f);
+void AzazelLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& button,
+                                       bool isHighlighted, bool isDown)
+{
+    // Buttons that show a functional name (MB, SAVE, GR, ‹/›, mode, Smart
+    // Master+) opt in via "microCaps" (set by setupTextButton) so their
+    // legend reads as letterspaced hardware silkscreen rather than a plain
+    // label — one of the type scale's three sizes (Theme::micro()), not a
+    // fourth. Buttons showing a VALUE instead of a name (the preset name
+    // itself) don't set the property and fall through to the ordinary
+    // base-class draw, since an arbitrary mixed-case user string shouldn't
+    // be forced into tracked caps.
+    if (!button.getProperties().contains("microCaps"))
+    {
+        LookAndFeel_V4::drawButtonText(g, button, isHighlighted, isDown);
+        return;
+    }
+
+    const bool on = button.getToggleState();
+    g.setColour(button.findColour(on ? juce::TextButton::textColourOnId
+                                      : juce::TextButton::textColourOffId)
+                       .withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));
+
+    const auto bounds = button.getLocalBounds().reduced(juce::jmin(6, button.getWidth() / 8), 0);
+    const juce::String text = button.getButtonText();
+    const float tracking = 1.1f;
+
+    // Shrink-to-fit: narrow slots (e.g. the "Smart Master+" button) can't
+    // always afford full tracking at the default micro size.
+    float fontH = juce::jmin(11.0f, float(button.getHeight()) * 0.46f);
+    for (; fontH > 7.0f; fontH -= 0.5f)
+    {
+        const auto f = Theme::micro(fontH);
+        const auto up = text.toUpperCase();
+        float w = 0.0f;
+        for (int i = 0; i < up.length(); ++i)
+            w += f.getStringWidthFloat(up.substring(i, i + 1)) + tracking;
+        if (up.isNotEmpty()) w -= tracking;
+        if (w <= float(bounds.getWidth()))
+            break;
+    }
+
+    g.setFont(Theme::micro(fontH));
+    Theme::drawTracked(g, text, bounds, juce::Justification::centred, tracking);
 }
 
 juce::Font AzazelLookAndFeel::getTextButtonFont(juce::TextButton&, int height)
@@ -977,8 +1017,10 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     setupTextButton(modeButton, currentModeName);
     modeButton.onClick = [this] { showModeMenu(); };
 
-    // Presets
-    setupTextButton(presetButton, audioProcessor.currentPresetName);
+    // Presets — shows the preset NAME (a value being read), not a control's
+    // name, so it stays out of the tracked-caps treatment other header
+    // buttons get (see setupTextButton).
+    setupTextButton(presetButton, audioProcessor.currentPresetName, false);
     presetButton.setTooltip(audioProcessor.currentPresetAuthor.isNotEmpty()
         ? ("Preset by " + audioProcessor.currentPresetAuthor) : juce::String());
     presetButton.onClick = [this] { showPresetMenu(); };
@@ -1467,11 +1509,17 @@ void VisualCompEditor::setupFader(DragSlider& fader, juce::Label& label,
     addAndMakeVisible(label);
 }
 
-void VisualCompEditor::setupTextButton(juce::TextButton& b, const juce::String& text)
+void VisualCompEditor::setupTextButton(juce::TextButton& b, const juce::String& text, bool microCaps)
 {
     b.setButtonText(text);
-    b.setColour(juce::TextButton::textColourOffId, Theme::accent);
-    b.setColour(juce::TextButton::textColourOnId,  Theme::accent.brighter(0.2f));
+    // Neutral when off, accent only when on/lit — accent marks state, not
+    // "this is a button". The preset-name button passes microCaps=false and
+    // is the one case where the button shows a VALUE rather than a control
+    // name, but it still follows the same off/on colour rule.
+    b.setColour(juce::TextButton::textColourOffId, Theme::textHi);
+    b.setColour(juce::TextButton::textColourOnId,  Theme::accent);
+    if (microCaps)
+        b.getProperties().set("microCaps", true);
     addAndMakeVisible(b);
 }
 
@@ -2697,15 +2745,37 @@ void VisualCompEditor::paint(juce::Graphics& g)
     {
         g.setColour(Theme::bgDeep);
         g.fillRect(0, kTitleH, kWidth, kStripH);
-        g.setColour(Theme::accent.withAlpha(0.55f));
+        // A static full-width line has no reason to be accent-coloured — it
+        // isn't signal or an active state, it's a section divider, so it
+        // takes the neutral hairline like every other structural boundary.
+        g.setColour(Theme::hairline);
         g.fillRect(0, kTitleH, kWidth, 1);
         g.setColour(juce::Colours::black.withAlpha(0.5f));
         g.fillRect(0, kHeadH - 1, kWidth, 1);
 
-        g.setFont(Theme::label(13.0f));
-        g.setColour(Theme::textDim);
-        g.drawText("MODE",   50,  kTitleH + 4, 104, 14, juce::Justification::centredLeft, false);
-        g.drawText("AUTHOR", 182, kTitleH + 4, 140, 14, juce::Justification::centredLeft, false);
+        // Cluster dividers: the strip's buttons sit only 4px apart at their
+        // group boundaries, which reads as one continuous edge-to-edge row
+        // rather than distinct EQ/MODE, PRESET, and SMART MASTER+ groups.
+        // A 1px neutral hairline in each of those gaps (matching resized()'s
+        // literal x's — eqButton/modeButton end at 154, presetPrev starts at
+        // 158; presetSave ends at 514, autoAnalyzeButton starts at 518)
+        // reads as grouping without adding a border around anything.
+        {
+            const int dy0 = kTitleH + 20 + 3, dy1 = kTitleH + 20 + 24 - 3;
+            g.setColour(Theme::hairline);
+            g.drawLine(156.0f, float(dy0), 156.0f, float(dy1), 1.0f);
+            g.drawLine(516.0f, float(dy0), 516.0f, float(dy1), 1.0f);
+        }
+
+        // MODE/AUTHOR are section titles for the controls beneath them, not
+        // body copy — per the type scale that's micro(), letterspaced caps,
+        // not a plain label() string. Both share one y/height so they sit on
+        // a common baseline; each keeps its own left edge (50/182) matched to
+        // the control it names (modeButton / presetAuthorEditor).
+        g.setFont(Theme::micro());
+        g.setColour(Theme::textMid);
+        Theme::drawTracked(g, "MODE",   { 50,  kTitleH + 4, 104, 14 }, juce::Justification::left);
+        Theme::drawTracked(g, "AUTHOR", { 182, kTitleH + 4, 140, 14 }, juce::Justification::left);
     }
 
     // Waveform seat
@@ -2998,14 +3068,15 @@ void VisualCompEditor::resized()
         const int fx = ox + kContentW - kFaderM - kFaderW;
         gainOutFaderLabel.setBounds(fx, kCtrlY + kKnobRowY, kFaderW, kKnobLblH);
 
-        // Trimmed from 24/32/3/14 to reclaim vertical space for the fader
-        // itself (see faderH below) — still legible at this scale, matching
-        // other compact controls elsewhere in this UI (e.g. NodeIsland's
-        // 26px direction/type buttons).
-        constexpr int btnH   = 20;
-        constexpr int agBtnH = 28;
-        constexpr int gap    = 2;
-        constexpr int miniH  = 11;
+        // Restored to 24/32/3/14 (was trimmed to 20/28/2/11 to steal room for
+        // the fader above) now that shrinking the waveform boxes (see kWaveH)
+        // freed enough kCtrlH that AUTO GAIN/LIM/SC no longer need to be the
+        // ones giving space up — this was the tightest-packed cluster in the
+        // Dynamics pane and reads noticeably less cramped at full size.
+        constexpr int btnH   = 24;
+        constexpr int agBtnH = 32;
+        constexpr int gap    = 3;
+        constexpr int miniH  = 14;
 
         const int bottomH  = agBtnH + gap + btnH + miniH + gap + btnH + miniH + 2;
         const int faderTop = kCtrlY + kKnobRowY + kKnobLblH + 2;

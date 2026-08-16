@@ -260,35 +260,41 @@ void WaveformDisplay::paint(juce::Graphics& g)
 {
     const auto bounds = getLocalBounds();
 
-    // === Panel background ===
-    g.setColour(Theme::bg);
-    g.fillRect(bounds);
+    // === Recessed scope ===
+    // The whole panel is a screen sunk into the chassis: fill + a soft inner
+    // top shadow, no outline (Theme::drawRecess). Depth alone separates it
+    // from the surrounding chassis now — the old flat fill plus two stacked
+    // 1px borders (black outer, Theme::line inner) was exactly the uniform-
+    // outline tell the plugin-wide "de-slop" pass is removing.
+    Theme::drawRecess(g, bounds.toFloat());
 
-    // Inset border (dark outer, subtle lighter inner highlight)
-    g.setColour(juce::Colours::black.withAlpha(0.55f));
-    g.drawRect(bounds, 1);
-    g.setColour(Theme::line.withAlpha(0.55f));
-    g.drawRect(bounds.reduced(1), 1);
-
-    // === Inner screen: dark oscilloscope style ===
+    // `screen` is kept purely as a content inset (breathing room for the
+    // axis labels/trace) — it has no fill of its own any more. Its geometry
+    // must stay byte-for-byte identical to timerCallback()'s pixW formula,
+    // or the pre-computed display buffer stops lining up with the pixel
+    // grid drawn here.
     const auto screen = bounds.reduced(kFrameW);
-    g.setColour(Theme::bgDeep);
-    g.fillRect(screen);
 
     const float waveX   = float(screen.getX() + kLabelW);
     const float waveEnd = float(screen.getRight());
     const int   pixW    = int(waveEnd - waveX);
     const float cy      = float(screen.getY()) + screen.getHeight() * 0.5f;
-    const float hh      = screen.getHeight() * 0.44f;
+    const float hh      = screen.getHeight() * 0.46f;   // was 0.44 — let the signal fill more of the screen
     const float scTop   = float(screen.getY());
     const float scBot   = float(screen.getBottom());
     auto clampY = [&](float y) { return juce::jlimit(scTop, scBot, y); };
 
-    // === dB axis labels + grid lines ===
-    struct Mark { float dB; };
-    static constexpr Mark kMarks[] = { {0.0f}, {-6.0f}, {-12.0f}, {-20.0f} };
+    // === dB axis: grid lines at all four reference levels for structure,
+    // but only 0 dB and -12 dB carry a printed number, and only on the top
+    // half. The previous "0 -6 -12 -20 -20 -12 -6" (every level mirrored
+    // top and bottom) read as a bug even though it wasn't one — the mirror
+    // is obvious from the waveform's own symmetry about the centreline, so
+    // it doesn't need to be spelled out twice. Ticks/labels are neutral
+    // (textFaint) — only the trace itself is allowed colour.
+    struct Mark { float dB; bool labelled; };
+    static constexpr Mark kMarks[] = { { 0.0f, true }, { -6.0f, false }, { -12.0f, true }, { -20.0f, false } };
 
-    g.setFont(Theme::mono(14.0f));
+    g.setFont(Theme::micro());
     for (const auto& m : kMarks)
     {
         const float amp  = juce::Decibels::decibelsToGain(m.dB);
@@ -296,37 +302,29 @@ void WaveformDisplay::paint(juce::Graphics& g)
         const float yNeg = clampY(cy + amp * hh);
 
         // Grid line
-        g.setColour(Theme::text.withAlpha(m.dB == 0.0f ? 0.09f : 0.035f));
+        g.setColour(Theme::textFaint.withAlpha(m.dB == 0.0f ? 0.18f : 0.08f));
         g.drawHorizontalLine(int(yPos), waveX, waveEnd);
         if (m.dB < 0.0f)
             g.drawHorizontalLine(int(yNeg), waveX, waveEnd);
 
         // Tick
-        g.setColour(Theme::textDim);
+        g.setColour(Theme::textFaint);
         g.drawHorizontalLine(int(yPos), waveX - 4.0f, waveX);
         if (m.dB < 0.0f)
             g.drawHorizontalLine(int(yNeg), waveX - 4.0f, waveX);
 
-        // Label — positive side
-        if (yPos > scTop + 4.0f && yPos < scBot - 4.0f)
+        // Label — top half only, and only at the two reference levels.
+        if (m.labelled && yPos > scTop + 4.0f && yPos < scBot - 4.0f)
         {
-            g.setColour(Theme::textDim.withAlpha(0.95f));
+            g.setColour(Theme::textFaint);
             g.drawText(m.dB == 0.0f ? "0" : juce::String(int(m.dB)),
                        screen.getX(), int(yPos) - 9, kLabelW - 6, 18,
-                       juce::Justification::centredRight, false);
-        }
-        // Label — negative mirror (dimmer)
-        if (m.dB < 0.0f && yNeg > scTop + 4.0f && yNeg < scBot - 4.0f)
-        {
-            g.setColour(Theme::textDim.withAlpha(0.60f));
-            g.drawText(juce::String(int(m.dB)),
-                       screen.getX(), int(yNeg) - 9, kLabelW - 6, 18,
                        juce::Justification::centredRight, false);
         }
     }
 
     // Centre line
-    g.setColour(Theme::text.withAlpha(0.06f));
+    g.setColour(Theme::textFaint.withAlpha(0.12f));
     g.drawHorizontalLine(int(cy), waveX, waveEnd);
 
     // === Waveform from pre-computed display buffer ===

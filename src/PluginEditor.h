@@ -199,6 +199,16 @@ public:
                               bool shouldDrawButtonAsHighlighted,
                               bool shouldDrawButtonAsDown) override;
 
+    // Opt-in via the button's "microCaps" property (see setupTextButton):
+    // renders letterspaced micro-caps, like a hardware control's silkscreen
+    // legend, instead of the default plain button label. Buttons that show
+    // a user-facing VALUE rather than a control's name (the preset name
+    // button) don't set the property and fall back to the base LAF's
+    // ordinary text draw.
+    void drawButtonText(juce::Graphics&, juce::TextButton&,
+                        bool shouldDrawButtonAsHighlighted,
+                        bool shouldDrawButtonAsDown) override;
+
     void drawLabel(juce::Graphics&, juce::Label&) override;
     juce::Font getLabelFont(juce::Label&) override;
     juce::Font getTextButtonFont(juce::TextButton&, int height) override;
@@ -423,7 +433,7 @@ private:
                    const juce::String& paramId);
     void setupFader(DragSlider& fader, juce::Label& label, const juce::String& text,
                     const juce::String& paramId);
-    void setupTextButton(juce::TextButton& b, const juce::String& text);
+    void setupTextButton(juce::TextButton& b, const juce::String& text, bool microCaps = true);
     void setupToggle(juce::ToggleButton& b, const juce::String& text);
 
     // Mode
