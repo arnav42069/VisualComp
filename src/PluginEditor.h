@@ -350,9 +350,14 @@ private:
     juce::Label thresholdLabel, kneeLabel, ratioLabel, attackLabel, releaseLabel;
     DragSlider  mixKnob;
 
-    // Clipping mode (cycled) — sits with the other output-stage controls
+    // Clipping mode — sits with the other output-stage controls. Clicking it
+    // opens a popup rather than cycling: the menu also carries the
+    // oversampling factor, which has no control of its own anywhere else in
+    // the interface (see showClipModeMenu()).
     juce::TextButton clipModeButton;
-    void cycleClipMode();
+    void showClipModeMenu();
+    void applyClipMode(int modeIndex);
+    void applyOversamplingIndex(int index);
 
     // Docked parametric EQ panel
     std::unique_ptr<EqPanel> eqPanel;

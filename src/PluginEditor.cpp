@@ -1016,10 +1016,10 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     eqButton.setClickingTogglesState(true);
     eqButton.onClick = [this] { toggleEqPanel(); };
 
-    // Clip mode (cycled: Soft / Brickwall / Off)
+    // Clip mode (Soft / Brickwall / Off) + the hidden oversampling factor
     setupTextButton(clipModeButton,
         OutputClipper::modeName(static_cast<ClipMode>(audioProcessor.clipMode.load())));
-    clipModeButton.onClick = [this] { cycleClipMode(); };
+    clipModeButton.onClick = [this] { showClipModeMenu(); };
 
     // Auto-Analyze (next to the preset controls)
     setupTextButton(autoAnalyzeButton, "Smart Master+");
@@ -1512,12 +1512,76 @@ void VisualCompEditor::applyMode(int modeIndex)
 // Clipping mode + docked EQ panel
 //==============================================================================
 
-void VisualCompEditor::cycleClipMode()
+// Clicking the clip button opens this rather than cycling to the next mode.
+// Cycling needed three clicks to get back to where you started and gave the
+// oversampling factor nowhere to live; a menu shows all three modes at once
+// and has room for a submenu underneath.
+//
+// Oversampling is deliberately not surfaced as a control of its own. It is a
+// set-once-per-session decision that costs CPU and, because it moves the
+// reported latency, forces the host to re-negotiate PDC — not something to put
+// under a knob in the header. It hangs off the clip button because the clip
+// stage is the only thing it oversamples.
+void VisualCompEditor::showClipModeMenu()
 {
-    const int next = (audioProcessor.clipMode.load(std::memory_order_relaxed) + 1)
-                     % static_cast<int>(ClipMode::kNumModes);
-    audioProcessor.clipMode.store(next, std::memory_order_relaxed);
-    clipModeButton.setButtonText(OutputClipper::modeName(static_cast<ClipMode>(next)));
+    juce::PopupMenu menu;
+    menu.setLookAndFeel(&laf);
+
+    const int cur = audioProcessor.clipMode.load(std::memory_order_relaxed);
+    menu.addSectionHeader("OUTPUT STAGE");
+    menu.addItem(1, "Soft Clip  -  Saturated glue",       true, cur == static_cast<int>(ClipMode::Soft));
+    menu.addItem(2, "Brickwall  -  Transparent limiting", true, cur == static_cast<int>(ClipMode::Brickwall));
+    menu.addItem(3, "Off  -  No output processing",       true, cur == static_cast<int>(ClipMode::Off));
+
+    // Ticked against the APVTS parameter, not activeOversamplingIndex: the
+    // parameter is what the user (or a host automation lane) actually set, and
+    // the audio thread may not have adopted it yet when the menu opens.
+    const int osIdx = juce::jlimit(0, VisualCompProcessor::kMaxOversamplingStages,
+        int(audioProcessor.apvts.getRawParameterValue("oversamplingFactor")->load()));
+
+    juce::PopupMenu osMenu;
+    osMenu.setLookAndFeel(&laf);
+    osMenu.addItem(101, "Off (1x)  -  Lowest latency", true, osIdx == 0);
+    osMenu.addItem(102, "2x",                          true, osIdx == 1);
+    osMenu.addItem(103, "4x",                          true, osIdx == 2);
+    osMenu.addItem(104, "8x  -  Highest CPU",          true, osIdx == 3);
+
+    menu.addSeparator();
+    menu.addSubMenu("Oversampling: "
+                        + juce::String(VisualCompProcessor::oversamplingFactorForIndex(osIdx))
+                        + "x",
+                    osMenu);
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(clipModeButton)
+                                                 .withMinimumWidth(240),
+        [this](int result)
+        {
+            if (result <= 0)        return;
+            if (result < 100)       applyClipMode(result - 1);
+            else                    applyOversamplingIndex(result - 101);
+        });
+}
+
+void VisualCompEditor::applyClipMode(int modeIndex)
+{
+    const int m = juce::jlimit(0, static_cast<int>(ClipMode::kNumModes) - 1, modeIndex);
+    audioProcessor.clipMode.store(m, std::memory_order_relaxed);
+    clipModeButton.setButtonText(OutputClipper::modeName(static_cast<ClipMode>(m)));
+}
+
+// Written through the parameter (with a change gesture) rather than straight
+// into the processor, so the host sees it as a normal automatable edit and can
+// record/undo it. The audio thread picks the new value up on its next block and
+// re-reports latency from there — see VisualCompProcessor::processBlock.
+void VisualCompEditor::applyOversamplingIndex(int index)
+{
+    if (auto* par = audioProcessor.apvts.getParameter("oversamplingFactor"))
+    {
+        const int idx = juce::jlimit(0, VisualCompProcessor::kMaxOversamplingStages, index);
+        par->beginChangeGesture();
+        par->setValueNotifyingHost(par->convertTo0to1(static_cast<float>(idx)));
+        par->endChangeGesture();
+    }
 }
 
 int VisualCompEditor::totalEditorWidth() const

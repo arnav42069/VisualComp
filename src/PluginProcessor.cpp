@@ -72,7 +72,55 @@ VisualCompProcessor::createParameterLayout()
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"eqMix", 1}, "EQ Mix",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 1.0f));
+    // Oversampling factor for the final clip/limit stage. A *choice* rather
+    // than a float so a host automation lane can only ever land on a real
+    // factor. Index -> factor is 1/2/4/8 (see oversamplingFactorForIndex);
+    // index -> JUCE's Oversampling "numStages" argument is just the index
+    // itself, since that argument counts 2x stages (log2 of the ratio).
+    // Defaults to Off: changing the factor changes reported latency, so a
+    // session predating this parameter must load with the same latency it
+    // was mixed at.
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"oversamplingFactor", 1}, "Oversampling",
+        juce::StringArray{ "1x (Off)", "2x", "4x", "8x" }, 0));
     return { params.begin(), params.end() };
+}
+
+int VisualCompProcessor::oversamplingFactorForIndex(int index) noexcept
+{
+    return 1 << juce::jlimit(0, kMaxOversamplingStages, index);
+}
+
+// Total latency reported to the host, in *base-rate* samples:
+//
+//   - the oversampler's own halfband filter delay. JUCE already expresses
+//     this at the base rate (Oversampling::getUncompensatedLatency divides
+//     each stage's latency by the cumulative factor at that stage), so it is
+//     used as-is -- do NOT divide it again.
+//   - the lookahead delay line, which runs *inside* the oversampler and so
+//     is measured in oversampled samples; that one does need dividing.
+//     OutputClipper::setSampleRate() is asked to quantise its lookahead to a
+//     multiple of the factor, so this division is always exact and the host's
+//     PDC lands on a whole sample.
+int VisualCompProcessor::computeTotalLatency() const
+{
+    const int idx    = juce::jlimit(0, kMaxOversamplingStages,
+                                    activeOversamplingIndex.load(std::memory_order_relaxed));
+    const int factor = oversamplingFactorForIndex(idx);
+
+    int osLatency = 0;
+    if (idx > 0 && oversamplers[size_t(idx)] != nullptr)
+        osLatency = int(std::round(oversamplers[size_t(idx)]->getLatencyInSamples()));
+
+    return osLatency + clipper.getLatencySamples() / factor;
+}
+
+void VisualCompProcessor::handleAsyncUpdate()
+{
+    // Re-negotiating PDC with the host is emphatically not a real-time-safe
+    // operation, so the audio thread only ever flags that the factor moved
+    // and the message thread reports the new figure.
+    setLatencySamples(computeTotalLatency());
 }
 
 void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -91,8 +139,40 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     eq.prepare(sampleRate);
     for (auto& bg : bandGrDb) bg.store(0.0f, std::memory_order_relaxed);
     loudness.prepare(sampleRate);
-    const int latency = clipper.prepare(sampleRate, samplesPerBlock);
-    setLatencySamples(latency);
+
+    // Build every oversampler up front -- constructing one and calling
+    // initProcessing() both allocate, so neither may happen in processBlock
+    // when the user changes the factor. Index doubles as the stage count
+    // (each stage is 2x, so index 3 == 2^3 == 8x); index 0 is never used, the
+    // 1x path bypasses the whole stage.
+    for (size_t i = 1; i < oversamplers.size(); ++i)
+    {
+        oversamplers[i] = std::make_unique<juce::dsp::Oversampling<float>>(
+            2 /*channels*/, int(i) /*number of 2x stages*/,
+            // Polyphase IIR, not the FIR equiripple: the FIR is linear phase,
+            // which means symmetric pre-ringing *before* every transient --
+            // exactly the overshoot a clipper exists to avoid. The IIR's phase
+            // smear is inaudible here and its latency is a fraction of the FIR's.
+            juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
+            true  /*maximum quality*/,
+            true  /*integer latency -- keeps host PDC on whole samples*/);
+        oversamplers[i]->initProcessing(size_t(juce::jmax(1, samplesPerBlock)));
+        oversamplers[i]->reset();
+    }
+
+    // Reserve the delay line for the highest rate we can ever run at, so the
+    // allocation-free setSampleRate() can re-derive it from processBlock.
+    const int maxFactor = oversamplingFactorForIndex(kMaxOversamplingStages);
+    clipper.prepare(sampleRate, samplesPerBlock, maxFactor);
+
+    // Adopt whatever factor the (possibly just-restored) parameter holds.
+    const int osIndex = juce::jlimit(0, kMaxOversamplingStages,
+        int(apvts.getRawParameterValue("oversamplingFactor")->load()));
+    const int osFactor = oversamplingFactorForIndex(osIndex);
+    activeOversamplingIndex.store(osIndex, std::memory_order_relaxed);
+    clipper.setSampleRate(sampleRate * double(osFactor), osFactor);
+
+    setLatencySamples(computeTotalLatency());
 
     const int capSamples = int(std::ceil(sampleRate * kSmartMasterCaptureSeconds));
     if (smartMasterCapture.getNumSamples() != capSamples)
@@ -494,17 +574,85 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     // ── Final-stage clipping + post-output loudness metering ─────────────────
+    // Both the clip shaper and the lookahead limiter run *inside* the
+    // oversampler when one is engaged: clipping is the one nonlinearity in the
+    // chain that generates harmonics above Nyquist, and running it at 2/4/8x
+    // pushes those aliases out where the downsampling filter can remove them.
+    // Metering deliberately stays outside, at the base rate, so the numbers on
+    // screen describe what actually leaves the plugin.
     {
         const ClipMode cm = static_cast<ClipMode>(clipMode.load(std::memory_order_relaxed));
-        for (int i = 0; i < numSamples; ++i)
+
+        // Adopt a new factor if the parameter moved since the last block. Both
+        // steps here are allocation-free (the oversamplers were built in
+        // prepareToPlay; clipper.prepare() reserved the delay line for the
+        // largest factor), so this is safe on the audio thread.
+        const int wantedIdx = juce::jlimit(0, kMaxOversamplingStages,
+            int(apvts.getRawParameterValue("oversamplingFactor")->load()));
+
+        if (wantedIdx != activeOversamplingIndex.load(std::memory_order_relaxed))
         {
-            float l = buffer.getSample(0, i);
-            float r = (numChannels > 1) ? buffer.getSample(1, i) : l;
-            clipper.processSample(l, r, cm);
-            buffer.setSample(0, i, l);
-            if (numChannels > 1) buffer.setSample(1, i, r);
-            loudness.pushSample(l, r);
+            const int factor = oversamplingFactorForIndex(wantedIdx);
+            clipper.setSampleRate(currentSampleRate * double(factor), factor);
+            if (auto* os = oversamplers[size_t(wantedIdx)].get())
+                os->reset();
+            activeOversamplingIndex.store(wantedIdx, std::memory_order_relaxed);
+            // Reporting the new latency to the host is not real-time safe --
+            // hand it to the message thread.
+            triggerAsyncUpdate();
         }
+
+        // Only the main output channels are oversampled. The optional
+        // sidechain bus can push buffer.getNumChannels() to 4, and those extra
+        // channels neither want clipping nor fit the 2-channel oversamplers.
+        const int mainCh = juce::jmin(numChannels, 2);
+        auto* os = (wantedIdx > 0) ? oversamplers[size_t(wantedIdx)].get() : nullptr;
+
+        if (os == nullptr)
+        {
+            // 1x: bypass the oversampler entirely rather than paying for a
+            // dummy stage.
+            for (int i = 0; i < numSamples; ++i)
+            {
+                float l = buffer.getSample(0, i);
+                float r = (mainCh > 1) ? buffer.getSample(1, i) : l;
+                clipper.processSample(l, r, cm);
+                buffer.setSample(0, i, l);
+                if (mainCh > 1) buffer.setSample(1, i, r);
+                loudness.pushSample(l, r);
+            }
+        }
+        else
+        {
+            auto mainBlock = juce::dsp::AudioBlock<float>(buffer)
+                                 .getSubsetChannelBlock(0, size_t(mainCh))
+                                 .getSubBlock(0, size_t(numSamples));
+
+            auto upBlock = os->processSamplesUp(mainBlock);
+
+            const int   upSamples = int(upBlock.getNumSamples());
+            float*      upL = upBlock.getChannelPointer(0);
+            float*      upR = (upBlock.getNumChannels() > 1)
+                                  ? upBlock.getChannelPointer(1) : nullptr;
+
+            for (int i = 0; i < upSamples; ++i)
+            {
+                float l = upL[i];
+                float r = (upR != nullptr) ? upR[i] : l;
+                clipper.processSample(l, r, cm);
+                upL[i] = l;
+                if (upR != nullptr) upR[i] = r;
+            }
+
+            os->processSamplesDown(mainBlock);
+
+            // Meter the downsampled result, not the oversampled one.
+            const float* outL = buffer.getReadPointer(0);
+            const float* outR = (mainCh > 1) ? buffer.getReadPointer(1) : outL;
+            for (int i = 0; i < numSamples; ++i)
+                loudness.pushSample(outL[i], outR[i]);
+        }
+
         meterPeakDb.store(loudness.peakDb(), std::memory_order_relaxed);
         meterRmsDb.store(loudness.rmsDb(), std::memory_order_relaxed);
         meterMomLufs.store(loudness.momentaryLufs(), std::memory_order_relaxed);

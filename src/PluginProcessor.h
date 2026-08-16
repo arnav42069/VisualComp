@@ -29,7 +29,8 @@ struct WaveformBuffer
     }
 };
 
-class VisualCompProcessor final : public juce::AudioProcessor
+class VisualCompProcessor final : public juce::AudioProcessor,
+                                  private juce::AsyncUpdater
 {
 public:
     VisualCompProcessor();
@@ -172,7 +173,26 @@ public:
     struct IslandPosition { int x = 0; int y = 0; bool hasPosition = false; };
     std::array<IslandPosition, 8> islandPositions {};
 
+    // ── Oversampling (final clip/limit stage only) ──────────────────────────
+    // The "oversamplingFactor" APVTS parameter is a choice index, 0..3; the
+    // actual ratio is 1/2/4/8. Index doubles as JUCE's Oversampling stage
+    // count, which is log2 of the ratio.
+    static constexpr int kMaxOversamplingStages = 3;    // 2^3 = 8x
+    static int oversamplingFactorForIndex(int index) noexcept;
+
+    // Whichever factor the audio thread is currently running at (choice
+    // index, not ratio). GUI-readable so the clip-mode popup can tick the
+    // live entry; also what computeTotalLatency() reports against.
+    std::atomic<int> activeOversamplingIndex { 0 };
+
+    // Latency the host is told about: the oversampler's own filter delay plus
+    // the lookahead line divided down to the base rate. Referenced by
+    // ClipEngine.h's header comment.
+    int computeTotalLatency() const;
+
 private:
+    void handleAsyncUpdate() override;   // message-thread setLatencySamples()
+
     // License manager initialization flag
     std::atomic<bool> licenseMgrInitialized { false };
 
@@ -198,6 +218,15 @@ private:
 
     OutputClipper  clipper;
     LoudnessMeter  loudness;
+
+    // One prepared Oversampling instance per factor (index 0 = 1x, unused:
+    // at 1x the whole stage is bypassed and the clipper runs on the buffer
+    // directly). All four are built and initProcessing()'d up front in
+    // prepareToPlay so switching factors mid-stream never allocates on the
+    // audio thread -- juce::dsp::Oversampling allocates in both its
+    // constructor and initProcessing(), so neither can happen in processBlock.
+    std::array<std::unique_ptr<juce::dsp::Oversampling<float>>,
+               size_t(kMaxOversamplingStages) + 1> oversamplers;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VisualCompProcessor)
 };
