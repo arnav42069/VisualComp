@@ -303,6 +303,18 @@ float EqPanel::trySnapEdge(int node, int edge, float rawHz, float snapRadiusHz)
         }
     }
 
+    // Also snap onto the absolute frequency-axis extremities (20Hz/20kHz) --
+    // same radius/priority as another node's edge, so a band dragged (or
+    // newly created) near either end of the graph lines up flush with it
+    // instead of stopping a few Hz short. There's no partner node to bond
+    // to here, so a match just clamps the returned value; bestNode stays -1
+    // and the block below correctly clears any existing bond.
+    for (float extreme : { kFreqLo, kFreqHi })
+    {
+        const float delta = std::abs(extreme - rawHz);
+        if (delta < bestDelta) { bestDelta = delta; bestHz = extreme; bestNode = -1; bestEdge = -1; }
+    }
+
     if (bestNode >= 0)
         linkEdges(node, edge, bestNode, bestEdge);
     else
@@ -928,7 +940,7 @@ void EqPanel::paint(juce::Graphics& g)
         const auto p = nodePos(i);
         const auto colour = kNodeColours[i];
         const bool isActive = (i == domBand);
-        const float radius = 9.0f;
+        const float radius = 6.3f;   // 30% smaller than the previous 9.0f
 
         // Offset-range stem — a FabFilter Pro-MB-style handle showing how far
         // this band's own dynamics could pull its gain: down toward a
@@ -947,32 +959,49 @@ void EqPanel::paint(juce::Graphics& g)
                 g.drawLine(p.x, p.y, p.x, yFloor, 1.6f);
                 g.setColour(colour.withAlpha(0.8f));
                 g.fillEllipse(p.x - 2.2f, yFloor - 2.2f, 4.4f, 4.4f);
+
+                // Range label — small readout of this band's own Range
+                // setting, sitting beside the stem's floor dot so it's clear
+                // at a glance how far this band's dynamics can swing without
+                // needing to select the node and check the knob.
+                juce::String rangeLine = (n.rangeDb >= 0.0f ? "+" : "") + juce::String(n.rangeDb, 1) + "dB";
+                g.setFont(Theme::mono(7.0f, juce::Font::plain));
+                const float rTextW = g.getCurrentFont().getStringWidthFloat(rangeLine) + 4.0f;
+                juce::Rectangle<float> rLblR(p.x + 5.0f, yFloor - 5.0f, rTextW, 10.0f);
+                g.setColour(juce::Colours::black.withAlpha(0.5f));
+                g.fillRoundedRectangle(rLblR.expanded(1.5f, 0.5f), 2.0f);
+                g.setColour(colour.withAlpha(0.9f));
+                g.drawText(rangeLine, rLblR, juce::Justification::centred, false);
             }
         }
 
         // Halo — always present so a node reads clearly against the curve,
         // brighter when it's the dominant linked band driving the compressor.
-        g.setColour(colour.withAlpha(isActive ? 0.40f : 0.16f));
+        // More transparent than before so the curve underneath still shows
+        // through clearly around each (now smaller) node.
+        g.setColour(colour.withAlpha(isActive ? 0.30f : 0.11f));
         g.fillEllipse(p.x - radius * 1.8f, p.y - radius * 1.8f, radius * 3.6f, radius * 3.6f);
 
         // Drop shadow
-        g.setColour(juce::Colours::black.withAlpha(0.45f));
+        g.setColour(juce::Colours::black.withAlpha(0.32f));
         g.fillEllipse(p.x - radius + 1.0f, p.y - radius + 1.5f, radius * 2.0f, radius * 2.0f);
 
         // Glass-bead body — light-to-dark radial gradient, FabFilter-style.
+        // Given some transparency (rather than fully opaque) so the curve
+        // stays visible through the node itself.
         {
-            juce::ColourGradient body(colour.brighter(0.9f), p.x - radius * 0.4f, p.y - radius * 0.4f,
-                                       colour.darker(0.5f),   p.x + radius * 0.5f, p.y + radius * 0.6f, true);
-            body.addColour(0.45, colour);
+            juce::ColourGradient body(colour.brighter(0.9f).withAlpha(0.82f), p.x - radius * 0.4f, p.y - radius * 0.4f,
+                                       colour.darker(0.5f).withAlpha(0.82f),   p.x + radius * 0.5f, p.y + radius * 0.6f, true);
+            body.addColour(0.45, colour.withAlpha(0.82f));
             g.setGradientFill(body);
             g.fillEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f);
         }
-        g.setColour(colour.darker(0.6f).withAlpha(0.8f));
+        g.setColour(colour.darker(0.6f).withAlpha(0.65f));
         g.drawEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f, 1.0f);
 
         const bool darkText = colour.getPerceivedBrightness() > 0.6f;
         g.setColour(darkText ? juce::Colours::black.withAlpha(0.75f) : juce::Colours::white.withAlpha(0.9f));
-        g.setFont(Theme::mono(9.5f, juce::Font::bold));
+        g.setFont(Theme::mono(7.5f, juce::Font::bold));
         g.drawText(juce::String(i + 1),
                    juce::Rectangle<float>(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f),
                    juce::Justification::centred, false);

@@ -7,8 +7,12 @@
 namespace
 {
     constexpr int kWidth  = 960;
-    constexpr int kHeight = 648;       // +28 vs. the previous build, for the
-                                       // multiband-indicator strip in the Dynamics pane
+    constexpr int kHeight = 724;       // +76 vs. the previous build, giving the two
+                                       // LinearVertical faders (gainIn/gainOut) ~30%
+                                       // more travel — see kFaderExtraH/kCtrlHOld below,
+                                       // which claw this back out of the knob-area chrome
+                                       // so the five rotary knobs stay pinned at their
+                                       // pre-growth size instead of inheriting the bump.
 
     constexpr int kTitleH = 60;
     constexpr int kStripH = 48;
@@ -43,7 +47,18 @@ namespace
     constexpr int kWaveH = 190;
 
     constexpr int kCtrlY = kWaveY + kWaveH + 6;       // 308
-    constexpr int kCtrlH = kHeight - kCtrlY;          // 340
+    constexpr int kCtrlH = kHeight - kCtrlY;          // 416
+
+    // kHeight's +76 growth above is dedicated entirely to the two
+    // LinearVertical faders (gainIn/gainOut). kCtrlHOld is the pre-growth
+    // panel height (340, matching the old kCtrlH) — used to pin every piece
+    // of knob-area chrome (knob height, inter-knob dividers, the parameter
+    // position-bar row) so the growth is visually isolated to the fader
+    // columns instead of also stretching the five rotary knobs. The
+    // fader-column dividers and both fader-height formulas deliberately keep
+    // referencing kCtrlH (not kCtrlHOld) so they grow along with the faders.
+    constexpr int kFaderExtraH = 76;
+    constexpr int kCtrlHOld    = kCtrlH - kFaderExtraH;   // 340
 
     constexpr int kCtrlTopStripH = 30;   // band-selector button row, top of the Dynamics pane
 
@@ -2823,13 +2838,15 @@ void VisualCompEditor::paint(juce::Graphics& g)
         }
     }
 
-    // Knob dividers
+    // Knob dividers — pinned to kCtrlHOld (pre-fader-growth height) so they
+    // stay matched to the knobs' own (also-pinned) height instead of
+    // stretching along with the taller faders.
     for (int sx : { kSlotKneeX, kSlotRatioX, kSlotAttackX, kSlotReleaseX })
     {
         g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.fillRect(sx, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlH - kCtrlTopStripH - 18);
+        g.fillRect(sx, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlHOld - kCtrlTopStripH - 18);
         g.setColour(Theme::line.withAlpha(0.55f));
-        g.fillRect(sx + 1, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlH - kCtrlTopStripH - 18);
+        g.fillRect(sx + 1, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlHOld - kCtrlTopStripH - 18);
     }
 
     // Fader column dividers
@@ -2851,7 +2868,7 @@ void VisualCompEditor::paint(juce::Graphics& g)
         {
             const float bx = float(x) + 12.0f;
             const float bw = float(w) - 24.0f;
-            const float by = float(kCtrlY + kCtrlH - 20);
+            const float by = float(kCtrlY + kCtrlHOld - 20);
             g.setColour(Theme::accentDeep);
             g.fillRect(bx, by, bw, 3.0f);
             g.setColour(Theme::accent.withAlpha(0.30f));
@@ -2981,7 +2998,7 @@ void VisualCompEditor::resized()
     const int levelMeterX = ox + kContentW + 2 + (curveGrVisible ? kCurveGrColW + 4 : 0);
     vuMeter     .setBounds(ox + kContentW + 2, kHeadH,      kCurveGrColW, kVUH);
     curveDisplay.setBounds(ox + kContentW + 2, kCurveY + 1, kCurveGrColW, kCurveH - 1);
-    levelMeter  .setBounds(levelMeterX, kHeadH, kLevelMeterW - 4, kVUH + kCurveH - 1);
+    levelMeter  .setBounds(levelMeterX, kHeadH, kLevelMeterW, kVUH + kCurveH - 1);
 
     // Controls
     constexpr int textBoxH = 24;
@@ -3034,7 +3051,7 @@ void VisualCompEditor::resized()
     // NodeIsland), so setupKnob/setupBandKnob's own initial text-box sizing
     // already matches and doesn't need re-applying here.
     const int knobTop = kCtrlY + kKnobRowY;
-    const int knobH   = kCtrlH - kKnobRowY - 28;
+    const int knobH   = kCtrlHOld - kKnobRowY - 28;   // pinned — see kCtrlHOld comment above
 
     auto placeKnob = [&](DragSlider& knob, int x, int w)
     {

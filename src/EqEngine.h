@@ -194,10 +194,13 @@ struct EqNodeState
     bool  linked  = false;     // feeds the multiband-aware compressor detector
     float freqHz  = 1000.0f;
     float gainDb  = 0.0f;
-    float q       = 0.9f;
+    float q       = 1.0f;
     int   type    = EqTypes::Bell;
-    float attackMs  = 0.2f;    // this band's detector envelope timing, used only when linked
-    float releaseMs = 45.0f;
+    // Attack/release defaults tuned toward typical multiband-compressor
+    // practice (fast enough to catch transients without the near-instant
+    // 0.2ms/45ms values clicking or pumping on percussive material).
+    float attackMs  = 10.0f;   // this band's detector envelope timing, used only when linked
+    float releaseMs = 120.0f;
     // This band's own compressor dynamics, used only when linked AND
     // multiband mode is on (see ParametricEq::applyDynamicBandGain) — lets
     // each band compress differently instead of sharing the global knobs.

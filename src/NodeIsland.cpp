@@ -355,7 +355,7 @@ void NodeIsland::paint(juce::Graphics& g)
     g.setColour(Theme::bgRaised);
     g.fillRoundedRectangle(r, 10.0f);
 
-    g.setColour(Theme::accent.withAlpha(0.7f));
+    g.setColour(Theme::bg);
     g.drawRoundedRectangle(r, 10.0f, 1.4f);
 }
 

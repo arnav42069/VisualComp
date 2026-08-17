@@ -164,10 +164,18 @@ void LevelMeter::paint(juce::Graphics& g)
     constexpr float kLabelPad = 2.0f, kLabelW = 11.0f;
     const float groupW = barW + kLabelPad + kLabelW;   // bar + its side label, as one unit
 
+    // Shared left/right breathing room: kSidePad is the gap from the strip's
+    // own edge to the nearest bar+label group, on both sides -- chosen (with
+    // kMidGap, the gap between the two groups) so that once LUFS is fully
+    // revealed, the dB group's left padding and the LUFS group's right
+    // padding come out exactly equal (2*kSidePad + kMidGap + 2*groupW ==
+    // this component's width; see kLevelMeterW in PluginEditor.cpp).
+    constexpr float kSidePad = 4.0f, kMidGap = 3.0f;
+
     // With the LUFS bar collapsed, the dB bar+label is the only thing in
     // this segment and should sit centred rather than stranded at the
     // paired-up (left) position it needs once LUFS reveals alongside it.
-    const float pairedX  = full.getX() + 2.0f;
+    const float pairedX  = full.getX() + kSidePad;
     const float centredX = full.getX() + (full.getWidth() - groupW) * 0.5f;
     const float dbX = centredX + (pairedX - centredX) * revealAmount;
 
@@ -176,7 +184,7 @@ void LevelMeter::paint(juce::Graphics& g)
     constexpr float kTopPad = 12.0f, kBottomPad = 11.0f;
     const auto dbBar   = juce::Rectangle<float>(dbX, full.getY() + kTopPad,
                                                 barW, full.getHeight() - kTopPad - kBottomPad);
-    const auto lufsBar = juce::Rectangle<float>(full.getX() + 2.0f + groupW + 3.0f, full.getY() + kTopPad,
+    const auto lufsBar = juce::Rectangle<float>(pairedX + groupW + kMidGap, full.getY() + kTopPad,
                                                 barW, full.getHeight() - kTopPad - kBottomPad);
 
     // dB (peak) bar gets a little headroom above 0 dBFS so the 0 dB
