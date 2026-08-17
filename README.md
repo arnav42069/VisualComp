@@ -2,7 +2,7 @@
 
 **A compressor that sees your mix.** Multiband dynamics, a Visual Parametric EQ, Sidechain Compression from an External Input, and mastering-grade output shaping (Glue Compression) in one plugin — controlled by a live, interactive graph instead of a wall of knobs.
 
-**[Download Free (VST3 & Standalone for Windows & macOS)](https://www.google.com/search?q=%23)**
+**[Download Free (VST3 & Standalone for Windows & macOS)](https://www.azazelaudio.com/visualcomp)**
 
 ---
 
