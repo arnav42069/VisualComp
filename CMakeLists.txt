@@ -90,6 +90,7 @@ target_sources(VisualComp PRIVATE
     src/EqPanel.cpp
     src/NodeIsland.cpp
     src/LevelMeter.cpp
+    src/LufsMeter.cpp
     src/LicenseVerifier.cpp
     src/LicenseManager.cpp
     src/MachineFingerprint.cpp
