@@ -1,11 +1,11 @@
 ---
 name: package-release
-description: Build VisualComp 2.36 (VST3 + Standalone, AU on Mac) in Release, code-sign the Windows binaries if a certificate is configured, and assemble the distributable zip via package.ps1. Use when asked to "package the release", "build the release zip", "cut a release build", or "/package-release".
+description: Build VisualComp 2.37 (VST3 + Standalone, AU on Mac) in Release, code-sign the Windows binaries if a certificate is configured, and assemble the distributable zip via package.ps1. Use when asked to "package the release", "build the release zip", "cut a release build", or "/package-release".
 ---
 
 # Package Release
 
-Builds VisualComp 2.36 and assembles the Windows+Mac distributable zip in `Build Final\`.
+Builds VisualComp 2.37 and assembles the Windows+Mac distributable zip in `Build Final\`.
 
 ## Workflow
 
@@ -49,7 +49,7 @@ Builds VisualComp 2.36 and assembles the Windows+Mac distributable zip in `Build
   stale, already-loaded (and often file-locked) one. See CLAUDE.md's PRODUCT_NAME
   note.
 - `bump-version.ps1` adds 0.01 to the version as a real decimal number each run
-  (2.22 → 2.36 → 2.36 → … → 2.99 → 3.00), not a string-integer bump on the
+  (2.22 → 2.37 → 2.37 → … → 2.99 → 3.00), not a string-integer bump on the
   trailing component — that earlier approach broke on single-digit fractions
   (e.g. "2.9" → "2.10", a jump of +0.91, not +0.01). For anything else — a
   major bump, skipping ahead — run it with an explicit argument first:
@@ -83,7 +83,7 @@ Builds VisualComp 2.36 and assembles the Windows+Mac distributable zip in `Build
 
 ## Notes
 
-- The version string lives in `package.ps1` (`$version = '2.36'`) and `CMakeLists.txt`
+- The version string lives in `package.ps1` (`$version = '2.37'`) and `CMakeLists.txt`
   (`VC2_VERSION_STRING`) — both are now kept in sync automatically by
   `bump-version.ps1` (see "Auto-versioning" above), not hand-edited.
 - Ignore/do not use anything referencing `SimpleCompressor` as a build target, `Source/` as a directory, or a script at `scripts/package_release.ps1` — those don't match this codebase's actual CMake targets (`VisualComp_VST3`/`VisualComp_Standalone`) or layout (`src/`), and appear to be stale leftovers from an earlier/different project.

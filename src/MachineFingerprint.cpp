@@ -101,8 +101,16 @@ std::string MachineFingerprint::getCpuId()
         }
     }
 
-    // Clean up the brand string (remove nulls and trim)
-    brand.erase(brand.find('\0'));
+    // Clean up the brand string (remove nulls and trim).
+    // CPUID hands back a fixed 48-byte field: a brand name short enough
+    // to fit leaves trailing NULs, but one that fills the field exactly
+    // has none. find() then returns npos, and std::string::erase(npos)
+    // throws std::out_of_range -- an unhandled exception this deep inside
+    // editor construction takes the whole host down with it. Only erase
+    // when there is actually a NUL to erase from.
+    const auto firstNul = brand.find('\0');
+    if (firstNul != std::string::npos)
+        brand.erase(firstNul);
     // Convert to hex for a shorter ID
     if (!brand.empty())
     {

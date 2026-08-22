@@ -246,6 +246,20 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const int numChannels = buffer.getNumChannels();
     if (numSamples == 0 || numChannels == 0) return;
 
+    // buffer.getNumChannels() counts EVERY channel the host handed us: the
+    // main bus *plus* the optional stereo sidechain input. With a host that
+    // has the sidechain enabled (FL Studio does as soon as one is routed)
+    // that is 4, not 2 -- only the first two channels are the main bus.
+    // Everything below that processes, meters, blends or captures audio must
+    // therefore iterate mainChannels, never numChannels. Using numChannels
+    // wrote compressed audio over the host's sidechain input and, worse,
+    // overran the fixed-size chSamples[2] in the main per-sample loop below,
+    // corrupting the stack (STATUS_STACK_BUFFER_OVERRUN / access violation,
+    // typically surfacing far from here). numChannels stays in use only for
+    // the sidechain bus's own bounds check further down, where the whole
+    // buffer's channel count is exactly what's wanted.
+    const int mainChannels = juce::jmin(numChannels, 2);
+
     if (demoAudioPlaying.load(std::memory_order_acquire)
         && demoAudioReady.load(std::memory_order_acquire)
         && demoAudio.getNumSamples() > 1)
@@ -256,7 +270,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             const int i0 = int(demoReadPosition) % demoFrames;
             const int i1 = (i0 + 1) % demoFrames;
             const float frac = float(demoReadPosition - std::floor(demoReadPosition));
-            for (int ch = 0; ch < numChannels; ++ch)
+            for (int ch = 0; ch < mainChannels; ++ch)
             {
                 const int sourceCh = juce::jmin(ch, demoAudio.getNumChannels() - 1);
                 const float a = demoAudio.getSample(sourceCh, i0);
@@ -325,13 +339,13 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (useAutoGain)
     {
         float sumSq = 0.0f;
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int ch = 0; ch < mainChannels; ++ch)
             for (int i = 0; i < numSamples; ++i) {
                 const float s = buffer.getSample(ch, i) * inputLinear;
                 sumSq += s * s;
             }
         const float inRms = sumSq > 0.0f
-            ? std::sqrt(sumSq / float(numChannels * numSamples)) : 0.0f;
+            ? std::sqrt(sumSq / float(mainChannels * numSamples)) : 0.0f;
         const float rmsC = std::exp(-float(numSamples) / float(currentSampleRate * 0.5));
         inputRmsSmooth = rmsC * inputRmsSmooth + (1.0f - rmsC) * inRms;
     }
@@ -339,16 +353,16 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // ── Dry capture ───────────────────────────────────────────────────────────
     if (mixAmt < 0.9999f)
     {
-        dryBuffer.setSize(numChannels, numSamples, false, false, true);
-        for (int ch = 0; ch < numChannels; ++ch)
+        dryBuffer.setSize(mainChannels, numSamples, false, false, true);
+        for (int ch = 0; ch < mainChannels; ++ch)
             dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
     }
 
     // ── Input waveform capture (pre-compression) ──────────────────────────────
     monoMixBuffer.setSize(1, numSamples, false, false, true);
     monoMixBuffer.clear();
-    const float inScale = inputLinear / float(numChannels);
-    for (int ch = 0; ch < numChannels; ++ch)
+    const float inScale = inputLinear / float(mainChannels);
+    for (int ch = 0; ch < mainChannels; ++ch)
         monoMixBuffer.addFrom(0, 0, buffer, ch, 0, numSamples, inScale);
     inputWaveform.push(monoMixBuffer.getReadPointer(0), numSamples);
 
@@ -366,7 +380,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         {
             for (int ch = 0; ch < 2; ++ch)
             {
-                const int srcCh = juce::jmin(ch, numChannels - 1);
+                const int srcCh = juce::jmin(ch, mainChannels - 1);
                 smartMasterCapture.copyFrom(ch, pos, buffer, srcCh, 0, toCopy);
             }
             pos += toCopy;
@@ -465,7 +479,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (int i = 0; i < numSamples; ++i)
     {
         float chSamples[2] = { 0.0f, 0.0f };
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int ch = 0; ch < mainChannels; ++ch)
         {
             const float raw = buffer.getSample(ch, i) * inputLinear;
             float sat;
@@ -482,7 +496,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // detector: any node marked "linked" measures its own band's energy
         // here, independent of whether the node's own gain is boosting/cutting.
         float l = chSamples[0];
-        float r = (numChannels > 1) ? chSamples[1] : chSamples[0];
+        float r = (mainChannels > 1) ? chSamples[1] : chSamples[0];
         const float eqDryL = l, eqDryR = r;
         eq.processSample(l, r);
         // EQ-only dry/wet blend -- independent of the overall Mix knob's
@@ -495,9 +509,9 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             r = r * eqMixAmt + eqDryR * (1.0f - eqMixAmt);
         }
         buffer.setSample(0, i, l);
-        if (numChannels > 1) buffer.setSample(1, i, r);
+        if (mainChannels > 1) buffer.setSample(1, i, r);
 
-        const float mainPeak = (numChannels > 1) ? juce::jmax(std::abs(l), std::abs(r))
+        const float mainPeak = (mainChannels > 1) ? juce::jmax(std::abs(l), std::abs(r))
                                                   : std::abs(l);
         blockPeak = std::max(blockPeak, mainPeak);
 
@@ -554,7 +568,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
 
         const float compGain = juce::Decibels::decibelsToGain(envelope) * outputLinear;
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int ch = 0; ch < mainChannels; ++ch)
         {
             const float compressed = buffer.getSample(ch, i) * compGain;
             float out;
@@ -582,7 +596,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (mixAmt < 0.9999f)
     {
         const float wet = mixAmt, dry = 1.0f - mixAmt;
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int ch = 0; ch < mainChannels; ++ch)
             for (int i = 0; i < numSamples; ++i)
                 buffer.setSample(ch, i,
                     buffer.getSample(ch, i) * wet + dryBuffer.getSample(ch, i) * dry);
@@ -592,13 +606,13 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (useAutoGain)
     {
         float sumSq = 0.0f;
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int ch = 0; ch < mainChannels; ++ch)
             for (int i = 0; i < numSamples; ++i) {
                 const float s = buffer.getSample(ch, i);
                 sumSq += s * s;
             }
         const float outRms = sumSq > 0.0f
-            ? std::sqrt(sumSq / float(numChannels * numSamples)) : 0.0f;
+            ? std::sqrt(sumSq / float(mainChannels * numSamples)) : 0.0f;
 
         const float rmsC = std::exp(-float(numSamples) / float(currentSampleRate * 0.5));
         outputRmsSmooth = rmsC * outputRmsSmooth + (1.0f - rmsC) * outRms;
@@ -621,7 +635,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         // Apply auto makeup gain to the buffer
         const float agLinear = juce::Decibels::decibelsToGain(autoGainDb);
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int ch = 0; ch < mainChannels; ++ch)
             for (int i = 0; i < numSamples; ++i)
                 buffer.setSample(ch, i, buffer.getSample(ch, i) * agLinear);
     }
@@ -662,10 +676,9 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             triggerAsyncUpdate();
         }
 
-        // Only the main output channels are oversampled. The optional
-        // sidechain bus can push buffer.getNumChannels() to 4, and those extra
-        // channels neither want clipping nor fit the 2-channel oversamplers.
-        const int mainCh = juce::jmin(numChannels, 2);
+        // Only the main output channels are oversampled -- the extra
+        // sidechain channels (see mainChannels above) neither want clipping
+        // nor fit the 2-channel oversamplers.
         auto* os = (wantedIdx > 0 && numSamples <= preparedBlockCapacity)
                      ? oversamplers[size_t(wantedIdx)].get() : nullptr;
 
@@ -676,17 +689,17 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             for (int i = 0; i < numSamples; ++i)
             {
                 float l = buffer.getSample(0, i);
-                float r = (mainCh > 1) ? buffer.getSample(1, i) : l;
+                float r = (mainChannels > 1) ? buffer.getSample(1, i) : l;
                 clipper.processSample(l, r, cm);
                 buffer.setSample(0, i, l);
-                if (mainCh > 1) buffer.setSample(1, i, r);
+                if (mainChannels > 1) buffer.setSample(1, i, r);
                 loudness.pushSample(l, r);
             }
         }
         else
         {
             auto mainBlock = juce::dsp::AudioBlock<float>(buffer)
-                                 .getSubsetChannelBlock(0, size_t(mainCh))
+                                 .getSubsetChannelBlock(0, size_t(mainChannels))
                                  .getSubBlock(0, size_t(numSamples));
 
             auto upBlock = os->processSamplesUp(mainBlock);
@@ -709,7 +722,7 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             // Meter the downsampled result, not the oversampled one.
             const float* outL = buffer.getReadPointer(0);
-            const float* outR = (mainCh > 1) ? buffer.getReadPointer(1) : outL;
+            const float* outR = (mainChannels > 1) ? buffer.getReadPointer(1) : outL;
             for (int i = 0; i < numSamples; ++i)
                 loudness.pushSample(outL[i], outR[i]);
         }
@@ -727,8 +740,8 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // ── Output waveform capture (post-clip: matches what is actually heard) ──
     monoMixBuffer.clear();
-    const float outScale = 1.0f / float(numChannels);
-    for (int ch = 0; ch < numChannels; ++ch)
+    const float outScale = 1.0f / float(mainChannels);
+    for (int ch = 0; ch < mainChannels; ++ch)
         monoMixBuffer.addFrom(0, 0, buffer, ch, 0, numSamples, outScale);
     outputWaveform.push(monoMixBuffer.getReadPointer(0), numSamples);
 
