@@ -199,6 +199,8 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
             demoReadPosition = 0.0;
             demoReadIncrement = reader->sampleRate / sampleRate;
             demoAudioReady.store(true, std::memory_order_release);
+            if (juce::SystemStats::getEnvironmentVariable("VC2_DEMO_AUTO_PLAY", {}).isNotEmpty())
+                demoAudioPlaying.store(true, std::memory_order_release);
         }
     }
 }

@@ -1027,6 +1027,11 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     };
 
     setupToggle(bypassButton, "BYPASS");
+    if (juce::SystemStats::getEnvironmentVariable("VC2_FORCE_BYPASS", {}).isNotEmpty())
+    {
+        bypassButton.setToggleState(true, juce::dontSendNotification);
+        audioProcessor.bypassed.store(true, std::memory_order_relaxed);
+    }
     bypassButton.onClick = [this]
     {
         audioProcessor.bypassed.store(bypassButton.getToggleState(),
@@ -2819,7 +2824,7 @@ void VisualCompEditor::paint(juce::Graphics& g)
     {
         const int rowX = kFaderM, rowY = kCtrlY + 4, rowH = kCtrlTopStripH - 8;
         const int rowW = kContentW - 2 * kFaderM, gap = 3;
-        const int btnW = (rowW - (kMaxEqNodes - 1) * gap) / kMaxEqNodes;
+        const int btnW = (rowW - (kMaxEqNodes - 1) * gap) / (kMaxEqNodes * 2);
 
         int visibleCount = 0;
         for (int i = 0; i < kMaxEqNodes; ++i)
@@ -3033,7 +3038,7 @@ void VisualCompEditor::resized()
     {
         const int rowX = ox + kFaderM, rowY = kCtrlY + 4, rowH = kCtrlTopStripH - 8;
         const int rowW = kContentW - 2 * kFaderM, gap = 3;
-        const int btnW = (rowW - (kMaxEqNodes - 1) * gap) / kMaxEqNodes;
+        const int btnW = (rowW - (kMaxEqNodes - 1) * gap) / (kMaxEqNodes * 2);
 
         int visibleCount = 0;
         for (int i = 0; i < kMaxEqNodes; ++i)
