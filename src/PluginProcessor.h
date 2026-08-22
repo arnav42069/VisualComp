@@ -41,6 +41,9 @@ public:
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
+    void setDemoAudioPlaying(bool shouldPlay) noexcept { demoAudioPlaying.store(shouldPlay, std::memory_order_release); }
+    bool hasDemoAudio() const noexcept { return demoAudioReady.load(std::memory_order_acquire); }
+
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
@@ -163,7 +166,8 @@ public:
     juce::AudioBuffer<float> demoAudio;
     double demoReadPosition = 0.0;
     double demoReadIncrement = 1.0;
-    bool demoAudioActive = false;
+    std::atomic<bool> demoAudioReady   { false };
+    std::atomic<bool> demoAudioPlaying { false };
 
     // GUI persistence (message thread only)
     juce::String currentPresetName   { "Mastering Glue" };

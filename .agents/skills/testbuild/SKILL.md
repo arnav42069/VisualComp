@@ -28,9 +28,10 @@ every test build.
      to `Build Final\Standalone Test\` (creating that folder if needed) and
      launches it via `Start-Process`.
    - Copies `Z:\Azazel Audio Store\src\assets\audio\future-bass-bypassed.wav`
-     beside the test executable and launches Standalone with that audio
-     looping as its input. This test-only environment setting never affects
-     the installed VST3 or normal Standalone launches.
+     beside the test executable and launches Standalone with a test-only
+     top-left **PLAY** button. The audio remains silent until that button is
+     clicked, then loops as the plugin input. This never affects the installed
+     VST3 or normal Standalone launches.
    - Throws if no Standalone build output exists yet — surface that error
      rather than retrying blindly.
 

@@ -181,7 +181,8 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     smartMasterCaptureWritePos.store(0, std::memory_order_relaxed);
     smartMasterCaptureDone.store(false, std::memory_order_relaxed);
 
-    demoAudioActive = false;
+    demoAudioReady.store(false, std::memory_order_release);
+    demoAudioPlaying.store(false, std::memory_order_release);
     demoAudio.clear();
     const auto demoPath = juce::SystemStats::getEnvironmentVariable("VC2_DEMO_AUDIO_FILE", {});
     const juce::File demoFile(demoPath);
@@ -197,7 +198,7 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
             reader->read(&demoAudio, 0, frames, 0, true, true);
             demoReadPosition = 0.0;
             demoReadIncrement = reader->sampleRate / sampleRate;
-            demoAudioActive = true;
+            demoAudioReady.store(true, std::memory_order_release);
         }
     }
 }
@@ -228,7 +229,9 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const int numChannels = buffer.getNumChannels();
     if (numSamples == 0 || numChannels == 0) return;
 
-    if (demoAudioActive && demoAudio.getNumSamples() > 1)
+    if (demoAudioPlaying.load(std::memory_order_acquire)
+        && demoAudioReady.load(std::memory_order_acquire)
+        && demoAudio.getNumSamples() > 1)
     {
         const int demoFrames = demoAudio.getNumSamples();
         for (int s = 0; s < numSamples; ++s)

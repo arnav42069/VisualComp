@@ -33,5 +33,7 @@ Write-Host ("  Test build: {0}" -f $destExe) -ForegroundColor Green
 Write-Host ''
 
 $env:VC2_DEMO_AUDIO_FILE = $demoDest
+$env:VC2_TEST_DEMO_UI = '1'
 Start-Process -FilePath $destExe
 Remove-Item Env:VC2_DEMO_AUDIO_FILE
+Remove-Item Env:VC2_TEST_DEMO_UI

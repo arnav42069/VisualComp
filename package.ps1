@@ -1,9 +1,9 @@
-# Assembles the VisualComp 2.30 release bundle and zips it into "Build Final".
+# Assembles the VisualComp 2.31 release bundle and zips it into "Build Final".
 # Run after a Release build of VisualComp_VST3 and VisualComp_Standalone.
 
 $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $MyInvocation.MyCommand.Path
-$version = '2.30'
+$version = '2.31'
 
 # ── Code signing (optional) ──────────────────────────────────────────────────
 # Configure via environment variables before running this script:

@@ -346,6 +346,8 @@ private:
     juce::TextButton   modeButton;
     juce::TextButton   eqButton;
     juce::TextButton   presetButton, presetPrev, presetNext, presetSave, autoAnalyzeButton;
+    juce::TextButton   demoPlayButton;
+    bool               testDemoUiEnabled = false;
     ClickZone          logoZone;
 
     // Always-visible free-text Author field — occupies presetButton's old

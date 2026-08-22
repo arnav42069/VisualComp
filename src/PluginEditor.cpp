@@ -7,12 +7,7 @@
 namespace
 {
     constexpr int kWidth  = 960;
-    constexpr int kHeight = 724;       // compact chassis; the meter-side
-                                       // LinearVertical faders (gainIn/gainOut) ~30%
-                                       // more travel — see kFaderExtraH/kCtrlHOld below,
-                                       // which claw this back out of the knob-area chrome
-                                       // so the five rotary knobs stay pinned at their
-                                       // pre-growth size instead of inheriting the bump.
+    constexpr int kHeight = 648;       // ends just below the Gain Out/meter section
 
     constexpr int kTitleH = 60;
     constexpr int kStripH = 48;
@@ -57,8 +52,7 @@ namespace
     // columns instead of also stretching the five rotary knobs. The
     // fader-column dividers and both fader-height formulas deliberately keep
     // referencing kCtrlH (not kCtrlHOld) so they grow along with the faders.
-    constexpr int kFaderExtraH = 76;
-    constexpr int kCtrlHOld    = kCtrlH - kFaderExtraH;   // 340
+    constexpr int kCtrlHOld = kCtrlH;
 
     constexpr int kCtrlTopStripH = 30;   // band-selector button row, top of the Dynamics pane
 
@@ -437,9 +431,9 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     const float valueAngle = startAngle + (endAngle - startAngle) * sliderPos;
     const bool  simpleTicks = slider.getProperties().contains("simpleTicks");
 
-    // Ambient seat shadow
+    // Soft diffuse seat shadow, like a gently recessed hardware dial.
     {
-        juce::ColourGradient s(juce::Colour(0x50000000), cx, cy,
+        juce::ColourGradient s(juce::Colour(0x30000000), cx, cy + maxR * 0.10f,
                                juce::Colour(0x00000000), cx + maxR * 1.14f, cy, true);
         g.setGradientFill(s);
         g.fillEllipse(cx - maxR * 1.14f, cy - maxR * 1.14f, maxR * 2.28f, maxR * 2.28f);
@@ -448,7 +442,6 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     // Smooth dark concentric bezel, based on the supplied recessed hardware
     // knob reference rather than a bright or cogged control face.
     const float bezelOuter  = maxR * 0.75f;
-    const float bezelValley = bezelOuter;
     const float bezelInner  = maxR * 0.61f;
 
     // Graduation ticks — elongated all the way in to the bezel rim (rather
@@ -503,14 +496,14 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         }
     }
 
-    // Machined bezel — a cog-wheel/knurled rim instead of a plain disc, so
+    // Machined bezel — a smooth dark disc rather than a cog-wheel, so
     // there's something for a finger to actually grip and turn, like a real
     // hardware compressor's knob. Same gradient/stroke colours as the old
     // plain-circle bezel; only the outline shape changed to alternate
     // between an outer tooth radius and an inner valley radius. (Radii
     // declared once, above, for the graduation ticks.)
     {
-        constexpr int kTeeth = 48; // a smooth circle, not a cog-wheel
+        constexpr int kTeeth = 48;
         juce::Path gear;
         for (int t = 0; t < kTeeth * 2; ++t)
         {
@@ -518,7 +511,7 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
             // like a real machined dial rather than a static ring the
             // pointer sweeps past.
             const float ang = (float(t) / float(kTeeth * 2)) * juce::MathConstants<float>::twoPi + valueAngle;
-            const float rad = (t % 2 == 0) ? bezelOuter : bezelValley;
+            const float rad = bezelOuter;
             const float sa = std::sin(ang), ca = -std::cos(ang);
             const juce::Point<float> pnt(cx + rad * sa, cy + rad * ca);
             if (t == 0) gear.startNewSubPath(pnt); else gear.lineTo(pnt);
@@ -526,14 +519,14 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         gear.closeSubPath();
 
         juce::ColourGradient ch(
-            juce::Colour(0xff343432), cx - bezelOuter * 0.40f, cy - bezelOuter * 0.52f,
-            juce::Colour(0xff080808), cx + bezelOuter * 0.40f, cy + bezelOuter * 0.52f, true);
-        ch.addColour(0.28, juce::Colour(0xff171716));
-        ch.addColour(0.70, juce::Colour(0xff050505));
+            juce::Colour(0xff494946), cx - bezelOuter * 0.40f, cy - bezelOuter * 0.52f,
+            juce::Colour(0xff0c0c0b), cx + bezelOuter * 0.40f, cy + bezelOuter * 0.52f, true);
+        ch.addColour(0.28, juce::Colour(0xff282826));
+        ch.addColour(0.70, juce::Colour(0xff090909));
         g.setGradientFill(ch);
         g.fillPath(gear);
 
-        g.setColour(juce::Colour(0xff8b857a).withAlpha(0.40f));
+        g.setColour(juce::Colour(0xffb0aa9d).withAlpha(0.22f));
         g.strokePath(gear, juce::PathStrokeType(0.7f));
         g.setColour(juce::Colour(0xff000000).withAlpha(0.75f));
         g.strokePath(gear, juce::PathStrokeType(0.9f));
@@ -553,10 +546,10 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         }
 
         juce::ColourGradient bd(
-            juce::Colour(0xff3d3d3a), cx - bodyR * 0.32f, cy - bodyR * 0.42f,
-            juce::Colour(0xff10100f), cx + bodyR * 0.32f, cy + bodyR * 0.48f, true);
-        bd.addColour(0.42, juce::Colour(0xff242422));
-        bd.addColour(0.72, juce::Colour(0xff0b0b0a));
+            juce::Colour(0xff5a5a55), cx - bodyR * 0.32f, cy - bodyR * 0.42f,
+            juce::Colour(0xff141413), cx + bodyR * 0.32f, cy + bodyR * 0.48f, true);
+        bd.addColour(0.42, juce::Colour(0xff383835));
+        bd.addColour(0.72, juce::Colour(0xff1b1b19));
         g.setGradientFill(bd);
         g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f);
 
@@ -1098,6 +1091,22 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // Auto-Analyze (next to the preset controls)
     setupTextButton(autoAnalyzeButton, "Smart Master+");
     autoAnalyzeButton.onClick = [this] { showAutoAnalyzeGenreStep(); };
+
+    // Testbuild supplies this environment flag. Release/plugin launches never
+    // expose the transport, and preloaded demo audio remains silent until Play.
+    testDemoUiEnabled = juce::SystemStats::getEnvironmentVariable("VC2_TEST_DEMO_UI", {}) == "1";
+    if (testDemoUiEnabled)
+    {
+        setupTextButton(demoPlayButton, "PLAY");
+        demoPlayButton.setClickingTogglesState(true);
+        demoPlayButton.onClick = [this]
+        {
+            const bool playing = demoPlayButton.getToggleState();
+            audioProcessor.setDemoAudioPlaying(playing);
+            demoPlayButton.setButtonText(playing ? "STOP" : "PLAY");
+        };
+        addAndMakeVisible(demoPlayButton);
+    }
 
     // Curve/GR toggle — Transfer Curve and Gain Reduction meter are hidden by
     // default (see vuMeter/curveDisplay setVisible below) and only rendered
@@ -2933,6 +2942,8 @@ void VisualCompEditor::resized()
     bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104, 14, 100, kTitleH - 28);
     clipModeButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104 - 100 - 8, 14, 96, kTitleH - 28);
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
+    if (testDemoUiEnabled)
+        demoPlayButton.setBounds(ox + 136, 15, 58, kTitleH - 30);
     // Demo mode watermark indicator — positioned in top-right corner, fixed 24px height
     demoModeIndicator.setBounds(ox + kWidth - cshift - 224, 8, 216, 24);
     // Undo/Redo notification — positioned in top-right, just below the title bar
