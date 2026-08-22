@@ -1143,6 +1143,19 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     eqButton.setToggleState(eqPanelVisible, juce::dontSendNotification);
     eqPanel->setVisible(eqPanelVisible);
 
+    // Screenshot/video automation hook; normal launches leave this unset.
+    const auto forcedPreset = juce::SystemStats::getEnvironmentVariable("VC2_PRESET_FILE", {});
+    if (forcedPreset.isNotEmpty())
+    {
+        const juce::File presetFile(forcedPreset);
+        juce::Component::SafePointer<VisualCompEditor> safeThis(this);
+        juce::MessageManager::callAsync([safeThis, presetFile]
+        {
+            if (safeThis != nullptr)
+                safeThis->loadUserPreset(presetFile);
+        });
+    }
+
     // Documentation aid, same pattern as VC2_FORCE_EQ_OPEN: seeds a few demo
     // EQ nodes (one linked) so the band-selector row and Q knob can be
     // screenshotted reproducibly without needing to click on the docked EQ
@@ -2793,10 +2806,8 @@ void VisualCompEditor::paint(juce::Graphics& g)
     g.setColour(juce::Colours::black.withAlpha(0.35f));
     g.drawRect(3, kWaveY - 2, gainOutX - 6, kWaveH + 4, 1);
 
-    // Controls panel (no header tab) plus a fully independent Gain Out panel.
-    drawTabPanel(g, juce::Rectangle<int>(3, kCtrlY, gainOutX - 6, kCtrlH - 4), {});
-    drawTabPanel(g, juce::Rectangle<int>(gainOutX + 2, kGainOutSectionY,
-                                          kFaderW + 3, kGainOutSectionH), {});
+    // The Dynamics and Gain Out areas intentionally have no perimeter boxes;
+    // their internal dividers and aligned controls provide the structure.
 
     // Band-selector row — a colored ring (matching EqPanel::kNodeColours)
     // frames each enabled node's button, inset within the ring so it reads
