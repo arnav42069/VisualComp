@@ -1148,19 +1148,6 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     eqButton.setToggleState(eqPanelVisible, juce::dontSendNotification);
     eqPanel->setVisible(eqPanelVisible);
 
-    // Screenshot/video automation hook; normal launches leave this unset.
-    const auto forcedPreset = juce::SystemStats::getEnvironmentVariable("VC2_PRESET_FILE", {});
-    if (forcedPreset.isNotEmpty())
-    {
-        const juce::File presetFile(forcedPreset);
-        juce::Component::SafePointer<VisualCompEditor> safeThis(this);
-        juce::MessageManager::callAsync([safeThis, presetFile]
-        {
-            if (safeThis != nullptr)
-                safeThis->loadUserPreset(presetFile);
-        });
-    }
-
     // Documentation aid, same pattern as VC2_FORCE_EQ_OPEN: seeds a few demo
     // EQ nodes (one linked) so the band-selector row and Q knob can be
     // screenshotted reproducibly without needing to click on the docked EQ
@@ -1460,16 +1447,10 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // the click.
     addMouseListener(this, true);
 
-    // Show license activation dialog if trial is expiring soon (7 days or less)
-    if (audioProcessor.licenseManager.shouldShowLicenseOnStartup())
-    {
-        juce::Component::SafePointer<VisualCompEditor> safe(this);
-        juce::Timer::callAfterDelay(300, [safe]
-        {
-            if (safe != nullptr)
-                safe->demoModeIndicator.showLicenseActivationDialog();
-        });
-    }
+    // Do not create a second native top-level window during Standalone
+    // startup. On Windows that delayed temporary peer could race the JUCE
+    // standalone host's own peer initialization and fault inside USER32.
+    // License activation remains available by clicking demoModeIndicator.
 
     // First run: show the tour once the window has settled
     if (!hasSeenHelp())

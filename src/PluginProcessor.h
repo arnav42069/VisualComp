@@ -238,6 +238,7 @@ private:
     // constructor and initProcessing(), so neither can happen in processBlock.
     std::array<std::unique_ptr<juce::dsp::Oversampling<float>>,
                size_t(kMaxOversamplingStages) + 1> oversamplers;
+    int preparedBlockCapacity = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VisualCompProcessor)
 };

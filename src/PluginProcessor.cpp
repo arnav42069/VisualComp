@@ -133,8 +133,13 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     outputRmsSmooth   = 0.0f;
     scEnvelope        = 0.0f;
     autoGainDb        = 0.0f;
-    monoMixBuffer.setSize(1, samplesPerBlock * 2);
-    scEnvBuf     .setSize(1, samplesPerBlock + 16);
+    // Standalone audio backends may occasionally deliver a callback larger
+    // than the nominal block size passed here. JUCE's Oversampling scratch
+    // storage must be prepared for the largest block processSamplesUp may
+    // ever see or it can overwrite its heap buffer.
+    preparedBlockCapacity = juce::jmax(8192, juce::jmax(1, samplesPerBlock));
+    monoMixBuffer.setSize(1, preparedBlockCapacity);
+    scEnvBuf     .setSize(1, preparedBlockCapacity);
 
     eq.prepare(sampleRate);
     for (auto& bg : bandGrDb) bg.store(0.0f, std::memory_order_relaxed);
@@ -156,14 +161,14 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
             juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
             true  /*maximum quality*/,
             true  /*integer latency -- keeps host PDC on whole samples*/);
-        oversamplers[i]->initProcessing(size_t(juce::jmax(1, samplesPerBlock)));
+        oversamplers[i]->initProcessing(size_t(preparedBlockCapacity));
         oversamplers[i]->reset();
     }
 
     // Reserve the delay line for the highest rate we can ever run at, so the
     // allocation-free setSampleRate() can re-derive it from processBlock.
     const int maxFactor = oversamplingFactorForIndex(kMaxOversamplingStages);
-    clipper.prepare(sampleRate, samplesPerBlock, maxFactor);
+    clipper.prepare(sampleRate, preparedBlockCapacity, maxFactor);
 
     // Adopt whatever factor the (possibly just-restored) parameter holds.
     const int osIndex = juce::jlimit(0, kMaxOversamplingStages,
@@ -199,8 +204,6 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
             demoReadPosition = 0.0;
             demoReadIncrement = reader->sampleRate / sampleRate;
             demoAudioReady.store(true, std::memory_order_release);
-            if (juce::SystemStats::getEnvironmentVariable("VC2_DEMO_AUTO_PLAY", {}).isNotEmpty())
-                demoAudioPlaying.store(true, std::memory_order_release);
         }
     }
 }
@@ -651,7 +654,8 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // sidechain bus can push buffer.getNumChannels() to 4, and those extra
         // channels neither want clipping nor fit the 2-channel oversamplers.
         const int mainCh = juce::jmin(numChannels, 2);
-        auto* os = (wantedIdx > 0) ? oversamplers[size_t(wantedIdx)].get() : nullptr;
+        auto* os = (wantedIdx > 0 && numSamples <= preparedBlockCapacity)
+                     ? oversamplers[size_t(wantedIdx)].get() : nullptr;
 
         if (os == nullptr)
         {
