@@ -65,6 +65,7 @@ $plainFiles = @(
     'package.ps1',
     '.claude\skills\package-release\SKILL.md',
     '.claude\skills\testbuild\SKILL.md',
+    '.agents\skills\testbuild\SKILL.md',
     'installer\install.ps1',
     'installer\README.txt',
     'build-macos\build.sh',

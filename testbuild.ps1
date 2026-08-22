@@ -1,10 +1,14 @@
 # Builds just the Standalone target and drops it into "Build Final\Standalone
 # Test" for a fast build-and-play loop, then launches it. Companion to
 # package.ps1/package-release, but skips the VST3 build and zip bundling.
-# Run after a Release build of VisualComp_Standalone.
+# This script owns the full versioned quick-build loop.
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+& (Join-Path $root 'bump-version.ps1')
+& cmake --build (Join-Path $root 'build') --config Release --target VisualComp_Standalone
+if ($LASTEXITCODE -ne 0) { throw "Standalone build failed with exit code $LASTEXITCODE" }
 
 $standaloneDir = Join-Path $root 'build\VisualComp_artefacts\Release\Standalone'
 if (-not (Test-Path -LiteralPath $standaloneDir)) {

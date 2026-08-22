@@ -7,7 +7,7 @@
 namespace
 {
     constexpr int kWidth  = 960;
-    constexpr int kHeight = 724;       // +76 vs. the previous build, giving the two
+    constexpr int kHeight = 829;       // +30% more vertical gain-fader travel.
                                        // LinearVertical faders (gainIn/gainOut) ~30%
                                        // more travel — see kFaderExtraH/kCtrlHOld below,
                                        // which claw this back out of the knob-area chrome
@@ -57,7 +57,7 @@ namespace
     // columns instead of also stretching the five rotary knobs. The
     // fader-column dividers and both fader-height formulas deliberately keep
     // referencing kCtrlH (not kCtrlHOld) so they grow along with the faders.
-    constexpr int kFaderExtraH = 76;
+    constexpr int kFaderExtraH = 181;
     constexpr int kCtrlHOld    = kCtrlH - kFaderExtraH;   // 340
 
     constexpr int kCtrlTopStripH = 30;   // band-selector button row, top of the Dynamics pane
@@ -116,13 +116,6 @@ namespace
         {   20.0f,  90.0f, 150.0f,  400.0f, 2000.0f, 4000.0f, 8000.0f };
     constexpr float kSmartBandHi[kNumSmartBands] =
         {   90.0f, 150.0f, 400.0f, 2000.0f, 4000.0f, 8000.0f, 20000.0f };
-    // Indices (into the band arrays above) given a live multiband dynamics
-    // band in the generated master, on top of the static tilt-matching EQ
-    // every band gets: gentle low-end glue on the bass band, and a de-esser/
-    // harshness tamer on the presence band -- the two moves that show up in
-    // almost every genre's mastering-chain guidance.
-    constexpr int kSmartBassBand     = 1;
-    constexpr int kSmartPresenceBand = 5;
 }
 
 //==============================================================================
@@ -480,9 +473,12 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
             const float a0 = juce::jmin(zeroAngle, valueAngle);
             const float a1 = juce::jmax(zeroAngle, valueAngle);
             active.addCentredArc(cx, cy, arcR, arcR, 0.0f, a0, a1, true);
-            g.setColour(Theme::accent.withAlpha(0.28f));
+            const bool threshold = slider.getProperties().getWithDefault("paramId", "").toString() == "threshold";
+            const float heat = threshold ? 1.0f - sliderPos : sliderPos;
+            const auto glow = Theme::meterLow.interpolatedWith(Theme::meterHot, heat);
+            g.setColour(glow.withAlpha(0.28f));
             g.strokePath(active, juce::PathStrokeType(5.0f));
-            g.setColour(Theme::accent);
+            g.setColour(glow);
             g.strokePath(active, juce::PathStrokeType(2.2f));
         }
     }
@@ -537,8 +533,9 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
             g.fillEllipse(cx - sz + 1.1f, cy - sz + 1.6f, sz * 2.0f, sz * 2.0f);
         }
 
+        const bool lightKnob = bool(slider.getProperties().getWithDefault("lightKnob", false));
         juce::ColourGradient bd(
-            juce::Colour(0xff34322e), cx - bodyR * 0.32f, cy - bodyR * 0.42f,
+            lightKnob ? juce::Colour(0xff4a4842) : juce::Colour(0xff34322e), cx - bodyR * 0.32f, cy - bodyR * 0.42f,
             juce::Colour(0xff060605), cx + bodyR * 0.32f, cy + bodyR * 0.48f, true);
         bd.addColour(0.38, juce::Colour(0xff171614));
         bd.addColour(0.66, juce::Colour(0xff0c0b0a));
@@ -609,7 +606,7 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
         return;
     }
 
-    const float trackW = 3.0f;
+    const float trackW = 4.0f;
     const float trackX = x + width * 0.5f - trackW * 0.5f;
     const float trackT = float(y) + 8.0f;
     const float trackB = float(y + height) - 8.0f;
@@ -875,7 +872,7 @@ void AzazelLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& label)
     {
         g.setColour(label.findColour(juce::Label::textColourId));
         g.setFont(label.getFont());
-        g.drawFittedText(label.getText(), label.getLocalBounds(),
+    g.drawFittedText(label.getText(), label.getLocalBounds().reduced(3, 1),
                          label.getJustificationType(), 1, 1.0f);
     }
 }
@@ -1184,6 +1181,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     setupKnob(ratioKnob,     ratioLabel,     "RATIO",     ":1",  "ratio");
     setupKnob(attackKnob,    attackLabel,    "ATTACK",    " ms", "attack");
     setupKnob(releaseKnob,   releaseLabel,   "RELEASE",   " ms", "release");
+    attackKnob.getProperties().set("lightKnob", true);
+    releaseKnob.getProperties().set("lightKnob", true);
 
     // Band-selector row: clicking a button swaps Attack/Release below to
     // that EQ node's own state (see selectBand/refreshBandButtons). Hidden
@@ -1224,6 +1223,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     };
     setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f);
     setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f);
+    bandAttackKnob.getProperties().set("lightKnob", true);
+    bandReleaseKnob.getProperties().set("lightKnob", true);
     // FabFilter Pro-MB style: Threshold is downward-only (0..-60dB). Direction
     // (downward/upward) and how far the band can swing now live on the Range
     // knob instead (see NodeIsland) — that's what used to make a positive
@@ -1486,6 +1487,7 @@ void VisualCompEditor::setupKnob(DragSlider& knob, juce::Label& label,
     knob.setNumDecimalPlacesToDisplay(1);
     knob.setMouseDragSensitivity(1000);
     knob.getProperties().set("topInset", kKnobLblH + 4);
+    knob.getProperties().set("paramId", paramId);
     knob.onValueChange = [this] { repaint(0, kCtrlY, kContentW, kCtrlH); };
 
     if (auto* par = audioProcessor.apvts.getParameter(paramId))
@@ -1510,6 +1512,7 @@ void VisualCompEditor::setupFader(DragSlider& fader, juce::Label& label,
     fader.setTextValueSuffix(" dB");
     fader.setNumDecimalPlacesToDisplay(1);
     fader.setMouseDragSensitivity(500);
+    fader.getProperties().set("paramId", paramId);
 
     if (auto* par = audioProcessor.apvts.getParameter(paramId))
         fader.setDoubleClickReturnValue(true, par->convertFrom0to1(par->getDefaultValue()));
@@ -2335,18 +2338,11 @@ VisualCompEditor::SmartMasterAnalysis VisualCompEditor::analyzeSmartMasterCaptur
     return a;
 }
 
-// Builds a full master from the just-captured excerpt: broadband compressor
-// (same genre-character table the original heuristic used), a set of EQ
-// nodes correcting this excerpt's measured spectral tilt toward the genre's
-// reference curve (see kSmartBandLo/Hi and the target-tilt table below --
-// distilled from genre mastering-reference-curve guidance: V-shaped pop;
-// hip-hop/EDM sub-bass emphasis with a scooped low-mid and crisp top;
-// rock/metal midrange-forward with controlled low-mid mud; classical/
-// acoustic left close to flat/natural; podcast presence-boosted for
-// intelligibility with rumble cut), plus two always-on multiband dynamics
-// bands (gentle bass glue, presence de-esser) layered on top -- this is the
-// "use plain EQ nodes, multiband comp, whatever is needed" ask, not just a
-// broadband-compressor preset.
+// Builds a full master from the just-captured excerpt: broadband compression
+// plus three deliberately subtle, compressor-linked mastering moves. The EQ
+// favours removing 500 Hz mud, adding a little 1 kHz snare/presence and opening
+// the top above 7 kHz instead of trying to force the whole spectrum onto a
+// genre reference curve.
 void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLufs)
 {
     const auto analysis = analyzeSmartMasterCapture();
@@ -2378,24 +2374,6 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
     };
     const auto ch = characterFor(genre);
 
-    using Tilt = std::array<float, SmartMasterAnalysis::kNumBands>;
-    auto targetTiltFor = [](const juce::String& g) -> Tilt
-    {
-        // sub-bass, bass, low-mid, mid, high-mid, presence, air (relative dB)
-        if (g == "Pop")                    return { { 1.5f, 1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 1.5f } };
-        if (g == "Hip-Hop / Trap")         return { { 3.5f, 2.0f, -1.5f, -0.5f, 0.5f, 1.5f, 2.0f } };
-        if (g == "EDM / Dance")            return { { 3.0f, 2.5f, -2.0f, -0.5f, 0.5f, 1.5f, 2.5f } };
-        if (g == "Rock / Metal")           return { { -1.0f, 0.5f, -1.0f, 1.5f, 1.5f, 1.0f, 0.0f } };
-        if (g == "Acoustic / Folk")        return { { -2.0f, -0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 1.0f } };
-        if (g == "Classical / Orchestral") return { { -1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f } };
-        return                                    { { -4.0f, -2.0f, -0.5f, 1.0f, 2.0f, -0.5f, 0.5f } }; // Podcast
-    };
-    const Tilt target = targetTiltFor(genre);
-
-    // Per-band Q: wider at the extremes (sub-bass/air), a bit narrower
-    // through the mids where a genre's character actually lives.
-    static constexpr float kBandQ[SmartMasterAnalysis::kNumBands] = { 0.7f, 0.8f, 0.9f, 0.9f, 1.0f, 1.1f, 0.7f };
-
     // ---- Threshold/gain-out for the broadband compressor, from the whole excerpt ----
     const float thresholdDb = juce::jlimit(-40.0f, -1.0f, (analysis.peakDb + analysis.rmsDb) * 0.5f);
     const float gainOutDb   = (analysis.integratedLufs > -90.0f)
@@ -2420,53 +2398,39 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
     audioProcessor.clipMode.store(static_cast<int>(ch.clip), std::memory_order_relaxed);
     clipModeButton.setButtonText(OutputClipper::modeName(ch.clip));
 
-    // ---- EQ nodes: one per tonal band, tilt-correcting toward the genre's
-    // reference curve; the bass and presence bands are additionally linked
-    // into their own multiband compressor for glue/de-essing. Node 7 is left
-    // free (only 7 bands are defined). Built into a local array first rather
-    // than written straight to audioProcessor.eq, so confirmAndApplyEq below
-    // can gate the actual apply behind a "keep current EQ?" prompt if the
-    // live EQ has hand-edits since the last preset load/generation.
-    std::array<EqNodeState, kMaxEqNodes> nodes;
-    int nodesUsed = 0;
-    for (int b = 0; b < SmartMasterAnalysis::kNumBands; ++b)
+    // ---- EQ nodes: fixed musical priorities with analysis only varying the
+    // mud cut inside its intentionally narrow -1..-2 dB range. Keeping these
+    // nodes always enabled makes Smart Master+ predictable across genres.
+    std::array<EqNodeState, kMaxEqNodes> nodes {};
+    const float mudExcess = juce::jlimit(0.0f, 1.0f,
+        (analysis.bandDb[3] - analysis.bandDb[4] + 1.0f) / 6.0f);
+
+    auto makeLinkedNode = [&analysis](int type, float freqHz, float q, float gainDb,
+                                      float attackMs, float releaseMs)
     {
-        const bool isDynamicsBand = (b == kSmartBassBand || b == kSmartPresenceBand);
-        const float deviation = juce::jlimit(-6.0f, 6.0f, target[size_t(b)] - analysis.bandDb[size_t(b)]);
-        const bool  worthCorrecting = std::abs(deviation) > 0.4f;
-
         EqNodeState n;
-        n.enabled = isDynamicsBand || worthCorrecting;
-        if (!n.enabled) { nodes[size_t(b)] = n; continue; }
+        n.enabled     = true;
+        n.type        = type;
+        n.freqHz      = freqHz;
+        n.q           = q;
+        n.gainDb      = gainDb;
+        n.linked      = true;
+        n.thresholdDb = juce::jlimit(-60.0f, 0.0f, analysis.rmsDb + 2.0f);
+        n.kneeDb      = 6.0f;
+        n.ratio       = 1.5f;
+        n.attackMs    = attackMs;
+        n.releaseMs   = releaseMs;
+        n.rangeDb     = -1.0f;
+        n.upward      = false;
+        n.bwLowOct    = 0.6f;
+        n.bwHighOct   = 0.6f;
+        return n;
+    };
 
-        n.type   = EqTypes::Bell;
-        n.freqHz = std::sqrt(kSmartBandLo[b] * kSmartBandHi[b]);
-        n.q      = kBandQ[size_t(b)];
-        n.gainDb = worthCorrecting ? deviation : 0.0f;
-        n.linked = isDynamicsBand;
-
-        if (isDynamicsBand)
-        {
-            const bool isBass = (b == kSmartBassBand);
-            // Threshold anchored to this excerpt's own measured RMS: a bit
-            // below it for the bass band (catches above-average low-end
-            // buildup for gentle glue), a bit above it for the presence
-            // band (catches only harsh/sibilant peaks, not steady content).
-            n.thresholdDb = juce::jlimit(-60.0f, 0.0f, analysis.rmsDb + (isBass ? -2.0f : 2.0f));
-            n.kneeDb      = isBass ? 6.0f  : 4.0f;
-            n.ratio       = isBass ? 1.8f  : 2.5f;
-            n.attackMs    = isBass ? 25.0f : 3.0f;
-            n.releaseMs   = isBass ? 180.0f : 90.0f;
-            n.rangeDb     = -3.0f;     // gentle -- glue/de-ess, not slam
-            n.upward      = false;
-            n.bwLowOct    = isBass ? 0.8f : 0.5f;
-            n.bwHighOct   = isBass ? 0.8f : 0.5f;
-        }
-
-        nodes[size_t(b)] = n;
-        ++nodesUsed;
-    }
-    nodes[size_t(SmartMasterAnalysis::kNumBands)] = EqNodeState{};   // node 7, unused
+    nodes[0] = makeLinkedNode(EqTypes::Bell,      500.0f, 0.85f, -1.0f - mudExcess, 20.0f, 160.0f);
+    nodes[1] = makeLinkedNode(EqTypes::Bell,     1000.0f, 0.90f,  0.75f,          10.0f, 120.0f);
+    nodes[2] = makeLinkedNode(EqTypes::HighShelf, 7000.0f, 0.70f,  1.0f,            5.0f, 100.0f);
+    constexpr int nodesUsed = 3;
 
     const juce::String name = "Smart Master+: " + genre + "  " + juce::String(targetLufs, 1) + " LU";
 
@@ -2486,8 +2450,8 @@ void VisualCompEditor::runAutoAnalyze(const juce::String& genre, float targetLuf
                     + juce::String(int(VisualCompProcessor::kSmartMasterCaptureSeconds))
                     + "s of captured audio (" + juce::String(analysis.crestDb, 1) + " dB crest factor, "
                     + juce::String(analysis.integratedLufs, 1) + " LUFS measured): broadband compression, "
-                    + juce::String(nodesUsed) + " spectrum-matching EQ nodes, and bass/presence multiband "
-                      "dynamics.\n\nThis is a heuristic starting point, not a mastering-grade AI -- refine "
+                    + juce::String(nodesUsed) + " subtle compressor-linked EQ nodes for mud, snare presence "
+                      "and high-end air.\n\nThis is a heuristic starting point, not a mastering-grade AI -- refine "
                       "by ear, especially threshold, ratio and the EQ node gains.",
                 juce::AlertWindow::InfoIcon);
             aw->setLookAndFeel(&laf);
@@ -2844,9 +2808,9 @@ void VisualCompEditor::paint(juce::Graphics& g)
     for (int sx : { kSlotKneeX, kSlotRatioX, kSlotAttackX, kSlotReleaseX })
     {
         g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.fillRect(sx, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlHOld - kCtrlTopStripH - 18);
+        g.fillRect(sx, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlH - kCtrlTopStripH - 4);
         g.setColour(Theme::line.withAlpha(0.55f));
-        g.fillRect(sx + 1, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlHOld - kCtrlTopStripH - 18);
+        g.fillRect(sx + 1, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlH - kCtrlTopStripH - 4);
     }
 
     // Fader column dividers

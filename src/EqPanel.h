@@ -4,6 +4,7 @@
 #include "NodeIsland.h"
 #include <array>
 #include <functional>
+#include <vector>
 
 // Docked multi-node parametric EQ panel. Extends to the left of the main
 // plugin body when toggled from the header EQ button, matching the full
@@ -136,6 +137,7 @@ private:
     void  applyRelativeThreshold(int anchor, float deltaDb);
     void  applyRelativeRange(int anchor, float deltaDb);
     void  updateIslandBounds();
+    void  updateSpectrum();
 
     VisualCompProcessor& processor;
     std::array<EqNodeState, kMaxEqNodes> localNodes;
@@ -158,6 +160,17 @@ private:
     juce::Slider     eqMixKnob;
     juce::Label      eqMixLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eqMixAttachment;
+
+    // Message-thread FFT of the existing rolling input history: no audio
+    // thread allocation, locking, or extra real-time work for the display.
+    static constexpr int kSpectrumFftOrder = 10;
+    static constexpr int kSpectrumFftSize  = 1 << kSpectrumFftOrder;
+    static constexpr int kSpectrumBands    = 48;
+    juce::dsp::FFT spectrumFft { kSpectrumFftOrder };
+    juce::dsp::WindowingFunction<float> spectrumWindow { kSpectrumFftSize, juce::dsp::WindowingFunction<float>::hann };
+    std::vector<float> spectrumFftBuffer { size_t(kSpectrumFftSize) * 2, 0.0f };
+    std::array<float, kSpectrumBands> spectrumDb {};
+    int spectrumTick = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EqPanel)
 };

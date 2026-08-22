@@ -1,6 +1,6 @@
 ---
 name: testbuild
-description: Build just the VisualComp 2.28 Standalone target, drop it into "Build Final\Standalone Test", launch it, then commit and push the working tree to GitHub — a fast test-and-publish loop. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
+description: Increment VisualComp by 0.01, build just the Standalone target, drop it into "Build Final\Standalone Test", launch it, then commit and push the working tree to GitHub — a fast test-and-publish loop. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
 ---
 
 # Test Build
@@ -13,20 +13,17 @@ every test build.
 
 ## Workflow
 
-1. **Build the Standalone target only** (Claude builds — the user does not
-   build manually; see CLAUDE.md):
+1. **Run the test-build script**. It increments the version by 0.01, then
+   builds the Standalone target only:
    ```
-   cmake --build build --config Release --target VisualComp_Standalone
+   powershell -ExecutionPolicy Bypass -File ./testbuild.ps1
    ```
    - If the build fails because the plugin DLL is locked, FL Studio has an
      instance loaded — ask the user to close that instance (not necessarily
      all of FL) and retry. (Standalone-only builds don't touch the VST3, so
      this is rare here, but the SharedCode lib is still shared.)
 
-2. **Run the test-build script**:
-   ```
-   powershell -ExecutionPolicy Bypass -File ./testbuild.ps1
-   ```
+2. The script copies the new executable to the test folder and launches it:
    - Copies the newest `.exe` in `build\VisualComp_artefacts\Release\Standalone\`
      to `Build Final\Standalone Test\` (creating that folder if needed) and
      launches it via `Start-Process`.
@@ -34,7 +31,7 @@ every test build.
      rather than retrying blindly.
 
 3. **Report** the copied exe's path back to the user (it's already running,
-   satisfying CLAUDE.md's "always run the exe after a build" rule on its own
+   satisfying AGENTS.md's "always run the exe after a build" rule on its own
    — no separate launch step needed).
 
 4. **Commit and push**, once step 1's build has succeeded (a failed build
@@ -47,9 +44,9 @@ every test build.
    ```
    - Write the commit message yourself, describing the actual changes made
      this session — never a generic "test build" placeholder. Follow
-     CLAUDE.md's normal commit-hygiene rules (new commits over amends, no
+     AGENTS.md's normal commit-hygiene rules (new commits over amends, no
      `--no-verify`) and end the message with the required
-     `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` trailer.
+     `Co-Authored-By: Codex Sonnet 5 <noreply@anthropic.com>` trailer.
    - `git push` targets the already-configured `origin` remote
      (`github.com/arnav42069/VisualComp`) on the current branch — don't
      create or repoint remotes here.
@@ -66,5 +63,5 @@ every test build.
   installer files — just the fastest path from a source change to a
   runnable, published exe for manual testing.
 - Clear any stale Standalone settings first if a clean UI state is needed to
-  test against — see CLAUDE.md's screenshot-workflow note about
-  `%APPDATA%\VisualComp 2.28\VisualComp 2.settings`.
+  test against — see AGENTS.md's screenshot-workflow note about
+  `%APPDATA%\VisualComp 2.27\VisualComp 2.settings`.

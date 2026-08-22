@@ -195,11 +195,20 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     compButton.onClick = [this]
     {
         if (target < 0) return;
-        auto n = processor.eq.getNode(target);
-        n.linked = compButton.getToggleState();
-        processor.eq.setNode(target, n);
-        if (onNodeEdited) onNodeEdited(target);
-        if (onLinkedToggled) onLinkedToggled(target, n.linked);
+        const bool linked = compButton.getToggleState();
+
+        // EqPanel owns the graph-local node copy and detector-edge junctions,
+        // so let it perform the same complete operation as its context menu.
+        // Keep a direct-write fallback for any future standalone use.
+        if (onLinkedToggled)
+            onLinkedToggled(target, linked);
+        else
+        {
+            auto n = processor.eq.getNode(target);
+            n.linked = linked;
+            processor.eq.setNode(target, n);
+            if (onNodeEdited) onNodeEdited(target);
+        }
     };
     addAndMakeVisible(compButton);
 

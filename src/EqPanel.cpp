@@ -35,6 +35,7 @@ void EqCloseButton::paintButton(juce::Graphics& g, bool isHighlighted, bool isDo
 
 EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
 {
+    spectrumDb.fill(-72.0f);
     for (int i = 0; i < kMaxEqNodes; ++i)
         localNodes[size_t(i)] = processor.eq.getNode(i);
 
@@ -49,6 +50,8 @@ EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
     nodeIsland.onNodeEdited = [this](int i) { if (onNodeEdited) onNodeEdited(i); };
     nodeIsland.onLinkedToggled = [this](int i, bool newLinkedState)
     {
+        auto& node = localNodes[size_t(i)];
+        node.linked = newLinkedState;
         if (newLinkedState)
         {
             // Snap edges to nearby linked nodes when linking
@@ -57,8 +60,17 @@ EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
                 const float snappedHz = trySnapEdge(i, e, edgeHzOf(i, e));
                 setEdgeHz(i, e, snappedHz);
             }
-            repaint();
         }
+        else
+        {
+            unlinkEdge(i, 0);
+            unlinkEdge(i, 1);   // edges no longer shown/meaningful
+        }
+
+        // Match the right-click Link/Unlink action: commit the graph-local
+        // node, notify the editor, and repaint immediately.
+        pushNode(i);
+        repaint();
     };
     addChildComponent(nodeIsland);
 
@@ -708,6 +720,7 @@ void EqPanel::showNodeMenu(int i)
 
 void EqPanel::timerCallback()
 {
+    if ((++spectrumTick & 1) == 0) updateSpectrum();
     // Pick up out-of-band changes (e.g. an Auto-Analyze preset writing
     // directly into the processor's EQ).
     bool changed = false;
@@ -743,6 +756,33 @@ void EqPanel::timerCallback()
         repaint();
 }
 
+void EqPanel::updateSpectrum()
+{
+    const auto& history = processor.inputWaveform;
+    const int writePos = history.writePos.load(std::memory_order_acquire);
+    for (int i = 0; i < kSpectrumFftSize; ++i)
+    {
+        const int idx = ((writePos - kSpectrumFftSize + i) % WaveformBuffer::size + WaveformBuffer::size) % WaveformBuffer::size;
+        spectrumFftBuffer[size_t(i)] = history.data[size_t(idx)];
+    }
+    juce::FloatVectorOperations::clear(spectrumFftBuffer.data() + kSpectrumFftSize, kSpectrumFftSize);
+    spectrumWindow.multiplyWithWindowingTable(spectrumFftBuffer.data(), size_t(kSpectrumFftSize));
+    spectrumFft.performRealOnlyForwardTransform(spectrumFftBuffer.data());
+    const float sr = sampleRateForDisplay();
+    for (int band = 0; band < kSpectrumBands; ++band)
+    {
+        const float t0 = float(band) / float(kSpectrumBands), t1 = float(band + 1) / float(kSpectrumBands);
+        const float lo = kFreqLo * std::pow(kFreqHi / kFreqLo, t0), hi = kFreqLo * std::pow(kFreqHi / kFreqLo, t1);
+        const int binLo = juce::jlimit(1, kSpectrumFftSize / 2 - 1, int(std::floor(lo * kSpectrumFftSize / sr)));
+        const int binHi = juce::jlimit(binLo, kSpectrumFftSize / 2 - 1, int(std::ceil(hi * kSpectrumFftSize / sr)));
+        double energy = 0.0;
+        for (int bin = binLo; bin <= binHi; ++bin) { const float re = spectrumFftBuffer[size_t(bin * 2)], im = spectrumFftBuffer[size_t(bin * 2 + 1)]; energy += double(re) * re + double(im) * im; }
+        const float db = energy > 1.0e-12 ? float(10.0 * std::log10(energy)) : -120.0f;
+        const float target = juce::jlimit(-72.0f, 0.0f, db + 38.0f);
+        spectrumDb[size_t(band)] += (target - spectrumDb[size_t(band)]) * 0.34f;
+    }
+}
+
 void EqPanel::resized()
 {
     closeButton.setBounds(getWidth() - 28, 8, 22, 22);
@@ -773,6 +813,21 @@ void EqPanel::paint(juce::Graphics& g)
     g.fillRect(r);
     g.setColour(Theme::line);
     g.drawRect(r, 1.0f);
+
+    // Live, colour-zoned spectrum behind the response: blue low end, green
+    // mids, amber/orange highs. Its restrained opacity preserves node clarity.
+    for (int band = 0; band < kSpectrumBands; ++band)
+    {
+        const float t0 = float(band) / float(kSpectrumBands), t1 = float(band + 1) / float(kSpectrumBands);
+        const float amount = juce::jlimit(0.0f, 1.0f, (spectrumDb[size_t(band)] + 72.0f) / 72.0f);
+        if (amount <= 0.01f) continue;
+        const float x0 = r.getX() + r.getWidth() * t0 + 1.0f, x1 = r.getX() + r.getWidth() * t1 - 1.0f;
+        const float freq = kFreqLo * std::pow(kFreqHi / kFreqLo, (t0 + t1) * 0.5f);
+        const auto colour = freq < 250.0f ? juce::Colour(0xff4c8dce) : freq < 2200.0f ? Theme::meterLow : freq < 7000.0f ? Theme::meterMid : Theme::accent;
+        const float top = r.getBottom() - r.getHeight() * amount;
+        juce::ColourGradient fill(colour.withAlpha(0.05f), 0.0f, top, colour.withAlpha(0.30f), 0.0f, r.getBottom(), false);
+        g.setGradientFill(fill); g.fillRect(x0, top, x1 - x0, r.getBottom() - top);
+    }
 
     // Frequency gridlines (X-axis) — faint unlabeled lines fill out the grid,
     // labeled decade lines (incl. the 20Hz low edge) get a clear tick label
