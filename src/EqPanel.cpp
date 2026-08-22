@@ -985,8 +985,6 @@ void EqPanel::paint(juce::Graphics& g)
         }
     }
 
-    const int domBand = processor.activeEqBand.load(std::memory_order_relaxed);
-
     // Nodes
     for (int i = 0; i < kMaxEqNodes; ++i)
     {
@@ -994,7 +992,6 @@ void EqPanel::paint(juce::Graphics& g)
         if (!n.enabled) continue;
         const auto p = nodePos(i);
         const auto colour = kNodeColours[i];
-        const bool isActive = (i == domBand);
         const float radius = 6.3f;   // 30% smaller than the previous 9.0f
 
         // Offset-range stem — a FabFilter Pro-MB-style handle showing how far
@@ -1030,11 +1027,10 @@ void EqPanel::paint(juce::Graphics& g)
             }
         }
 
-        // Halo — always present so a node reads clearly against the curve,
-        // brighter when it's the dominant linked band driving the compressor.
-        // More transparent than before so the curve underneath still shows
-        // through clearly around each (now smaller) node.
-        g.setColour(colour.withAlpha(isActive ? 0.30f : 0.11f));
+        // Keep every node's identity colour stable while audio plays. The
+        // detector may change its gain-reduction trace, but it must not make
+        // a node (notably N2) appear to change colour or state.
+        g.setColour(colour.withAlpha(0.11f));
         g.fillEllipse(p.x - radius * 1.8f, p.y - radius * 1.8f, radius * 3.6f, radius * 3.6f);
 
         // Drop shadow

@@ -166,6 +166,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void mouseUp(const juce::MouseEvent&) override;   // click on the dimmed backdrop closes it
+    bool keyPressed(const juce::KeyPress&) override;
 
     std::function<void()> onClose;
 

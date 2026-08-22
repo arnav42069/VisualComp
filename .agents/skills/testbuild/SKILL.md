@@ -1,12 +1,13 @@
 ---
 name: testbuild
-description: Increment VisualComp by 0.01, build just the Standalone target, drop it into "Build Final\Standalone Test", launch it, then commit and push the working tree to GitHub — a fast test-and-publish loop. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
+description: Increment VisualComp by 0.01, build and install the VST3 plus the Standalone target, drop the exe into "Build Final\Standalone Test", launch it, then commit and push the working tree to GitHub. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
 ---
 
 # Test Build
 
-Fast iteration loop: builds only the Standalone target (skips VST3 and the
-zip bundling that `/package-release` does), copies the exe to
+Fast iteration loop: builds the VST3 target first (copying it to
+`C:\Program Files\Common Files\VST3\` via CMake's `VST3_COPY_DIR`), then
+builds Standalone (still skipping zip/installer bundling), copies the exe to
 `Build Final\Standalone Test\`, launches it, and publishes the current
 working tree to the GitHub remote so `origin/master` stays in sync with
 every test build.
@@ -14,14 +15,13 @@ every test build.
 ## Workflow
 
 1. **Run the test-build script**. It increments the version by 0.01, then
-   builds the Standalone target only:
+   builds the VST3 and Standalone targets:
    ```
    powershell -ExecutionPolicy Bypass -File ./testbuild.ps1
    ```
-   - If the build fails because the plugin DLL is locked, FL Studio has an
-     instance loaded — ask the user to close that instance (not necessarily
-     all of FL) and retry. (Standalone-only builds don't touch the VST3, so
-     this is rare here, but the SharedCode lib is still shared.)
+   - The VST3 is installed into `C:\Program Files\Common Files\VST3\` on
+     every successful run. If its DLL is locked, close the loaded plugin
+     instance in FL Studio and retry.
 
 2. The script copies the new executable to the test folder and launches it:
    - Copies the newest `.exe` in `build\VisualComp_artefacts\Release\Standalone\`
@@ -59,9 +59,8 @@ every test build.
 
 ## Notes
 
-- Deliberately narrower than `/package-release`: no VST3 build, no zip, no
-  installer files — just the fastest path from a source change to a
-  runnable, published exe for manual testing.
+- Deliberately narrower than `/package-release`: no zip or installer files;
+  it still refreshes the installed VST3 alongside the runnable test exe.
 - Clear any stale Standalone settings first if a clean UI state is needed to
   test against — see AGENTS.md's screenshot-workflow note about
   `%APPDATA%\VisualComp 2.27\VisualComp 2.settings`.

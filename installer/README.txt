@@ -1,5 +1,5 @@
 ================================================================
- VISUALCOMP 2.28                                      AZAZEL AUDIO
+ VISUALCOMP 2.29                                      AZAZEL AUDIO
  See your compression. Shape your sound.
 ================================================================
 
@@ -12,14 +12,14 @@
 ----------------------------------------------------------------
    Windows\      Installer, VST3 plugin and standalone app
    Mac\          Build steps and full source for macOS
-   VisualComp 2.28 - User Manual.pdf   Complete illustrated manual
+   VisualComp 2.29 - User Manual.pdf   Complete illustrated manual
    README.txt    This file
 
 
  WINDOWS - INSTALL
 ----------------------------------------------------------------
    1. Open the Windows folder.
-   2. Double-click  "Install VisualComp 2.28.bat"
+   2. Double-click  "Install VisualComp 2.29.bat"
       Windows will ask for administrator permission - this is
       needed to write into the shared VST3 folder.
    3. It installs:
@@ -29,14 +29,14 @@
    4. Open your DAW and rescan plugins:
         FL Studio:  Options > Manage plugins > Find more plugins
         Others:     rescan in plugin preferences
-   5. The plugin appears as "VisualComp 2.28" by Azazel Audio.
+   5. The plugin appears as "VisualComp 2.29" by Azazel Audio.
 
-   To remove it later, run "Uninstall VisualComp 2.28.bat".
+   To remove it later, run "Uninstall VisualComp 2.29.bat".
    Your presets are never touched by the uninstaller.
 
-   Prefer to install by hand? Copy the "VisualComp 2.28.vst3"
+   Prefer to install by hand? Copy the "VisualComp 2.29.vst3"
    folder into C:\Program Files\Common Files\VST3\ yourself,
-   and run "VisualComp 2.28.exe" from anywhere.
+   and run "VisualComp 2.29.exe" from anywhere.
 
 
  macOS - BUILD AND INSTALL
@@ -57,7 +57,7 @@
    5. Rescan plugins in your DAW.
 
    Not code-signed. If your DAW refuses to load it:
-     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.28.vst3"
+     xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.29.vst3"
 
    See Mac\README - Mac Build Steps.txt for the long version.
 
@@ -80,7 +80,7 @@
  SIDECHAIN IN FL STUDIO (the usual sticking point)
 ----------------------------------------------------------------
    1. Route the key track (e.g. the kick) to the track that
-      hosts VisualComp 2.28, using the send arrow at the bottom
+      hosts VisualComp 2.29, using the send arrow at the bottom
       of the mixer channel.
    2. In the plugin wrapper menu, go to
         Processing > Connections

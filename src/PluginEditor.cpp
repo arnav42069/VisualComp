@@ -7,7 +7,7 @@
 namespace
 {
     constexpr int kWidth  = 960;
-    constexpr int kHeight = 829;       // +30% more vertical gain-fader travel.
+    constexpr int kHeight = 724;       // compact chassis; the meter-side
                                        // LinearVertical faders (gainIn/gainOut) ~30%
                                        // more travel — see kFaderExtraH/kCtrlHOld below,
                                        // which claw this back out of the knob-area chrome
@@ -57,7 +57,7 @@ namespace
     // columns instead of also stretching the five rotary knobs. The
     // fader-column dividers and both fader-height formulas deliberately keep
     // referencing kCtrlH (not kCtrlHOld) so they grow along with the faders.
-    constexpr int kFaderExtraH = 181;
+    constexpr int kFaderExtraH = 76;
     constexpr int kCtrlHOld    = kCtrlH - kFaderExtraH;   // 340
 
     constexpr int kCtrlTopStripH = 30;   // band-selector button row, top of the Dynamics pane
@@ -292,6 +292,7 @@ void HelpOverlay::paint(juce::Graphics& g)
 
 WaveEnlargeOverlay::WaveEnlargeOverlay(VisualCompProcessor& proc, bool showInput, bool showOutput)
 {
+    setWantsKeyboardFocus(true);
     // Fresh WaveformDisplay instances reading the same live buffers as the
     // normal-size ones -- own independent pause state, so pausing the small
     // input display and pausing this enlarged one are unrelated. bigInput
@@ -323,6 +324,7 @@ WaveEnlargeOverlay::WaveEnlargeOverlay(VisualCompProcessor& proc, bool showInput
     addAndMakeVisible(closeButton);
 
     setAlwaysOnTop(true);
+    grabKeyboardFocus();
 }
 
 void WaveEnlargeOverlay::paint(juce::Graphics& g)
@@ -345,16 +347,18 @@ void WaveEnlargeOverlay::paint(juce::Graphics& g)
 
 void WaveEnlargeOverlay::resized()
 {
-    constexpr int margin = 40, gap = 20, closeH = 30, closeW = 100;
+    constexpr int margin = 16, gap = 10, closeH = 30, closeW = 100;
     auto area = getLocalBounds().reduced(margin);
     area.removeFromBottom(gap + closeH);
 
     const bool both = (bigInput != nullptr && bigOutput != nullptr);
     if (both)
     {
-        auto left  = area.removeFromLeft(area.getWidth() / 2 - gap / 2);
-        area.removeFromLeft(gap);
-        bigInput->setBounds(left.reduced(4));
+        // Full-width stacked scopes make each expanded waveform at least
+        // 1.5x wider than its normal editor counterpart.
+        auto top = area.removeFromTop(area.getHeight() / 2 - gap / 2);
+        area.removeFromTop(gap);
+        bigInput->setBounds(top.reduced(4));
         bigOutput->setBounds(area.reduced(4));
     }
     else if (bigInput)
@@ -376,6 +380,16 @@ void WaveEnlargeOverlay::mouseUp(const juce::MouseEvent& e)
     // WaveformDisplay/CLOSE-button components, which consume it first)
     // means the dimmed backdrop was clicked -- dismiss.
     if (e.eventComponent == this && onClose) onClose();
+}
+
+bool WaveEnlargeOverlay::keyPressed(const juce::KeyPress& key)
+{
+    if (key == juce::KeyPress::escapeKey)
+    {
+        if (onClose) onClose();
+        return true;
+    }
+    return false;
 }
 
 //==============================================================================
@@ -651,7 +665,9 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
         const float ty    = trackT + trackH * (1.0f - norm);
         const bool  major = (static_cast<int>(db) % 12 == 0) || db == 0.0f;
         g.setColour(Theme::textDim.withAlpha(major ? 0.75f : 0.35f));
-        g.fillRect(trackX + trackW + 2.5f, ty - 0.5f, major ? 5.5f : 3.0f, 1.0f);
+        const float tickH = major ? 2.0f : 1.5f;  // 50% more vertical bite
+        g.fillRect(trackX + trackW + 2.5f, ty - tickH * 0.5f,
+                   major ? 5.5f : 3.0f, tickH);
     }
 
     // Cap — slim, low-profile
@@ -2772,7 +2788,6 @@ void VisualCompEditor::paint(juce::Graphics& g)
     // dimmer-highlighted for whichever linked node is dominant and driving
     // the compressor's detector.
     {
-        const int domBand = audioProcessor.activeEqBand.load(std::memory_order_relaxed);
         const int rowX = kFaderM, rowY = kCtrlY + 4, rowH = kCtrlTopStripH - 8;
         const int rowW = kContentW - 2 * kFaderM, gap = 3;
         const int btnW = (rowW - (kMaxEqNodes - 1) * gap) / kMaxEqNodes;
@@ -2791,13 +2806,13 @@ void VisualCompEditor::paint(juce::Graphics& g)
                                            float(btnW), float(rowH));
             ++slot;
             const auto colour = EqPanel::kNodeColours[i];
-            const bool sel = (i == selectedBand), dom = (i == domBand);
-            if (sel || dom)
+            const bool sel = (i == selectedBand);
+            if (sel)
             {
-                g.setColour(colour.withAlpha(sel ? 0.20f : 0.12f));
+                g.setColour(colour.withAlpha(0.20f));
                 g.fillRoundedRectangle(b, 3.0f);
             }
-            g.setColour(colour.withAlpha(sel ? 0.95f : (dom ? 0.75f : 0.45f)));
+            g.setColour(colour.withAlpha(sel ? 0.95f : 0.45f));
             g.drawRoundedRectangle(b.reduced(0.5f), 3.0f, sel ? 1.6f : 1.1f);
         }
     }
@@ -2813,17 +2828,17 @@ void VisualCompEditor::paint(juce::Graphics& g)
         g.fillRect(sx + 1, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlH - kCtrlTopStripH - 4);
     }
 
-    // Fader column dividers
+    // Gain In divider and the meter-side Gain Out column divider.
     {
         const int faderRightEdge = kFaderM + kFaderW;
         const int gainOutX       = kContentW - kFaderM - kFaderW;
         const int dy = kCtrlY + kCtrlTopStripH + 4, dh = kCtrlH - kCtrlTopStripH - 18;
         g.setColour(juce::Colours::black.withAlpha(0.55f));
         g.fillRect(faderRightEdge, dy, 1, dh);
-        g.fillRect(gainOutX - 1,   dy, 1, dh);
+        g.fillRect(gainOutX - 1,   kHeadH, 1, h - kHeadH);
         g.setColour(Theme::line.withAlpha(0.55f));
         g.fillRect(faderRightEdge + 1, dy, 1, dh);
-        g.fillRect(gainOutX,           dy, 1, dh);
+        g.fillRect(gainOutX,           kHeadH, 1, h - kHeadH);
     }
 
     // Parameter position bars
@@ -2951,9 +2966,11 @@ void VisualCompEditor::resized()
     }
 
     // Waveforms
-    const int waveW = (kContentW - 14) / 2;
-    inputDisplay .setBounds(ox + 5,         kWaveY, waveW, kWaveH);
-    outputDisplay.setBounds(ox + waveW + 9, kWaveY, waveW, kWaveH);
+    const int inputWaveW = (kContentW - 14) / 2;
+    const int gainOutX = kContentW - kFaderM - kFaderW;
+    const int outputWaveX = inputWaveW + 9;
+    inputDisplay .setBounds(ox + 5,           kWaveY, inputWaveW, kWaveH);
+    outputDisplay.setBounds(ox + outputWaveX, kWaveY, gainOutX - outputWaveX - 5, kWaveH);
 
     // Right column — vuMeter/curveDisplay always keep the same (expanded)
     // geometry; only levelMeter's x-position and the total window width
@@ -2964,15 +2981,14 @@ void VisualCompEditor::resized()
     curveDisplay.setBounds(ox + kContentW + 2, kCurveY + 1, kCurveGrColW, kCurveH - 1);
     levelMeter  .setBounds(levelMeterX, kHeadH, kLevelMeterW, kVUH + kCurveH - 1);
 
-    // Controls
-    constexpr int textBoxH = 24;
-
     // Gain In
     {
         const int fx = ox + kFaderM;
         gainInFaderLabel.setBounds(fx, kCtrlY + kKnobRowY, kFaderW, kKnobLblH);
-        gainInFader.setBounds(fx, kCtrlY + kKnobRowY + kKnobLblH + 2, kFaderW,
-                              kCtrlH - kKnobRowY - kKnobLblH - 28);
+        // Keep both gain faders at the same component height as the Dynamics
+        // knobs; their tracks no longer stretch down the whole panel.
+        constexpr int dynamicsKnobH = kCtrlHOld - kKnobRowY - 28;
+        gainInFader.setBounds(fx, kCtrlY + kKnobRowY, kFaderW, dynamicsKnobH);
     }
 
     // Band-selector row — spans the full Dynamics-pane width, directly
@@ -3044,10 +3060,14 @@ void VisualCompEditor::resized()
     placeLabel(attackLabel,    kSlotAttackX,    kSlotAttackW);
     placeLabel(releaseLabel,   kSlotReleaseX,   kSlotReleaseW);
 
-    // Gain Out + toggles
+    // Gain Out shares the right edge with the dB meter: the entire column
+    // spans exactly the meter height, while its utility controls live below
+    // the shortened fader rather than making the editor taller.
     {
-        const int fx = ox + kContentW - kFaderM - kFaderW;
-        gainOutFaderLabel.setBounds(fx, kCtrlY + kKnobRowY, kFaderW, kKnobLblH);
+        const int fx = ox + gainOutX;
+        constexpr int columnY = kHeadH;
+        constexpr int columnH = kHeight - kHeadH - 1;
+        gainOutFaderLabel.setBounds(fx, columnY + 4, kFaderW, kKnobLblH);
 
         // Restored to 24/32/3/14 (was trimmed to 20/28/2/11 to steal room for
         // the fader above) now that shrinking the waveform boxes (see kWaveH)
@@ -3059,13 +3079,12 @@ void VisualCompEditor::resized()
         constexpr int gap    = 3;
         constexpr int miniH  = 14;
 
-        const int bottomH  = agBtnH + gap + btnH + miniH + gap + btnH + miniH + 2;
-        const int faderTop = kCtrlY + kKnobRowY + kKnobLblH + 2;
-        const int faderH   = kCtrlH - kKnobRowY - kKnobLblH - 8 - bottomH - gap - textBoxH;
+        const int controlsH = agBtnH + gap + btnH + miniH + gap + btnH + miniH;
+        const int faderY = columnY + kKnobLblH + 6;
+        const int faderH = columnH - (faderY - columnY) - controlsH - 3 * gap;
+        gainOutFader.setBounds(fx, faderY, kFaderW, faderH);
 
-        gainOutFader.setBounds(fx, faderTop, kFaderW, faderH + textBoxH);
-
-        int agY = faderTop + faderH + textBoxH + gap;
+        int agY = faderY + faderH + gap;
         autoGainButton.setBounds(fx + 4, agY, kFaderW - 8, agBtnH);
 
         int limY = agY + agBtnH + gap;

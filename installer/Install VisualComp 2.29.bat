@@ -1,5 +1,5 @@
 @echo off
-title VisualComp 2.28 Installer - Azazel Audio
+title VisualComp 2.29 Installer - Azazel Audio
 
 rem Re-launch with administrator rights if we do not already have them
 net session >nul 2>&1
