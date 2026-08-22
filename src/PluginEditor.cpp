@@ -89,6 +89,13 @@ namespace
     constexpr int kKnobRowY = kCtrlTopStripH + 8;    // label row, pushed below the new strip
     constexpr int kKnobLblH = 20;
 
+    // Gain Out is an independent meter-side section. It deliberately ends at
+    // the Dynamics knobs' horizontal value-glow line rather than running to
+    // the chassis bottom or inheriting the waveform/control-panel ridge.
+    constexpr int kGainOutSectionY = kHeadH;
+    constexpr int kGainOutSectionBottom = kCtrlY + kCtrlHOld - 12;
+    constexpr int kGainOutSectionH = kGainOutSectionBottom - kGainOutSectionY;
+
     constexpr int kEqPanelW = 520;   // docked EQ panel width when open (2x its base 260)
 
     // Genres offered by the Auto-Analyze wizard, with a sensible default LUFS
@@ -438,29 +445,28 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         g.fillEllipse(cx - maxR * 1.14f, cy - maxR * 1.14f, maxR * 2.28f, maxR * 2.28f);
     }
 
-    // Machined bezel radii, declared up front so the graduation ticks below
-    // can reach flush against the cog-wheel rim instead of floating short of
-    // it with a visible gap.
-    const float bezelOuter  = maxR * 0.72f;
-    const float bezelValley = maxR * 0.645f;   // tooth root radius (grooves a finger catches on)
-    const float bezelInner  = maxR * 0.60f;
+    // Smooth dark concentric bezel, based on the supplied recessed hardware
+    // knob reference rather than a bright or cogged control face.
+    const float bezelOuter  = maxR * 0.75f;
+    const float bezelValley = bezelOuter;
+    const float bezelInner  = maxR * 0.61f;
 
     // Graduation ticks — elongated all the way in to the bezel rim (rather
     // than stopping short of it) so they read as one continuous dial face.
     {
-        constexpr int N = 22;
+        constexpr int N = 12;
         for (int i = 0; i <= N; ++i)
         {
             const float frac  = float(i) / float(N);
             const float angle = startAngle + frac * (endAngle - startAngle);
-            const bool  isMaj = (i % 4 == 0) || (i == N);
+            const bool  isMaj = (i % 3 == 0) || (i == N);
             if (simpleTicks && !isMaj) continue;
             const float sa = std::sin(angle), ca = -std::cos(angle);
-            g.setColour(isMaj ? Theme::text.withAlpha(0.75f)
-                              : Theme::textDim.withAlpha(0.40f));
+            g.setColour(isMaj ? Theme::textDim.withAlpha(0.55f)
+                              : Theme::textFaint.withAlpha(0.28f));
             g.drawLine(cx + bezelOuter * sa, cy + bezelOuter * ca,
-                       cx + maxR * sa,       cy + maxR * ca,
-                       isMaj ? 1.5f : 0.7f);
+                       cx + maxR * 0.84f * sa, cy + maxR * 0.84f * ca,
+                       isMaj ? 1.1f : 0.6f);
         }
     }
 
@@ -504,7 +510,7 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     // between an outer tooth radius and an inner valley radius. (Radii
     // declared once, above, for the graduation ticks.)
     {
-        constexpr int kTeeth = 18;
+        constexpr int kTeeth = 48; // a smooth circle, not a cog-wheel
         juce::Path gear;
         for (int t = 0; t < kTeeth * 2; ++t)
         {
@@ -520,11 +526,10 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         gear.closeSubPath();
 
         juce::ColourGradient ch(
-            juce::Colour(0xff54514c), cx - bezelOuter * 0.40f, cy - bezelOuter * 0.52f,
-            juce::Colour(0xff121110), cx + bezelOuter * 0.40f, cy + bezelOuter * 0.52f, true);
-        ch.addColour(0.22, juce::Colour(0xff6b675f));
-        ch.addColour(0.45, juce::Colour(0xff232220));
-        ch.addColour(0.70, juce::Colour(0xff43403b));
+            juce::Colour(0xff343432), cx - bezelOuter * 0.40f, cy - bezelOuter * 0.52f,
+            juce::Colour(0xff080808), cx + bezelOuter * 0.40f, cy + bezelOuter * 0.52f, true);
+        ch.addColour(0.28, juce::Colour(0xff171716));
+        ch.addColour(0.70, juce::Colour(0xff050505));
         g.setGradientFill(ch);
         g.fillPath(gear);
 
@@ -547,12 +552,11 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
             g.fillEllipse(cx - sz + 1.1f, cy - sz + 1.6f, sz * 2.0f, sz * 2.0f);
         }
 
-        const bool lightKnob = bool(slider.getProperties().getWithDefault("lightKnob", false));
         juce::ColourGradient bd(
-            lightKnob ? juce::Colour(0xff4a4842) : juce::Colour(0xff34322e), cx - bodyR * 0.32f, cy - bodyR * 0.42f,
-            juce::Colour(0xff060605), cx + bodyR * 0.32f, cy + bodyR * 0.48f, true);
-        bd.addColour(0.38, juce::Colour(0xff171614));
-        bd.addColour(0.66, juce::Colour(0xff0c0b0a));
+            juce::Colour(0xff3d3d3a), cx - bodyR * 0.32f, cy - bodyR * 0.42f,
+            juce::Colour(0xff10100f), cx + bodyR * 0.32f, cy + bodyR * 0.48f, true);
+        bd.addColour(0.42, juce::Colour(0xff242422));
+        bd.addColour(0.72, juce::Colour(0xff0b0b0a));
         g.setGradientFill(bd);
         g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f);
 
@@ -671,7 +675,7 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
     }
 
     // Cap — slim, low-profile
-    const float capH = 8.0f;
+    const float capH = 12.0f; // 50% taller value fader handle
     const float capW = (float(width) - 16.0f) * 0.52f;
     const float capX = float(x) + (float(width) - capW) * 0.5f;
     const float capY = clampedPos - capH * 0.5f;
@@ -2773,12 +2777,17 @@ void VisualCompEditor::paint(juce::Graphics& g)
         Theme::drawTracked(g, "AUTHOR", { 182, kTitleH + 4, 140, 14 }, juce::Justification::left);
     }
 
-    // Waveform seat
-    g.setColour(juce::Colours::black.withAlpha(0.35f));
-    g.drawRect(3, kWaveY - 2, kContentW - 6, kWaveH + 4, 1);
+    const int gainOutX = kContentW - kFaderM - kFaderW;
 
-    // Controls panel (no header tab)
-    drawTabPanel(g, juce::Rectangle<int>(3, kCtrlY, kContentW - 6, kCtrlH - 4), {});
+    // Waveform/control surfaces stop before the independent Gain Out column,
+    // so their shared horizontal border cannot cut across that fader.
+    g.setColour(juce::Colours::black.withAlpha(0.35f));
+    g.drawRect(3, kWaveY - 2, gainOutX - 6, kWaveH + 4, 1);
+
+    // Controls panel (no header tab) plus a fully independent Gain Out panel.
+    drawTabPanel(g, juce::Rectangle<int>(3, kCtrlY, gainOutX - 6, kCtrlH - 4), {});
+    drawTabPanel(g, juce::Rectangle<int>(gainOutX + 2, kGainOutSectionY,
+                                          kFaderW + 3, kGainOutSectionH), {});
 
     // Band-selector row — a colored ring (matching EqPanel::kNodeColours)
     // frames each enabled node's button, inset within the ring so it reads
@@ -2831,14 +2840,13 @@ void VisualCompEditor::paint(juce::Graphics& g)
     // Gain In divider and the meter-side Gain Out column divider.
     {
         const int faderRightEdge = kFaderM + kFaderW;
-        const int gainOutX       = kContentW - kFaderM - kFaderW;
         const int dy = kCtrlY + kCtrlTopStripH + 4, dh = kCtrlH - kCtrlTopStripH - 18;
         g.setColour(juce::Colours::black.withAlpha(0.55f));
         g.fillRect(faderRightEdge, dy, 1, dh);
-        g.fillRect(gainOutX - 1,   kHeadH, 1, h - kHeadH);
+        g.fillRect(gainOutX - 1,   kGainOutSectionY, 1, kGainOutSectionH);
         g.setColour(Theme::line.withAlpha(0.55f));
         g.fillRect(faderRightEdge + 1, dy, 1, dh);
-        g.fillRect(gainOutX,           kHeadH, 1, h - kHeadH);
+        g.fillRect(gainOutX,           kGainOutSectionY, 1, kGainOutSectionH);
     }
 
     // Parameter position bars
@@ -2979,7 +2987,7 @@ void VisualCompEditor::resized()
     const int levelMeterX = ox + kContentW + 2 + (curveGrVisible ? kCurveGrColW + 4 : 0);
     vuMeter     .setBounds(ox + kContentW + 2, kHeadH,      kCurveGrColW, kVUH);
     curveDisplay.setBounds(ox + kContentW + 2, kCurveY + 1, kCurveGrColW, kCurveH - 1);
-    levelMeter  .setBounds(levelMeterX, kHeadH, kLevelMeterW, kVUH + kCurveH - 1);
+    levelMeter  .setBounds(levelMeterX, kHeadH, kLevelMeterW, kGainOutSectionH);
 
     // Gain In
     {
@@ -3065,8 +3073,8 @@ void VisualCompEditor::resized()
     // the shortened fader rather than making the editor taller.
     {
         const int fx = ox + gainOutX;
-        constexpr int columnY = kHeadH;
-        constexpr int columnH = kHeight - kHeadH - 1;
+        constexpr int columnY = kGainOutSectionY;
+        constexpr int columnH = kGainOutSectionH;
         gainOutFaderLabel.setBounds(fx, columnY + 4, kFaderW, kKnobLblH);
 
         // Restored to 24/32/3/14 (was trimmed to 20/28/2/11 to steal room for

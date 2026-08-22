@@ -1,6 +1,6 @@
 ---
 name: testbuild
-description: Build just the VisualComp 2.29 Standalone target, drop it into "Build Final\Standalone Test", launch it, then commit and push the working tree to GitHub — a fast test-and-publish loop. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
+description: Build just the VisualComp 2.30 Standalone target, drop it into "Build Final\Standalone Test", launch it, then commit and push the working tree to GitHub — a fast test-and-publish loop. Use when asked to "test build", "quick build", "build and run", or "/testbuild".
 ---
 
 # Test Build
@@ -67,4 +67,4 @@ every test build.
   runnable, published exe for manual testing.
 - Clear any stale Standalone settings first if a clean UI state is needed to
   test against — see CLAUDE.md's screenshot-workflow note about
-  `%APPDATA%\VisualComp 2.29\VisualComp 2.settings`.
+  `%APPDATA%\VisualComp 2.30\VisualComp 2.settings`.

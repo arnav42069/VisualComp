@@ -158,6 +158,13 @@ public:
     std::atomic<int>  smartMasterCaptureWritePos { 0 };          // samples captured so far
     std::atomic<bool> smartMasterCaptureDone     { false };
 
+    // Test-build-only looping input, activated only by VC2_DEMO_AUDIO_FILE.
+    // It is fully preloaded during prepareToPlay; processBlock does no I/O.
+    juce::AudioBuffer<float> demoAudio;
+    double demoReadPosition = 0.0;
+    double demoReadIncrement = 1.0;
+    bool demoAudioActive = false;
+
     // GUI persistence (message thread only)
     juce::String currentPresetName   { "Mastering Glue" };
     // Author of the currently loaded/saved user preset -- blank for factory

@@ -27,6 +27,10 @@ every test build.
    - Copies the newest `.exe` in `build\VisualComp_artefacts\Release\Standalone\`
      to `Build Final\Standalone Test\` (creating that folder if needed) and
      launches it via `Start-Process`.
+   - Copies `Z:\Azazel Audio Store\src\assets\audio\future-bass-bypassed.wav`
+     beside the test executable and launches Standalone with that audio
+     looping as its input. This test-only environment setting never affects
+     the installed VST3 or normal Standalone launches.
    - Throws if no Standalone build output exists yet — surface that error
      rather than retrying blindly.
 

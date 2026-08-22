@@ -23,8 +23,15 @@ New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 $destExe = Join-Path $destDir $exeSrc.Name
 Copy-Item -LiteralPath $exeSrc.FullName -Destination $destExe -Force
 
+$demoSource = 'Z:\Azazel Audio Store\src\assets\audio\future-bass-bypassed.wav'
+if (-not (Test-Path -LiteralPath $demoSource)) { throw "Test demo audio is missing: $demoSource" }
+$demoDest = Join-Path $destDir 'future-bass-bypassed.wav'
+Copy-Item -LiteralPath $demoSource -Destination $demoDest -Force
+
 Write-Host ''
 Write-Host ("  Test build: {0}" -f $destExe) -ForegroundColor Green
 Write-Host ''
 
+$env:VC2_DEMO_AUDIO_FILE = $demoDest
 Start-Process -FilePath $destExe
+Remove-Item Env:VC2_DEMO_AUDIO_FILE

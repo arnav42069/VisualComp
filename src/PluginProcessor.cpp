@@ -180,6 +180,26 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     smartMasterCaptureActive.store(false, std::memory_order_relaxed);
     smartMasterCaptureWritePos.store(0, std::memory_order_relaxed);
     smartMasterCaptureDone.store(false, std::memory_order_relaxed);
+
+    demoAudioActive = false;
+    demoAudio.clear();
+    const auto demoPath = juce::SystemStats::getEnvironmentVariable("VC2_DEMO_AUDIO_FILE", {});
+    const juce::File demoFile(demoPath);
+    if (demoPath.isNotEmpty() && demoFile.existsAsFile())
+    {
+        juce::WavAudioFormat wav;
+        auto stream = demoFile.createInputStream();
+        std::unique_ptr<juce::AudioFormatReader> reader(wav.createReaderFor(stream.release(), true));
+        if (reader != nullptr && reader->lengthInSamples > 0)
+        {
+            const int frames = int(juce::jmin<int64>(reader->lengthInSamples, 60LL * 60LL * int64(reader->sampleRate)));
+            demoAudio.setSize(juce::jmax(1, int(reader->numChannels)), frames, false, true, true);
+            reader->read(&demoAudio, 0, frames, 0, true, true);
+            demoReadPosition = 0.0;
+            demoReadIncrement = reader->sampleRate / sampleRate;
+            demoAudioActive = true;
+        }
+    }
 }
 
 void VisualCompProcessor::releaseResources() {}
@@ -207,6 +227,26 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const int numSamples  = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
     if (numSamples == 0 || numChannels == 0) return;
+
+    if (demoAudioActive && demoAudio.getNumSamples() > 1)
+    {
+        const int demoFrames = demoAudio.getNumSamples();
+        for (int s = 0; s < numSamples; ++s)
+        {
+            const int i0 = int(demoReadPosition) % demoFrames;
+            const int i1 = (i0 + 1) % demoFrames;
+            const float frac = float(demoReadPosition - std::floor(demoReadPosition));
+            for (int ch = 0; ch < numChannels; ++ch)
+            {
+                const int sourceCh = juce::jmin(ch, demoAudio.getNumChannels() - 1);
+                const float a = demoAudio.getSample(sourceCh, i0);
+                const float b = demoAudio.getSample(sourceCh, i1);
+                buffer.setSample(ch, s, a + (b - a) * frac);
+            }
+            demoReadPosition += demoReadIncrement;
+            while (demoReadPosition >= demoFrames) demoReadPosition -= demoFrames;
+        }
+    }
 
     // ── Bypass: pass input unchanged, reset metering ──────────────────────────
     if (bypassed.load(std::memory_order_relaxed))
