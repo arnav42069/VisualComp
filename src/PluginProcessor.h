@@ -43,6 +43,7 @@ public:
 
     void setDemoAudioPlaying(bool shouldPlay) noexcept { demoAudioPlaying.store(shouldPlay, std::memory_order_release); }
     bool hasDemoAudio() const noexcept { return demoAudioReady.load(std::memory_order_acquire); }
+    bool loadDemoAudioFile(const juce::File& file);
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }

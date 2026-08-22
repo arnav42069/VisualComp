@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
-project(VisuComp VERSION 2.31.0)
+project(VisuComp VERSION 2.32.0)
 
 # Single source of truth for the version string embedded in PRODUCT_NAME below
 # and in the distribution-folder paths further down -- keep these in sync
-# rather than hardcoding "2.31" in more than one place (a prior version bump
+# rather than hardcoding "2.32" in more than one place (a prior version bump
 # updated PRODUCT_NAME but missed the DIST_DIR block, which then silently
 # kept referencing stale "2.1" paths for an entire release cycle).
-set(VC2_VERSION_STRING "2.31")
+set(VC2_VERSION_STRING "2.32")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

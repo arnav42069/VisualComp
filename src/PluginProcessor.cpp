@@ -123,6 +123,35 @@ void VisualCompProcessor::handleAsyncUpdate()
     setLatencySamples(computeTotalLatency());
 }
 
+bool VisualCompProcessor::loadDemoAudioFile(const juce::File& file)
+{
+    demoAudioPlaying.store(false, std::memory_order_release);
+    demoAudioReady.store(false, std::memory_order_release);
+    demoAudio.clear();
+    if (!file.existsAsFile() || currentSampleRate <= 0.0)
+        return false;
+
+    juce::WavAudioFormat wav;
+    auto stream = file.createInputStream();
+    std::unique_ptr<juce::AudioFormatReader> reader(wav.createReaderFor(stream.release(), true));
+    if (reader == nullptr || reader->lengthInSamples <= 0)
+        return false;
+
+    const int frames = int(juce::jmin<int64>(reader->lengthInSamples,
+                                              60LL * 60LL * int64(reader->sampleRate)));
+    demoAudio.setSize(juce::jmax(1, int(reader->numChannels)), frames, false, true, true);
+    if (!reader->read(&demoAudio, 0, frames, 0, true, true))
+    {
+        demoAudio.clear();
+        return false;
+    }
+
+    demoReadPosition = 0.0;
+    demoReadIncrement = reader->sampleRate / currentSampleRate;
+    demoAudioReady.store(true, std::memory_order_release);
+    return true;
+}
+
 void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
@@ -189,23 +218,6 @@ void VisualCompProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     demoAudioReady.store(false, std::memory_order_release);
     demoAudioPlaying.store(false, std::memory_order_release);
     demoAudio.clear();
-    const auto demoPath = juce::SystemStats::getEnvironmentVariable("VC2_DEMO_AUDIO_FILE", {});
-    const juce::File demoFile(demoPath);
-    if (demoPath.isNotEmpty() && demoFile.existsAsFile())
-    {
-        juce::WavAudioFormat wav;
-        auto stream = demoFile.createInputStream();
-        std::unique_ptr<juce::AudioFormatReader> reader(wav.createReaderFor(stream.release(), true));
-        if (reader != nullptr && reader->lengthInSamples > 0)
-        {
-            const int frames = int(juce::jmin<int64>(reader->lengthInSamples, 60LL * 60LL * int64(reader->sampleRate)));
-            demoAudio.setSize(juce::jmax(1, int(reader->numChannels)), frames, false, true, true);
-            reader->read(&demoAudio, 0, frames, 0, true, true);
-            demoReadPosition = 0.0;
-            demoReadIncrement = reader->sampleRate / sampleRate;
-            demoAudioReady.store(true, std::memory_order_release);
-        }
-    }
 }
 
 void VisualCompProcessor::releaseResources() {}

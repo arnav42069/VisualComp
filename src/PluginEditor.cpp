@@ -1106,11 +1106,21 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         demoPlayButton.setClickingTogglesState(true);
         demoPlayButton.onClick = [this]
         {
-            const bool playing = demoPlayButton.getToggleState();
+            bool playing = demoPlayButton.getToggleState();
+            if (playing && !audioProcessor.hasDemoAudio())
+            {
+                auto path = juce::SystemStats::getEnvironmentVariable("VC2_DEMO_AUDIO_FILE", {});
+                juce::File demoFile(path);
+                if (path.isEmpty())
+                    demoFile = juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+                                   .getSiblingFile("future-bass-bypassed.wav");
+                playing = audioProcessor.loadDemoAudioFile(demoFile);
+                if (!playing)
+                    demoPlayButton.setToggleState(false, juce::dontSendNotification);
+            }
             audioProcessor.setDemoAudioPlaying(playing);
             demoPlayButton.setButtonText(playing ? "STOP" : "PLAY");
         };
-        addAndMakeVisible(demoPlayButton);
     }
 
     // Curve/GR toggle — Transfer Curve and Gain Reduction meter are hidden by
