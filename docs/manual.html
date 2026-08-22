@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>VisualComp 2.32 — User Manual | Azazel Audio</title>
+<title>VisualComp 2.36 — User Manual | Azazel Audio</title>
 <style>
   /* Zero printer margin so each sheet is filled edge to edge with the panel
      black; the readable inset comes from padding inside .page. */
@@ -157,11 +157,11 @@
 <!-- ══════════════════════════ COVER ══════════════════════════ -->
 <div class="page cover">
   <img class="logo" src="img/azazel-logo.svg" alt="Azazel Audio">
-  <h1>VISUALCOMP 2.32</h1>
+  <h1>VISUALCOMP 2.36</h1>
   <div class="tag">The Compressor You Can See</div>
   <div class="rule"></div>
-  <div class="sub">USER MANUAL  /  VERSION 2.32  /  VST3 / STANDALONE  /  WINDOWS &amp; macOS</div>
-  <img class="shot" src="img/ui-full.png" alt="VisualComp 2.32 interface" style="width:88%;">
+  <div class="sub">USER MANUAL  /  VERSION 2.36  /  VST3 / STANDALONE  /  WINDOWS &amp; macOS</div>
+  <img class="shot" src="img/ui-full.png" alt="VisualComp 2.36 interface" style="width:88%;">
   <div class="foot">AZAZEL AUDIO  /  DESIGNED AND BUILT BY ARNAV SINGH</div>
 </div>
 
@@ -187,13 +187,13 @@
     <tr><td class="n">16</td><td>Troubleshooting</td><td class="pg">22</td></tr>
     <tr><td class="n">17</td><td>Version 2.1 — New Tools</td><td class="pg">23</td></tr>
     <tr><td class="n">18</td><td>Version 2.2 — Multiband Dynamic EQ</td><td class="pg">33</td></tr>
-    <tr><td class="n">19</td><td>Version 2.32 — Refinements</td><td class="pg">36</td></tr>
+    <tr><td class="n">19</td><td>Version 2.36 — Refinements</td><td class="pg">36</td></tr>
     <tr><td class="n">20</td><td>Specifications &amp; Credits</td><td class="pg">38</td></tr>
   </table>
 
   <div class="note">
     <span class="lbl">Quick start</span>
-    Insert VisualComp 2.32 on a bus, leave the default <em>Mastering Glue</em> preset loaded, and play
+    Insert VisualComp 2.36 on a bus, leave the default <em>Mastering Glue</em> preset loaded, and play
     your material. Lower <strong>THRESHOLD</strong> until the needle rests around −2 to −4 dB on
     peaks. That is a finished mix-bus compressor setting — everything else in this manual is
     refinement.
@@ -215,12 +215,12 @@
   compressors you cannot see what is happening. You turn a knob, something changes — maybe — and it
   takes years to build the ear that connects a number to a result.</p>
 
-  <p><strong>VisualComp 2.32 is built on one idea: if you can see compression working, you can master
+  <p><strong>VisualComp 2.36 is built on one idea: if you can see compression working, you can master
   it.</strong> Two oscilloscope displays show your signal before and after processing, with the
   threshold drawn straight across the waveform. Set the attack too slow and you will <em>see</em> the
   transient escape. Set the release too fast and you will <em>see</em> the pumping.</p>
 
-  <h3>What VisualComp 2.32 is for</h3>
+  <h3>What VisualComp 2.36 is for</h3>
   <ul>
     <li><strong>Glue</strong> — bonding a mix or a bus into one coherent, finished-sounding whole.</li>
     <li><strong>Control</strong> — evening out an inconsistent vocal, bass or drum performance.</li>
@@ -249,7 +249,7 @@
   <h2><span class="num">02</span>Installation</h2>
 
   <h3>Windows — installer</h3>
-  <p>Open the <code>Windows</code> folder and run <strong>Install VisualComp 2.32.bat</strong>. Windows
+  <p>Open the <code>Windows</code> folder and run <strong>Install VisualComp 2.36.bat</strong>. Windows
   will ask for administrator permission, which the installer needs in order to write to the shared
   VST3 folder. It installs:</p>
   <ul>
@@ -264,9 +264,9 @@
   category Dynamics.</p>
 
   <h4>Manual install</h4>
-  <p>If you prefer not to run the installer, copy the <code>VisualComp 2.32.vst3</code> folder from the
+  <p>If you prefer not to run the installer, copy the <code>VisualComp 2.36.vst3</code> folder from the
   <code>Windows</code> folder into <code>C:\Program Files\Common Files\VST3\</code> yourself, and run
-  <code>VisualComp 2.32.exe</code> from wherever you like.</p>
+  <code>VisualComp 2.36.exe</code> from wherever you like.</p>
 
   <div class="warnbox">
     <span class="lbl">If the plugin does not appear</span>
@@ -294,7 +294,7 @@
         <code>~/Library/Audio/Plug-Ins/VST3/</code>. Rescan plugins in your DAW.</li>
   </ol>
   <p>The plugin is not code-signed. If your DAW refuses to load it, clear the quarantine flag:<br>
-  <code>xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.32.vst3"</code></p>
+  <code>xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"VisualComp 2.36.vst3"</code></p>
 
   <h3>Where your files live</h3>
   <table>
@@ -315,7 +315,7 @@
 <div class="page">
   <h2><span class="num">03</span>The Guided Tour</h2>
 
-  <p>The first time you open VisualComp 2.32, an eight-step tour walks you through the panel. Each step
+  <p>The first time you open VisualComp 2.36, an eight-step tour walks you through the panel. Each step
   dims the interface, spotlights one area and explains it in a sentence or two.</p>
 
   <figure>
@@ -373,7 +373,7 @@
 
   <figure style="max-width:125mm;margin-left:auto;margin-right:auto;">
     <img src="img/ui-full.png" alt="Full interface">
-    <figcaption><b>Figure 4.1</b> — The complete VisualComp 2.32 panel at 100 % zoom, showing the
+    <figcaption><b>Figure 4.1</b> — The complete VisualComp 2.36 panel at 100 % zoom, showing the
     default <em>Mastering Glue</em> preset.</figcaption>
   </figure>
 
@@ -449,7 +449,7 @@
 <div class="page">
   <h2><span class="num">06</span>Using the Controls</h2>
 
-  <p>Every control in VisualComp 2.32 responds the same way, and the rules are worth learning once
+  <p>Every control in VisualComp 2.36 responds the same way, and the rules are worth learning once
   because they make the plugin considerably faster to operate than a conventional interface.</p>
 
   <h3>Drag anywhere in the box</h3>
@@ -641,7 +641,7 @@
   <div class="note">
     <span class="lbl">Why your knob values may not apply literally</span>
     Real optical and tube compressors physically cannot react in a fraction of a millisecond, and a
-    FET unit cannot be slow. VisualComp 2.32 respects those limits: in Optical and Tube modes very short
+    FET unit cannot be slow. VisualComp 2.36 respects those limits: in Optical and Tube modes very short
     attack settings are lengthened to the circuit's minimum, and in FET mode the attack is always
     fast. The knobs remain fully useful — they simply operate within each circuit's real range.
   </div>
@@ -660,7 +660,7 @@
   <h2><span class="num">10</span>Sidechain — Routing in Your DAW</h2>
 
   <p>External sidechaining lets one signal control the compression applied to another — most commonly
-  a kick drum ducking a bass line or pad so the low end stays clear. VisualComp 2.32 exposes a second
+  a kick drum ducking a bass line or pad so the low end stays clear. VisualComp 2.36 exposes a second
   stereo input bus named <strong>Sidechain</strong> for exactly this.</p>
 
   <div class="warnbox">
@@ -672,11 +672,11 @@
 
   <h3>FL Studio</h3>
   <ol>
-    <li>Put VisualComp 2.32 on the mixer track you want ducked (for example, the bass).</li>
+    <li>Put VisualComp 2.36 on the mixer track you want ducked (for example, the bass).</li>
     <li>Select the <strong>kick's mixer track</strong>, and at the bottom of the bass track's channel
         click the small <strong>send arrow</strong> so the kick is routed to the bass track. The
         arrow lights up to show the side-send is active.</li>
-    <li>Open the VisualComp 2.32 plugin window and click the <strong>wrapper menu</strong> (the arrow in
+    <li>Open the VisualComp 2.36 plugin window and click the <strong>wrapper menu</strong> (the arrow in
         the plugin's title bar).</li>
     <li>Go to <strong>Processing &rarr; Connections</strong>, find the input labelled
         <em>External input</em> (or the sidechain pair) in the dropdown, and select the routed
@@ -687,7 +687,7 @@
 
   <h3>Ableton Live</h3>
   <ol>
-    <li>Place VisualComp 2.32 on the target track.</li>
+    <li>Place VisualComp 2.36 on the target track.</li>
     <li>Open the plugin's device panel and set the <strong>Sidechain</strong> input to the key track
         using Live's plugin sidechain routing selector.</li>
     <li>Press <strong>SC</strong>.</li>
@@ -1441,7 +1441,7 @@
   </ul>
 
   <h3>Credits</h3>
-  <p>VisualComp 2.32 was designed, programmed and voiced by <strong>Arnav Singh</strong> for
+  <p>VisualComp 2.36 was designed, programmed and voiced by <strong>Arnav Singh</strong> for
   <strong>Azazel Audio</strong>. Built with the JUCE framework.</p>
   <p>Preset values were informed by long-documented practice around the SSL G-Series bus compressor,
   FET and optical studio units, and contemporary mastering technique — then verified by ear on real
@@ -1449,12 +1449,12 @@
 
   <div class="note">
     <span class="lbl">Thank you</span>
-    Thank you for using VisualComp 2.32. If it helps you understand compression a little better, it has
+    Thank you for using VisualComp 2.36. If it helps you understand compression a little better, it has
     done its job. — <a href="https://azazelaudio.com">azazelaudio.com</a>
   </div>
 
   <p style="margin-top:8mm;text-align:center;color:var(--muted);font-size:8.6pt;letter-spacing:.18em;">
-    AZAZEL AUDIO  /  VISUALCOMP 2.32  /  USER MANUAL  /  VERSION 2.32
+    AZAZEL AUDIO  /  VISUALCOMP 2.36  /  USER MANUAL  /  VERSION 2.36
   </p>
 </div>
 

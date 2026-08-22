@@ -168,7 +168,12 @@ private:
     static constexpr int kSpectrumBands    = 48;
     juce::dsp::FFT spectrumFft { kSpectrumFftOrder };
     juce::dsp::WindowingFunction<float> spectrumWindow { kSpectrumFftSize, juce::dsp::WindowingFunction<float>::hann };
-    std::vector<float> spectrumFftBuffer { size_t(kSpectrumFftSize) * 2, 0.0f };
+    // NB: parens, not braces -- braces here would bind to the
+    // std::initializer_list<float> ctor instead of the (count, value) fill
+    // ctor, silently producing a 2-element vector {2048.0f, 0.0f} rather than
+    // a 2048-element zeroed buffer (this was a real, shipped bug: a
+    // heap-buffer-overflow on every write in updateSpectrum(), see git log).
+    std::vector<float> spectrumFftBuffer = std::vector<float>(size_t(kSpectrumFftSize) * 2, 0.0f);
     std::array<float, kSpectrumBands> spectrumDb {};
     int spectrumTick = 0;
 

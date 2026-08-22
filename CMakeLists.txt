@@ -1,15 +1,28 @@
 cmake_minimum_required(VERSION 3.15)
-project(VisuComp VERSION 2.32.0)
+project(VisuComp VERSION 2.36.0)
 
 # Single source of truth for the version string embedded in PRODUCT_NAME below
 # and in the distribution-folder paths further down -- keep these in sync
-# rather than hardcoding "2.32" in more than one place (a prior version bump
+# rather than hardcoding "2.36" in more than one place (a prior version bump
 # updated PRODUCT_NAME but missed the DIST_DIR block, which then silently
 # kept referencing stale "2.1" paths for an entire release cycle).
-set(VC2_VERSION_STRING "2.32")
+set(VC2_VERSION_STRING "2.36")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Emit PDBs for Release builds too. CMake's stock Release flags for MSVC omit
+# /Zi entirely, so a Release .exe ships with zero debug symbols -- fine for
+# distribution, but it means a crash dump/WER report can only ever point at a
+# raw module+offset (e.g. "ntdll.dll+0x6a8e6"), never a real function name or
+# call stack in our own code. /Zi + /DEBUG add symbol info without touching
+# optimization (/O2 etc. are untouched); /OPT:REF /OPT:ICF keep the linker's
+# usual Release-mode dead-code stripping/folding, which /DEBUG alone does not
+# disable but is worth pinning explicitly since we're touching linker flags.
+if(MSVC)
+    add_compile_options($<$<CONFIG:Release>:/Zi>)
+    add_link_options($<$<CONFIG:Release>:/DEBUG> $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(

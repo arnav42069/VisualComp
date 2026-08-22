@@ -6,8 +6,17 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 & (Join-Path $root 'bump-version.ps1')
+
+# cmake/MSBuild write non-fatal warnings to stderr; with $ErrorActionPreference
+# = 'Stop' PowerShell promotes every native-command stderr line to a
+# terminating error and aborts the script right here even on a mere Warning
+# (exit code 0). Relax to 'Continue' just for this call and rely on the
+# explicit $LASTEXITCODE check below instead.
+$ErrorActionPreference = 'Continue'
 & cmake --build (Join-Path $root 'build') --config Release --target VisualComp_VST3 VisualComp_Standalone
-if ($LASTEXITCODE -ne 0) { throw "VST3/Standalone build failed with exit code $LASTEXITCODE" }
+$buildExitCode = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($buildExitCode -ne 0) { throw "VST3/Standalone build failed with exit code $buildExitCode" }
 
 $standaloneDir = Join-Path $root 'build\VisualComp_artefacts\Release\Standalone'
 if (-not (Test-Path -LiteralPath $standaloneDir)) {

@@ -1,6 +1,10 @@
 # Build outputs — regenerate via CMake / package.ps1 / testbuild.ps1 (see CLAUDE.md)
 /build/
 /build-pkg/
+# Throwaway ASan-instrumented build tree used to diagnose the crash-on-launch
+# heap-buffer-overflow fixed in src/EqPanel.h (see git log) -- diagnostic
+# output only, not living source, same as /build/.
+/build-asan/
 # build-macos/ holds hand-authored source (build.sh, README.txt) copied into
 # releases by CMakeLists.txt's DIST_DIR step and package.ps1 -- only its own
 # generated build tree is regenerable output.
