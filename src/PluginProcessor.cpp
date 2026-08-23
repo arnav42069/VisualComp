@@ -258,7 +258,18 @@ void VisualCompProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // typically surfacing far from here). numChannels stays in use only for
     // the sidechain bus's own bounds check further down, where the whole
     // buffer's channel count is exactly what's wanted.
-    const int mainChannels = juce::jmin(numChannels, 2);
+    //
+    // Deriving this as jmin(numChannels, 2) was still wrong for a *mono* main
+    // bus (isBusesLayoutSupported accepts mono as well as stereo): mono main +
+    // stereo sidechain is a 3-channel buffer, so that formula returned 2 and
+    // channel 1 -- the sidechain's left channel -- was read and written as if
+    // it were the main bus's right. Ask the bus layout how wide the main bus
+    // actually is instead, and only then clamp to the buffer we were handed
+    // and to the 2-channel stereo maximum the per-sample stage assumes.
+    const int mainChannels = juce::jlimit(1, 2,
+        juce::jmin(juce::jmin(getMainBusNumInputChannels(),
+                              getMainBusNumOutputChannels()),
+                   numChannels));
 
     if (demoAudioPlaying.load(std::memory_order_acquire)
         && demoAudioReady.load(std::memory_order_acquire)
