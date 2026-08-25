@@ -158,6 +158,25 @@ number hardcoded in this file would go stale within a build or two — check
   meter's left edge) needs no such adjustment since the content area's own width never
   changes. `totalEditorWidth()` is the one place both panels' deltas combine; use it rather
   than recomputing `kWidth + ...` inline, so the two docked panels can't drift out of sync.
+- Rotary knobs are a **baked filmstrip**, not procedural drawing, as of 2026-08-25.
+  `resources/knob-azazel-192x61.png` (192px cells, 61 frames, -135deg..+135deg) is compiled in
+  via `juce_add_binary_data(VisualCompData ...)` in `CMakeLists.txt` — the repo's first and
+  only binary-data target. **Gotcha:** JUCE's symbol mangler *deletes* hyphens rather than
+  converting them, so the symbol is `BinaryData::knobazazel192x61_png`, not
+  `knob_azazel_192x61_png`; check `build/juce_binarydata_VisualCompData/JuceLibraryCode/
+  BinaryData.h` if a new asset won't resolve. `src/KnobStrip.h/.cpp` decodes the master once
+  into a process-wide function-local static (~9MB resident, shared by every plugin instance)
+  and area-averages it down to each requested dial size, caching per size (~2MB each, three
+  sizes live in the UI: 78px dials, 49px Island, 45px Mix) — a hand-written premultiplied box
+  filter, because JUCE's `highResamplingQuality` is only bilinear and aliases the grain badly
+  at the 4x reduction Mix needs. `AzazelLookAndFeel::drawRotarySlider` now draws only the
+  graduation ticks (first, so the baked shadow falls across them), the blit, and the value arc
+  on top; the arc stays procedural since it's dynamically coloured and centre-filled for
+  bipolar knobs. The strip assumes JUCE's default 270deg sweep and asserts it. Regenerate with
+  `python scripts/make_knob_filmstrip.py --size 192 --frames 61 --light-deg 315 --accent
+  ff7a1f --brush 0.052` — that `--brush` is deliberately deeper than the 0.030 concept strips
+  to survive the runtime downsample. `--verify` proves the world/object reference-frame split
+  numerically; run it after any change to the renderer.
 - APVTS `SliderAttachment`/`ButtonAttachment` permanently bind one `Slider`/`Button` to one
   host parameter — they cannot be redirected to a different backing value at runtime. Any
   context-sensitive knob (e.g. a knob whose meaning changes with UI selection state) needs
