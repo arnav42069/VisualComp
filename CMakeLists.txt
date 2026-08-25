@@ -69,6 +69,23 @@ juce_add_plugin(VisualComp
 
 juce_generate_juce_header(VisualComp)
 
+# ── Knob filmstrip asset ──────────────────────────────────────────────────
+# One 192px / 61-frame master (~2 MB). Every on-screen knob size is derived
+# from it at runtime and cached rather than shipping a second, smaller strip —
+# see src/KnobStrip.cpp. Regenerate with:
+#   python scripts/make_knob_filmstrip.py --size 192 --frames 61 #          --brush 0.052 --out resources/knob-azazel-192x61.png
+# The higher --brush is not a different look: this master is drawn at ~78px, a
+# 2.5x reduction, and the box filter in KnobStrip.cpp averages the fine grain
+# octaves away. 0.052 here lands at the same perceived grain as the 0.030 the
+# 128px concept strips are rendered at and viewed 1:1.
+# (that script verifies its own output; don't hand-edit the PNG). The
+# 128x31 / 256x31 strips alongside it in resources/ are the delivered design
+# asset in the standard interchange format and are NOT compiled in.
+juce_add_binary_data(VisualCompData
+    SOURCES
+        resources/knob-azazel-192x61.png
+)
+
 # ── Distribution folder: every Windows build refreshes the release bundle ──
 if(WIN32 AND VC2_INSTALL_PLUGIN)
     set(DIST_DIR "${CMAKE_SOURCE_DIR}/VisualComp ${VC2_VERSION_STRING} - Win and Mac")
@@ -102,6 +119,7 @@ target_sources(VisualComp PRIVATE
     src/GrCurveDisplay.cpp
     src/EqPanel.cpp
     src/NodeIsland.cpp
+    src/KnobStrip.cpp
     src/LevelMeter.cpp
     src/LufsMeter.cpp
     src/LicenseVerifier.cpp
@@ -122,6 +140,7 @@ target_compile_definitions(VisualComp
 
 target_link_libraries(VisualComp
     PRIVATE
+        VisualCompData
         juce::juce_audio_utils
         juce::juce_audio_processors
         juce::juce_audio_plugin_client

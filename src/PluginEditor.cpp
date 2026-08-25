@@ -3,6 +3,7 @@
 #include "Theme.h"
 #include "LogoSvg.h"
 #include "UndoableParameterAction.h"
+#include "KnobStrip.h"
 
 namespace
 {
@@ -431,22 +432,32 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     const float valueAngle = startAngle + (endAngle - startAngle) * sliderPos;
     const bool  simpleTicks = slider.getProperties().contains("simpleTicks");
 
-    // Soft diffuse seat shadow, like a gently recessed hardware dial.
-    {
-        juce::ColourGradient s(juce::Colour(0x30000000), cx, cy + maxR * 0.10f,
-                               juce::Colour(0x00000000), cx + maxR * 1.14f, cy, true);
-        g.setGradientFill(s);
-        g.fillEllipse(cx - maxR * 1.14f, cy - maxR * 1.14f, maxR * 2.28f, maxR * 2.28f);
-    }
+    // The dial itself is the pre-rendered filmstrip (src/KnobStrip.h) rather
+    // than the vector bezel/body/glare stack this used to draw: a real spun
+    // aluminium cap with a light fixed at 315 degrees, whose shadow and
+    // specular rim provably do not rotate with the value. The strip is baked
+    // for a 270-degree sweep — JUCE's rotary default, and what every knob here
+    // uses. One that called setRotaryParameters would get an etched pointer
+    // aiming somewhere its own graduation ticks don't.
+    jassert(std::abs((endAngle - startAngle) - KnobStrip::kSweepRadians) < 0.01f);
 
-    // Smooth dark concentric bezel, based on the supplied recessed hardware
-    // knob reference rather than a bright or cogged control face.
-    const float bezelOuter  = maxR * 0.75f;
-    const float bezelInner  = maxR * 0.61f;
+    // A filmstrip frame is wider than the metal it depicts: it also carries the
+    // ambient shadow and a clear margin past it. `knobR` is the frame's half
+    // width, so the bezel's real outer edge lands at knobR * kBezelOuterFrac
+    // (~0.73 maxR, near enough the 0.75 the vector bezel used) and the shadow
+    // fades out by knobR * kShadowOuterFrac.
+    const float knobR   = maxR * 0.86f;
+    const float shadowR = knobR * KnobStrip::kShadowOuterFrac;
 
-    // Graduation ticks — elongated all the way in to the bezel rim (rather
-    // than stopping short of it) so they read as one continuous dial face.
+    // Graduation ticks. These belong to the faceplate, not the knob, so they
+    // are drawn FIRST and the knob's baked ambient shadow then falls across
+    // their inner ends — the way a real dial shadows the panel it is seated
+    // in. They begin just outside that shadow rather than hard against the
+    // metal, which is where they sat back when the dial was flat vector art
+    // with no shadow to be swallowed by.
     {
+        const float tickIn  = shadowR * 1.005f;
+        const float tickOut = maxR * 0.865f;
         constexpr int N = 12;
         for (int i = 0; i <= N; ++i)
         {
@@ -457,15 +468,19 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
             const float sa = std::sin(angle), ca = -std::cos(angle);
             g.setColour(isMaj ? Theme::textDim.withAlpha(0.55f)
                               : Theme::textFaint.withAlpha(0.28f));
-            g.drawLine(cx + bezelOuter * sa, cy + bezelOuter * ca,
-                       cx + maxR * 0.84f * sa, cy + maxR * 0.84f * ca,
+            g.drawLine(cx + tickIn * sa, cy + tickIn * ca,
+                       cx + tickOut * sa, cy + tickOut * ca,
                        isMaj ? 1.1f : 0.6f);
         }
     }
 
-    // Value arc
+    // Value arc. Nudged out from 0.90 to 0.93 maxR to keep its 5px glow clear
+    // of the ticks, which had to move outward themselves to escape the knob's
+    // new ambient shadow. Everything else here is unchanged — in particular
+    // the arc stays procedural precisely so it can keep being coloured by
+    // value, which is why it is not baked into the filmstrip.
     {
-        const float arcR = maxR * 0.90f;
+        const float arcR = maxR * 0.93f;
         juce::Path track, active;
         track.addCentredArc(cx, cy, arcR, arcR, 0.0f, startAngle, endAngle, true);
         g.setColour(Theme::accentDeep);
@@ -496,111 +511,22 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         }
     }
 
-    // Machined bezel — a smooth dark disc rather than a cog-wheel, so
-    // there's something for a finger to actually grip and turn, like a real
-    // hardware compressor's knob. Same gradient/stroke colours as the old
-    // plain-circle bezel; only the outline shape changed to alternate
-    // between an outer tooth radius and an inner valley radius. (Radii
-    // declared once, above, for the graduation ticks.)
+    // The dial.
+    if (! KnobStrip::draw(g, { cx - knobR, cy - knobR, knobR * 2.0f, knobR * 2.0f },
+                          sliderPos))
     {
-        constexpr int kTeeth = 48;
-        juce::Path gear;
-        for (int t = 0; t < kTeeth * 2; ++t)
-        {
-            // Offset by valueAngle so the tooth pattern turns with the knob,
-            // like a real machined dial rather than a static ring the
-            // pointer sweeps past.
-            const float ang = (float(t) / float(kTeeth * 2)) * juce::MathConstants<float>::twoPi + valueAngle;
-            const float rad = bezelOuter;
-            const float sa = std::sin(ang), ca = -std::cos(ang);
-            const juce::Point<float> pnt(cx + rad * sa, cy + rad * ca);
-            if (t == 0) gear.startNewSubPath(pnt); else gear.lineTo(pnt);
-        }
-        gear.closeSubPath();
-
-        juce::ColourGradient ch(
-            juce::Colour(0xff494946), cx - bezelOuter * 0.40f, cy - bezelOuter * 0.52f,
-            juce::Colour(0xff0c0c0b), cx + bezelOuter * 0.40f, cy + bezelOuter * 0.52f, true);
-        ch.addColour(0.28, juce::Colour(0xff282826));
-        ch.addColour(0.70, juce::Colour(0xff090909));
-        g.setGradientFill(ch);
-        g.fillPath(gear);
-
-        g.setColour(juce::Colour(0xffb0aa9d).withAlpha(0.22f));
-        g.strokePath(gear, juce::PathStrokeType(0.7f));
-        g.setColour(juce::Colour(0xff000000).withAlpha(0.75f));
-        g.strokePath(gear, juce::PathStrokeType(0.9f));
-
-        g.setColour(juce::Colour(0xff080807));
-        g.fillEllipse(cx - bezelInner, cy - bezelInner, bezelInner * 2.0f, bezelInner * 2.0f);
-    }
-
-    // Body
-    const float bodyR = maxR * 0.565f;
-    {
-        for (int i = 4; i >= 1; --i)
-        {
-            const float sz = bodyR + float(i) * 1.3f;
-            g.setColour(juce::Colour(0xff000000).withAlpha(0.14f * float(5 - i) / 4.0f));
-            g.fillEllipse(cx - sz + 1.1f, cy - sz + 1.6f, sz * 2.0f, sz * 2.0f);
-        }
-
-        juce::ColourGradient bd(
-            juce::Colour(0xff5a5a55), cx - bodyR * 0.32f, cy - bodyR * 0.42f,
-            juce::Colour(0xff141413), cx + bodyR * 0.32f, cy + bodyR * 0.48f, true);
-        bd.addColour(0.42, juce::Colour(0xff383835));
-        bd.addColour(0.72, juce::Colour(0xff1b1b19));
-        g.setGradientFill(bd);
-        g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f);
-
-        for (int i = 1; i <= 6; ++i)
-        {
-            const float rr = bodyR * (0.14f + float(i) * 0.14f);
-            g.setColour(juce::Colour(0xff000000).withAlpha(0.06f + float(i) * 0.008f));
-            g.drawEllipse(cx - rr, cy - rr, rr * 2.0f, rr * 2.0f, 0.5f);
-            g.setColour(Theme::text.withAlpha(0.015f));
-            g.drawEllipse(cx - rr + 0.4f, cy - rr + 0.4f,
-                          rr * 2.0f - 0.8f, rr * 2.0f - 0.8f, 0.35f);
-        }
-
-        g.setColour(juce::Colour(0xff000000).withAlpha(0.85f));
-        g.drawEllipse(cx - bodyR + 0.3f, cy - bodyR + 0.3f,
-                      (bodyR - 0.3f) * 2.0f, (bodyR - 0.3f) * 2.0f, 1.0f);
-        g.setColour(juce::Colour(0xff4a463f).withAlpha(0.50f));
-        g.drawEllipse(cx - bodyR + 1.0f, cy - bodyR + 1.0f,
-                      (bodyR - 1.0f) * 2.0f, (bodyR - 1.0f) * 2.0f, 0.7f);
-    }
-
-    // Glare
-    {
-        const float gx = cx - bodyR * 0.30f;
-        const float gy = cy - bodyR * 0.30f;
-        juce::ColourGradient gl(
-            juce::Colours::white.withAlpha(0.075f), gx, gy,
-            juce::Colours::white.withAlpha(0.000f), gx + bodyR * 0.55f, gy + bodyR * 0.55f, true);
-        g.setGradientFill(gl);
-        g.fillEllipse(gx - bodyR * 0.44f, gy - bodyR * 0.34f, bodyR * 0.88f, bodyR * 0.68f);
-    }
-
-    // Pointer — stretched all the way out to the cogwheel rim's outer tooth
-    // radius (rather than stopping short inside the body) so it reads as one
-    // continuous needle against the bezel; no accent-coloured halo behind it,
-    // just a plain drop shadow under the white line/dot.
-    {
+        // The asset is compiled in, so this only fires if the PNG failed to
+        // decode — but a knob that draws nothing at all is worse than a plain
+        // one, and the user still has to be able to see where the value is.
+        const float bodyR = knobR * KnobStrip::kBezelOuterFrac;
         const float sa = std::sin(valueAngle), ca = -std::cos(valueAngle);
-        const float r0 = bodyR * 0.30f, r1 = bezelOuter;
-
-        g.setColour(juce::Colour(0x70000000));
-        g.drawLine(cx + r0 * sa + 0.8f, cy + r0 * ca + 1.0f,
-                   cx + r1 * sa + 0.8f, cy + r1 * ca + 1.0f, 2.4f);
-        g.setColour(juce::Colours::white);
-        g.drawLine(cx + r0 * sa, cy + r0 * ca, cx + r1 * sa, cy + r1 * ca, 1.9f);
-
-        const float dotR = juce::jlimit(1.8f, 3.4f, bodyR * 0.09f);
-        const float dx = cx + r1 * sa;
-        const float dy = cy + r1 * ca;
-        g.setColour(juce::Colours::white);
-        g.fillEllipse(dx - dotR, dy - dotR, dotR * 2.0f, dotR * 2.0f);
+        g.setColour(Theme::surfRaised);
+        g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f);
+        g.setColour(juce::Colour(0xff0a0a09));
+        g.drawEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f, 1.0f);
+        g.setColour(Theme::accent);
+        g.drawLine(cx + bodyR * 0.32f * sa, cy + bodyR * 0.32f * ca,
+                   cx + bodyR * 0.88f * sa, cy + bodyR * 0.88f * ca, 2.0f);
     }
 }
 

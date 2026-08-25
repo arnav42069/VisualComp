@@ -34,3 +34,7 @@ Thumbs.db
 
 # Third-party sample packs (not this project's source; not ours to redistribute)
 /Clicks/
+
+# Python bytecode from scripts/
+__pycache__/
+*.pyc
