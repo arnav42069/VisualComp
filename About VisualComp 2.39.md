@@ -1,4 +1,4 @@
-# About VisualComp 2.38 — Azazel Audio
+# About VisualComp 2.39 — Azazel Audio
 
 *Marketing copy in four lengths — pick the one that fits the space.*
 
@@ -12,15 +12,15 @@
 
 ## Version 2 — Short (≈50 words)
 
-VisualComp 2.38 by Azazel Audio is a compressor that shows you exactly what it's doing. Four analog-modelled circuits — VCA, FET, Optical and Tube — real-time waveform displays, visual sidechain ducking, and 34 studio-tuned presets in a vintage hardware interface. From transparent mastering glue to aggressive drum smash, hear it and see it.
+VisualComp 2.39 by Azazel Audio is a compressor that shows you exactly what it's doing. Four analog-modelled circuits — VCA, FET, Optical and Tube — real-time waveform displays, visual sidechain ducking, and 34 studio-tuned presets in a vintage hardware interface. From transparent mastering glue to aggressive drum smash, hear it and see it.
 
 ---
 
 ## Version 3 — Medium (≈250 words)
 
-**VisualComp 2.38 — the compressor you can see.**
+**VisualComp 2.39 — the compressor you can see.**
 
-Compression is the most powerful tool in mixing, and the hardest to learn — because you usually can't see what it's doing. VisualComp 2.38 changes that. Twin oscilloscope-style displays show your input and output waveforms side by side in real time, with your threshold drawn right across the signal. Watch peaks cross the line, watch the compressor respond, and watch the processed waveform emerge — every decision you make is instantly visible.
+Compression is the most powerful tool in mixing, and the hardest to learn — because you usually can't see what it's doing. VisualComp 2.39 changes that. Twin oscilloscope-style displays show your input and output waveforms side by side in real time, with your threshold drawn right across the signal. Watch peaks cross the line, watch the compressor respond, and watch the processed waveform emerge — every decision you make is instantly visible.
 
 Four distinct detector circuits give you a full studio rack in one plugin: **VCA** for clean, punchy bus work; **FET** for lightning-fast attack on drums and in-your-face vocals; **Optical** for the smooth, musical leveling that made classic studio units famous; and **Tube** for variable-mu warmth on lead vocals and masters.
 
@@ -40,17 +40,17 @@ Available in VST3 for Windows and macOS (Apple Silicon + Intel).
 
 Every engineer remembers learning compression the hard way. You turn the threshold knob, something changes — maybe — and you spend years developing the ear to know what attack and release are really doing to your transients. Traditional compressor plugins give you a gain reduction meter, a handful of knobs, and no real insight into what's happening to your actual waveform.
 
-VisualComp 2.38 was built on a simple idea: **if you can see compression working, you can master it** — whether you're a first-year producer or a veteran engineer who wants to work faster.
+VisualComp 2.39 was built on a simple idea: **if you can see compression working, you can master it** — whether you're a first-year producer or a veteran engineer who wants to work faster.
 
 ## Twin real-time waveform displays
 
-At the heart of VisualComp 2.38 are two oscilloscope-style displays showing roughly 1.3 seconds of scrolling audio: your **input signal** on the left, your **compressed output** on the right. The threshold is drawn as a fine dashed line directly across the input waveform, so you can see exactly which peaks are crossing it — and by how much. On the output side, you watch those same peaks come back controlled, rounded and glued.
+At the heart of VisualComp 2.39 are two oscilloscope-style displays showing roughly 1.3 seconds of scrolling audio: your **input signal** on the left, your **compressed output** on the right. The threshold is drawn as a fine dashed line directly across the input waveform, so you can see exactly which peaks are crossing it — and by how much. On the output side, you watch those same peaks come back controlled, rounded and glued.
 
 The result is immediate, intuitive feedback. Set your attack too slow? You'll *see* the transient sneak through. Release too fast? You'll *see* the pumping. It's compression tuition and mixing tool in one.
 
 ## Four circuits, one rack
 
-Hardware compressors have personalities, and VisualComp 2.38 models four of the most loved:
+Hardware compressors have personalities, and VisualComp 2.39 models four of the most loved:
 
 - **VCA** — Clean, fast, symmetrical. The bus compressor sound: punchy drums, tight mixes, transparent glue. When you want control without color, this is your circuit.
 - **FET** — Modelled on the behavior of classic field-effect-transistor units, with lightning attack times down to fractions of a millisecond and a musical saturation that adds bite. Drums, bass, rap vocals, parallel crush.
@@ -61,7 +61,7 @@ Each mode reshapes the compressor's ballistics and adds its own saturation chara
 
 ## Sidechain compression — visualized
 
-VisualComp 2.38 accepts an external sidechain input, and this is where the visual philosophy pays off most. Enable sidechain mode and a **live ducking overlay** appears on the input display: a bright ceiling line that pushes down into the waveform exactly when — and exactly as much as — the key signal drives the compressor. The overlay responds to your threshold, ratio, knee, attack and release in real time, so you can dial a kick-driven bass duck or an EDM pump *by eye* and then refine by ear.
+VisualComp 2.39 accepts an external sidechain input, and this is where the visual philosophy pays off most. Enable sidechain mode and a **live ducking overlay** appears on the input display: a bright ceiling line that pushes down into the waveform exactly when — and exactly as much as — the key signal drives the compressor. The overlay responds to your threshold, ratio, knee, attack and release in real time, so you can dial a kick-driven bass duck or an EDM pump *by eye* and then refine by ear.
 
 ## A complete channel strip of dynamics tools
 
@@ -102,6 +102,6 @@ The interface is a piece of hardware you'd want in your rack: a black metallic f
 
 ## Availability
 
-VisualComp 2.38 is available as a VST3 plugin for **Windows 10/11** and **macOS 10.13+** (universal binary — Apple Silicon and Intel), with a standalone application included. It runs in FL Studio, Ableton Live, Cubase, Studio One, REAPER and any other VST3 host.
+VisualComp 2.39 is available as a VST3 plugin for **Windows 10/11** and **macOS 10.13+** (universal binary — Apple Silicon and Intel), with a standalone application included. It runs in FL Studio, Ableton Live, Cubase, Studio One, REAPER and any other VST3 host.
 
-**VisualComp 2.38 — by Azazel Audio.** See your compression. Shape your sound.
+**VisualComp 2.39 — by Azazel Audio.** See your compression. Shape your sound.
