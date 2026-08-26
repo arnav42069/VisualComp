@@ -523,6 +523,16 @@ private:
 
     // Custom drawing
     std::unique_ptr<juce::Drawable> logoDrawable;
+
+    // The brushed-metal chassis backdrop. Every pixel of it is a pure
+    // function of the window size, but it costs hundreds of primitives to
+    // draw (per-row grain across the full height, plus the tonal blobs and
+    // vignettes), and a knob drag repaints this area continuously — so it is
+    // rendered once into an image whenever the size changes and blitted from
+    // paint() with a single drawImageAt.
+    juce::Image chassisTexture;
+    void rebuildChassisTexture(int w, int h);
+
     void drawLogo(juce::Graphics& g, juce::Rectangle<float> area) const;
     void drawTabPanel(juce::Graphics& g, juce::Rectangle<int> r,
                       const juce::String& tabText) const;

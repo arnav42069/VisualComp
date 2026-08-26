@@ -123,7 +123,15 @@ number hardcoded in this file would go stale within a build or two — check
 - `src/LoudnessMeter.h` — peak/RMS ballistics plus an **approximate** LUFS (shelf+highpass
   K-weighting shape, continuous EMA rather than BS.1770's discrete gated blocks). Always
   label this "approx" in UI/docs, not delivery-spec certified.
-- `src/LevelMeter.h/.cpp` — the dB/LUFS meter strip (right edge of the interface). As of
+- `src/LevelMeter.h/.cpp` — the dB/LUFS meter strip (right edge of the interface). Its
+  geometry (`kBarW`/`kLabelPad`/`kLabelW`/`kGroupW`/`kMidGap`/`kSidePad` and the derived
+  `kPreferredWidth`) is **public**, because `paint()` centres the dB+LUFS pair in whatever
+  bounds it is handed and its guarantee of equal left/right outer padding only lands on
+  `kSidePad` if the editor reserves exactly `kPreferredWidth`. The editor used to hard-code
+  77 against a strip that needs 86, so the revealed LUFS group overhung its right edge while
+  dB kept its left pad; `kLevelMeterW` now reads the constant. The dB-only and dB+LUFS
+  positions are both computed from `getLocalBounds()` (`soloX`/`pairX`, cross-faded by
+  `revealAmount`) — there is no tuned X offset. As of
   2026-08-03 each bar's unit label is a vertical (rotated `-90°`) label immediately to its
   right (`LevelMeter::drawSideLabel()`) rather than centred text below the bar, freeing the
   space below for a numeric peak-hold readout above the bars: the highest `meterPeakDb`
@@ -182,6 +190,194 @@ number hardcoded in this file would go stale within a build or two — check
   context-sensitive knob (e.g. a knob whose meaning changes with UI selection state) needs
   a second, manually-wired, non-APVTS slider shown/hidden via `setVisible()`, not a reused
   attachment.
+
+## UI layout & visual design
+
+The existing 78px main rotary knobs are the visual source of truth for VisualComp's
+control design.
+
+### Main knob size is a layout invariant
+
+**Why it survives compaction (as of 2026-08-26):** `AzazelLookAndFeel::drawRotarySlider`
+sizes the dial as `maxR = jmin(width, height) * 0.5f * 0.93f`. A main knob's slot is
+100px wide (98 after `placeKnob`'s inset) and its dial region is `kKnobDialH`, so as
+long as `kKnobDialH >= 98` the `jmin` picks **width** and the dial is width-limited —
+every pixel of height past that is dead space, and removing it cannot shrink the knob.
+That is what let `kKnobDialH` go 226 -> 100 (module 274 -> 138, `kCtrlH` 340 -> 214,
+window 648 -> 522 tall) with `maxR` unchanged at 45.57. It is also why widening the gain
+faders 80 -> 96px required widening the window 960 -> 992 rather than narrowing the knob
+slots. If `kKnobDialH` is ever taken below the slot width the invariant flips and the
+knob starts shrinking silently.
+
+**The shared module constants** (`PluginEditor.cpp` anonymous namespace) — all seven
+control-row modules (5 rotaries + GAIN IN + GAIN OUT) are laid out from these and
+nothing else, which is what makes their title baselines / control centres / value
+baselines / accent bars line up by construction rather than by tuning:
+`kKnobSlotW`, `kKnobLblH`, `kKnobLblGap`, `kKnobDialH`, `kKnobValueH`,
+`kKnobTopInset` (= label + gap; knobs honour it via their `topInset` property so the
+dial clears the label, faders instead start below it because a linear `sliderPos` is
+positional and a draw-time inset would make the travel dead), and `kModuleH`.
+Row stack: `kCtrlTopStripH` -> `kKnobRowY` -> `kBarRowY`/`kBarRowH` -> `kUtilRowY`/
+`kUtilRowH` -> `kCtrlBotPad`, with `kCtrlH` and `kHeight` **derived from** that stack
+rather than being magic numbers the rows are carved out of. The right column derives
+from `kRightColY`/`kRightColBottom`/`kRightColH` (these replaced `kGainOutSectionY/H`,
+which tracked a full-height Gain Out column that no longer exists — both faders are
+control-row modules now, and AUTO GAIN / LIM / SC moved to the `kUtilRowY` strip).
+`kLevelMeterW` is `LevelMeter::kPreferredWidth`, not a hand-typed number.
+
+- Do NOT reduce the 78px main rotary knob diameter merely to make the editor shorter.
+- When compacting the lower control area, remove EMPTY/BLACK SPACE around the knobs
+  rather than scaling the knobs down.
+- The goal is shorter control MODULES, not smaller knobs.
+- First reduce:
+  - unused top padding above the knob
+  - title-to-knob spacing
+  - knob-to-value spacing
+  - unused space below the value
+  - bottom/accent-line padding
+  - unnecessary panel top/bottom padding
+- Keep all main rotary-control modules vertically consistent.
+- The controls should feel tightly packaged like physical rack hardware, not uniformly
+  scaled-down UI.
+
+Conceptually:
+
+CURRENT:
++---------------------+
+|      THRESHOLD      |
+|                     |
+|                     |
+|       ( KNOB )      |
+|                     |
+|                     |
+|       -8.5 dB       |
+|                     |
++---------------------+
+
+TARGET:
++---------------------+
+|      THRESHOLD      |
+|       ( KNOB )      |
+|       -8.5 dB       |
++---------------------+
+
+The knob remains approximately the same physical size.
+
+### Knob graduations
+
+- Keep the existing baked knob filmstrip and current knob rendering architecture.
+- Do not regenerate the filmstrip merely to change graduation marks.
+- `AzazelLookAndFeel::drawRotarySlider()` owns the procedural graduation/tick drawing.
+- Use approximately 36-48 subtle graduation marks around the active 270-degree arc.
+- Preserve the existing value arc and parameter accent colours.
+- Major/minor graduation variation is allowed if subtle.
+- Do not put ticks through the inactive/dead arc.
+
+### Visual language
+
+VisualComp should resemble compact premium analog mastering hardware with modern
+precision metering.
+
+Use:
+- dark brushed/aged metal
+- subtle machining/brushing texture
+- recessed panel surfaces
+- restrained bevels
+- soft highlights and shadows
+- subtle tonal imperfections
+- the existing orange accent language
+
+Do not make the surface look heavily rusted, distressed, steampunk, glossy, or neon.
+
+Expensive background textures should be cached rather than procedurally regenerated
+on every repaint. The brushed-metal chassis backdrop is `VisualCompEditor::chassisTexture`,
+rebuilt by `rebuildChassisTexture(w, h)` from `resized()` only when the window size actually
+changes and blitted with one `drawImageAt` — it used to redraw several hundred primitives on
+every repaint, including for the whole duration of a knob drag. Anything in it must be a pure
+function of (w, h); the machined section bevels stay in `paint()` instead because they follow
+the `ox`-shifted content and the texture (drawn before that transform) does not.
+
+### Gain In / Gain Out faders
+
+GAIN IN and GAIN OUT should look like physical studio/mastering faders rather than
+generic JUCE sliders.
+
+Prefer:
+- wider recessed slots/tracks
+- wider dimensional metallic fader caps
+- visible centre/index line
+- subtle scale graduations
+- highlights/shadows consistent with the rotary knobs
+
+They can become wider but should NOT remain unnecessarily tall. Their total section
+height should align with the compact main rotary-control modules.
+
+### Lower control-row geometry
+
+The area below the waveform should be substantially shorter than the current layout.
+
+Achieve this primarily through removal of unused vertical space.
+
+Do not apply a blanket 50% scale transform to the contents.
+
+Keep the 78px main knobs approximately unchanged while tightening the containing
+panels around them.
+
+The Gain In/Out sections, level-meter area and any other components sharing this row
+should be vertically aligned to the same compact layout system.
+
+### Level meter layout
+
+When only the dB meter is visible:
+- centre the dB meter mathematically within its available meter region
+- do not use a hand-tuned X offset
+
+When both dB and LUFS meters are visible:
+- dB is on the left
+- LUFS is on the right
+- both have equal width and equal height
+- use a consistent gap between them
+- treat them as one centred group
+- left outer padding and right outer padding must be equal
+
+Calculate the group bounds from the parent bounds rather than positioning the two
+meters independently.
+
+The meter height should be reduced to fit the new compact lower control row, with
+internal ticks, labels and fills recalculated for the new bounds rather than clipped.
+
+### EQ / analyser height
+
+When reducing the lower editor height, reduce the EQ/analyser vertical bounds to suit
+the compact layout where necessary.
+
+Recalculate graph/grid/label geometry for its new bounds rather than cropping the old
+rendering.
+
+Do not compromise node interaction or DSP behaviour.
+
+### Layout implementation
+
+Before introducing new coordinates, inspect `VisualCompEditor::resized()` and all
+related component bounds.
+
+Prefer shared geometry and calculated bounds over unrelated magic numbers.
+
+Where practical, define/reuse shared values for:
+- lower control-row height
+- knob module height
+- knob diameter
+- label/value heights
+- gain fader dimensions
+- meter dimensions
+- meter gap
+- section padding
+
+Be particularly careful with the existing EQ-panel `ox` translation and Curve/GR
+`cshift` layout rules documented above. Do not create a second conflicting bounds path.
+
+UI/layout work must not change DSP, APVTS parameter IDs/ranges, attachments,
+automation, presets, sidechain behaviour, limiter behaviour, or compressor behaviour.
 
 ## Building
 

@@ -14,6 +14,24 @@
 class LevelMeter : public juce::Component, private juce::Timer
 {
 public:
+    // ---------------------------------------------------------------------
+    // Strip geometry. Published rather than kept private because the editor
+    // has to reserve exactly this width for the component (kLevelMeterW in
+    // PluginEditor.cpp is kPreferredWidth): paint() centres the dB+LUFS pair
+    // in whatever bounds it is given, and its guarantee of EQUAL left and
+    // right outer padding only lands on kSidePad if the strip is exactly
+    // this wide. The editor used to hard-code 77 against a meter that needs
+    // 86, which is why the revealed LUFS group overhung its right edge.
+    // ---------------------------------------------------------------------
+    static constexpr float kBarW     = 19.0f;   // the bargraph column itself
+    static constexpr float kLabelPad = 3.0f;    // column -> its vertical unit label
+    static constexpr float kLabelW   = 13.0f;   // rotated "dB" / "LUFS" label
+    static constexpr float kGroupW   = kBarW + kLabelPad + kLabelW;   // 35 — one bar + label
+    static constexpr float kMidGap   = 6.0f;    // between the dB and LUFS groups
+    static constexpr float kSidePad  = 5.0f;    // strip edge -> nearest group, both sides
+    static constexpr int   kPreferredWidth =
+        int (2.0f * kGroupW + kMidGap + 2.0f * kSidePad);              // 86
+
     explicit LevelMeter(VisualCompProcessor& proc);
     ~LevelMeter() override;
 

@@ -7,17 +7,24 @@
 
 namespace
 {
-    constexpr int kWidth  = 960;
-    constexpr int kHeight = 648;       // ends just below the Gain Out/meter section
+    // Width grew 960 -> 992 solely so kFaderW could go 80 -> 96 without
+    // narrowing the knob slots. See the LAYOUT INVARIANT note below: slot
+    // width is what sets the dial diameter, so stealing 32px from the knob
+    // area to widen the faders would have shrunk all five dials.
+    constexpr int kWidth  = 992;
 
     constexpr int kTitleH = 60;
     constexpr int kStripH = 48;
     constexpr int kHeadH  = kTitleH + kStripH;        // 108
 
     constexpr int kRightColW   = 280;
-    constexpr int kLevelMeterW = 77;                  // reserved for the dB/LUFS meter strip
-                                                       // (bars + their side labels, see LevelMeter::paint)
-    constexpr int kContentW    = kWidth - kRightColW; // 680
+    // Published by the meter itself rather than typed here, so the two can't
+    // drift: LevelMeter's own paint() sizes the dB+LUFS pair from this same
+    // figure and its equal-outer-padding guarantee only holds if the strip is
+    // exactly this wide. It was a hand-written 77 against a meter that needed
+    // 86, which is why the revealed LUFS bar used to overhang its right edge.
+    constexpr int kLevelMeterW = LevelMeter::kPreferredWidth;   // 86
+    constexpr int kContentW    = kWidth - kRightColW; // 712
 
     // Curve/GR (transfer curve + gain-reduction meter) column width when
     // expanded. kWidth/kRightColW/kContentW above describe that expanded
@@ -25,7 +32,7 @@ namespace
     // this width is subtracted from the total window in VisualCompEditor's
     // constructor/resized()/toggleCurveGrPanel(), the same setSize()-delta
     // mechanism the docked EQ panel already uses via kEqPanelW below.
-    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 218
+    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 188
 
     // Smart Master+ trimmed to ~half its original ~43px total side padding
     // around the button text (was 130), and a matching 5px is added past
@@ -43,28 +50,60 @@ namespace
     constexpr int kWaveH = 190;
 
     constexpr int kCtrlY = kWaveY + kWaveH + 6;       // 308
-    constexpr int kCtrlH = kHeight - kCtrlY;          // 416
 
-    // kHeight's +76 growth above is dedicated entirely to the two
-    // LinearVertical faders (gainIn/gainOut). kCtrlHOld is the pre-growth
-    // panel height (340, matching the old kCtrlH) — used to pin every piece
-    // of knob-area chrome (knob height, inter-knob dividers, the parameter
-    // position-bar row) so the growth is visually isolated to the fader
-    // columns instead of also stretching the five rotary knobs. The
-    // fader-column dividers and both fader-height formulas deliberately keep
-    // referencing kCtrlH (not kCtrlHOld) so they grow along with the faders.
-    constexpr int kCtrlHOld = kCtrlH;
+    // =====================================================================
+    // Control-row module geometry — ONE set of values, shared by all seven
+    // modules in the row (Gain In, the five rotaries, Gain Out). Their
+    // title baselines, dial/track centres, value baselines and the accent
+    // bar beneath them all fall out of these; there is deliberately no
+    // per-module Y anywhere in resized() or paint().
+    //
+    // *** LAYOUT INVARIANT ***
+    //   AzazelLookAndFeel::drawRotarySlider computes
+    //       maxR = jmin(width, height) * 0.5f * 0.93f
+    //   and the dial is 0.86 * 2 * maxR across. The slot is 100px wide (98
+    //   after placeKnob's inset), so jmin picks WIDTH: kKnobSlotW is what
+    //   sets the 78px dial, and no height below can shrink it. kKnobDialH
+    //   only has to stay >= the slot width — every pixel past that is dead
+    //   space, which is what this row used to be full of (it was 226, for a
+    //   dial that needs 98). Never narrow kKnobSlotW to buy width elsewhere.
+    // =====================================================================
+    constexpr int kKnobSlotW    = 100;
+    constexpr int kKnobLblH     = 16;    // was 20
+    constexpr int kKnobLblGap   = 2;     // was 4
+    constexpr int kKnobDialH    = 100;   // was 226 — the whole height saving
+    constexpr int kKnobValueH   = 20;    // was 24 (the slider's own text box)
+    constexpr int kKnobTopInset = kKnobLblH + kKnobLblGap;                   // 18
+    constexpr int kModuleH      = kKnobTopInset + kKnobDialH + kKnobValueH;  // 138
 
-    constexpr int kCtrlTopStripH = 30;   // band-selector button row, top of the Dynamics pane
+    // Control-pane rows, all relative to kCtrlY.
+    constexpr int kCtrlTopStripH = 28;   // band-selector button row, top of the Dynamics pane
+    constexpr int kKnobRowY      = kCtrlTopStripH + 4;      // 32 — module top
+    constexpr int kBarRowY       = kKnobRowY + kModuleH;    // 170 — parameter position bars
+    constexpr int kBarRowH       = 12;
+    constexpr int kUtilRowY      = kBarRowY + kBarRowH;     // 182 — AUTO GAIN / LIM / SC
+    constexpr int kUtilRowH      = 26;
+    constexpr int kCtrlBotPad    = 6;
+    constexpr int kCtrlH  = kUtilRowY + kUtilRowH + kCtrlBotPad;   // 214 (was 340)
 
-    constexpr int kVUH    = 285;
-    constexpr int kCurveY = kHeadH + kVUH;            // 393
-    constexpr int kCurveH = kHeight - kCurveY;        // 255 (+50% vs. previous 170)
+    // Derived from the row stack rather than being the magic number the rows
+    // were carved out of — shortening a module now shortens the window.
+    constexpr int kHeight = kCtrlY + kCtrlH;                       // 522 (was 648)
 
-    constexpr int kFaderW = 80;
+    // Right column (GR meter over transfer curve, then the level meter strip).
+    // Replaces kGainOutSectionY/H, which tracked the full-height Gain Out
+    // column that no longer exists now both faders live in the control row.
+    constexpr int kRightColY      = kHeadH;                         // 108
+    constexpr int kRightColBottom = kCtrlY + kCtrlH - kCtrlBotPad;  // 516
+    constexpr int kRightColH      = kRightColBottom - kRightColY;   // 408
+    constexpr int kVUH    = kRightColH * 55 / 100;                  // 224
+    constexpr int kCurveY = kRightColY + kVUH;                      // 332
+    constexpr int kCurveH = kRightColBottom - kCurveY;              // 184
+
+    constexpr int kFaderW = 96;    // was 80 — paid for by kWidth's +32, not by the knobs
     constexpr int kFaderM = 5;
 
-    constexpr int kKnobAreaX = kFaderM + kFaderW + kFaderM;                            // 90
+    constexpr int kKnobAreaX = kFaderM + kFaderW + kFaderM;                            // 106
     constexpr int kKnobAreaW = kContentW - kKnobAreaX - kFaderM - kFaderW - kFaderM;   // 500
 
     // Knob-column slots — Threshold/Knee/Ratio/Attack/Release are all
@@ -72,8 +111,8 @@ namespace
     // Attack/Release to make room for it; Q moved to node-level editing —
     // see EqPanel's mouse wheel / right-click submenu and NodeIsland's
     // Dynamic Island knob).
-    constexpr int kSlotThresholdW = 100, kSlotKneeW = 100, kSlotRatioW = 100;
-    constexpr int kSlotAttackW = 100, kSlotReleaseW = 100;
+    constexpr int kSlotThresholdW = kKnobSlotW, kSlotKneeW = kKnobSlotW, kSlotRatioW = kKnobSlotW;
+    constexpr int kSlotAttackW = kKnobSlotW, kSlotReleaseW = kKnobSlotW;
     constexpr int kSlotThresholdX = kKnobAreaX;
     constexpr int kSlotKneeX      = kSlotThresholdX + kSlotThresholdW;
     constexpr int kSlotRatioX     = kSlotKneeX + kSlotKneeW;
@@ -81,15 +120,6 @@ namespace
     constexpr int kSlotReleaseX   = kSlotAttackX + kSlotAttackW;
 
     constexpr int kMixSz    = 48;
-    constexpr int kKnobRowY = kCtrlTopStripH + 8;    // label row, pushed below the new strip
-    constexpr int kKnobLblH = 20;
-
-    // Gain Out is an independent meter-side section. It deliberately ends at
-    // the Dynamics knobs' horizontal value-glow line rather than running to
-    // the chassis bottom or inheriting the waveform/control-panel ridge.
-    constexpr int kGainOutSectionY = kHeadH;
-    constexpr int kGainOutSectionBottom = kCtrlY + kCtrlHOld - 12;
-    constexpr int kGainOutSectionH = kGainOutSectionBottom - kGainOutSectionY;
 
     constexpr int kEqPanelW = 520;   // docked EQ panel width when open (2x its base 260)
 
@@ -458,17 +488,37 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     {
         const float tickIn  = shadowR * 1.005f;
         const float tickOut = maxR * 0.865f;
-        constexpr int N = 12;
-        for (int i = 0; i <= N; ++i)
+
+        // A fine mastering-grade scale on the 78px dials, without turning the
+        // small ones into a solid grey ring. The count is chosen from the arc
+        // length the marks actually have to share rather than being fixed:
+        // below roughly 3.2px of spacing adjacent ticks stop resolving and
+        // the whole scale reads as a smudge, so the next coarser division
+        // wins. 78px dial -> 4.6px spacing -> 40 divisions (41 marks); the
+        // 49px NodeIsland knobs land on 20; anything tiny falls back to 12.
+        const float arcLen = (endAngle - startAngle) * tickOut;
+        int divisions = 12;
+        for (int cand : { 40, 20, 12 })
+            if (arcLen / float(cand) >= 3.2f) { divisions = cand; break; }
+
+        for (int i = 0; i <= divisions; ++i)
         {
-            const float frac  = float(i) / float(N);
+            const float frac  = float(i) / float(divisions);
             const float angle = startAngle + frac * (endAngle - startAngle);
-            const bool  isMaj = (i % 3 == 0) || (i == N);
+            // Majors every eighth of the sweep whatever the division count,
+            // so the dial always reads as a 9-position scale with the minors
+            // subdividing it — rather than the major spacing changing with
+            // the knob's size.
+            const bool  isMaj = (i * 8) % divisions == 0;
             if (simpleTicks && !isMaj) continue;
+
+            // Minors are deliberately short and faint: they are texture that
+            // tells you the dial is finely graduated, not marks anyone reads.
+            const float from = isMaj ? tickIn : tickIn + (tickOut - tickIn) * 0.45f;
             const float sa = std::sin(angle), ca = -std::cos(angle);
-            g.setColour(isMaj ? Theme::textDim.withAlpha(0.55f)
-                              : Theme::textFaint.withAlpha(0.28f));
-            g.drawLine(cx + tickIn * sa, cy + tickIn * ca,
+            g.setColour(isMaj ? Theme::textDim.withAlpha(0.50f)
+                              : Theme::textFaint.withAlpha(0.22f));
+            g.drawLine(cx + from    * sa, cy + from    * ca,
                        cx + tickOut * sa, cy + tickOut * ca,
                        isMaj ? 1.1f : 0.6f);
         }
@@ -543,78 +593,147 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
         return;
     }
 
-    const float trackW = 4.0f;
-    const float trackX = x + width * 0.5f - trackW * 0.5f;
-    const float trackT = float(y) + 8.0f;
-    const float trackB = float(y + height) - 8.0f;
+    // A mastering-console fader: a recessed slot milled into the chassis with
+    // a machined cap riding in it. Lit from 315 degrees (upper-left) — the
+    // same imaginary light the knob filmstrip is baked under, so the two read
+    // as parts of one panel rather than two unrelated control styles.
+    //
+    // JUCE has already inset the bounds we're handed by its own thumb radius
+    // (getSliderLayout -> sliderBounds.reduce(0, thumbIndent)), and sliderPos
+    // is expressed in exactly that region, so the travel here is used as
+    // given. The old code inset a further 8px and then clamped sliderPos back
+    // into it, which quietly made the top and bottom of the throw dead.
+    const float cx     = float(x) + float(width) * 0.5f;
+    const float trackT = float(y);
+    const float trackB = float(y + height);
     const float trackH = trackB - trackT;
-
-    g.setColour(juce::Colour(0xff0a0a09));
-    g.fillRoundedRectangle(trackX, trackT, trackW, trackH, trackW * 0.5f);
-    g.setColour(Theme::text.withAlpha(0.06f));
-    g.fillRoundedRectangle(trackX, trackT, trackW * 0.45f, trackH, trackW * 0.5f);
+    if (trackH < 8.0f) return;
 
     const auto  range    = slider.getNormalisableRange();
     const float rangeMin = float(range.start), rangeMax = float(range.end);
+    const float pos      = juce::jlimit(trackT, trackB, sliderPos);
 
-    // JUCE's own sliderPos spans the full [y, y+height] region passed in
-    // here, but the track (and the cap below) are inset 8px top/bottom —
-    // clamp once so the accent fill can never reach past where the cap
-    // itself is able to travel.
-    const float clampedPos = juce::jlimit(trackT, trackB, sliderPos);
+    // ---- Slot: a real recess, not a hairline ---------------------------
+    // Proportions matter more than absolute size here: a cap much more than
+    // ~3x the slot width stops reading as a cap riding in a groove and
+    // starts reading as a bar lying on top of one.
+    const float slotW = juce::jmin(20.0f, float(width) * 0.22f);
+    const juce::Rectangle<float> slot(cx - slotW * 0.5f, trackT, slotW, trackH);
+    const float slotR = slotW * 0.5f;
 
-    // Accent fill from unity to the handle
+    g.setColour(juce::Colour(0xff0a0a09));
+    g.fillRoundedRectangle(slot, slotR);
+    // Inner shadow down the lit (upper-left) wall, faint bounce up the other:
+    // a groove is dark on the side facing the light, not the side away.
     {
-        const float norm0 = juce::jlimit(0.0f, 1.0f, (0.0f - rangeMin) / (rangeMax - rangeMin));
-        const float zeroY = trackT + trackH * (1.0f - norm0);
-        const float top   = juce::jmin(zeroY, clampedPos);
-        const float bot   = juce::jmax(zeroY, clampedPos);
+        juce::ColourGradient walls(juce::Colours::black.withAlpha(0.80f), slot.getX(), 0.0f,
+                                   juce::Colours::black.withAlpha(0.0f),  slot.getRight(), 0.0f, false);
+        g.setGradientFill(walls);
+        g.fillRoundedRectangle(slot, slotR);
+    }
+    g.setColour(Theme::text.withAlpha(0.06f));
+    g.drawLine(slot.getRight() - 0.5f, slot.getY() + slotR,
+               slot.getRight() - 0.5f, slot.getBottom() - slotR, 1.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.55f));
+    g.drawRoundedRectangle(slot.reduced(0.5f), slotR, 1.0f);
+
+    // ---- Unity mark + accent fill from unity to the cap -----------------
+    const float norm0 = juce::jlimit(0.0f, 1.0f, (0.0f - rangeMin) / (rangeMax - rangeMin));
+    const float zeroY = trackT + trackH * (1.0f - norm0);
+    {
+        const float top = juce::jmin(zeroY, pos), bot = juce::jmax(zeroY, pos);
         if (bot - top > 0.5f)
         {
             g.setColour(Theme::accent.withAlpha(0.22f));
-            g.fillRect(trackX - 1.2f, top, trackW + 2.4f, bot - top);
+            g.fillRect(slot.getX() + 1.0f, top, slot.getWidth() - 2.0f, bot - top);
             g.setColour(Theme::accent);
-            g.fillRect(trackX, top, trackW, bot - top);
+            g.fillRect(cx - 2.0f, top, 4.0f, bot - top);
         }
-        g.setColour(Theme::text.withAlpha(0.45f));
-        g.fillRect(trackX - 3.5f, zeroY - 0.5f, trackW + 7.0f, 1.0f);
     }
 
-    // Scale ticks
+    // ---- Cap geometry ---------------------------------------------------
+    // Computed before the scale is drawn, because the scale lives on the
+    // flanks *outside* the cap — drawn at the slot edge it would simply be
+    // covered wherever the cap happens to be sitting.
+    const float capW = juce::jlimit(28.0f, 72.0f, float(width) * 0.66f);
+    const float capH = juce::jmin(18.0f, trackH * 0.24f);
+    const float capX = cx - capW * 0.5f;
+    const float capY = juce::jlimit(trackT - capH * 0.5f, trackB - capH * 0.5f, pos - capH * 0.5f);
+    const float capR = 2.2f;
+
+    // ---- Scale, on both flanks -----------------------------------------
+    const float flankL = capX - 3.0f;             // scale grows leftward from here
+    const float flankR = capX + capW + 3.0f;      // and rightward from here
     for (float db : { -24.0f, -18.0f, -12.0f, -6.0f, 0.0f, 6.0f, 12.0f, 18.0f, 24.0f })
     {
         if (db < rangeMin || db > rangeMax) continue;
-        const float norm  = (db - rangeMin) / (rangeMax - rangeMin);
-        const float ty    = trackT + trackH * (1.0f - norm);
-        const bool  major = (static_cast<int>(db) % 12 == 0) || db == 0.0f;
-        g.setColour(Theme::textDim.withAlpha(major ? 0.75f : 0.35f));
-        const float tickH = major ? 2.0f : 1.5f;  // 50% more vertical bite
-        g.fillRect(trackX + trackW + 2.5f, ty - tickH * 0.5f,
-                   major ? 5.5f : 3.0f, tickH);
+        const float ty    = trackT + trackH * (1.0f - (db - rangeMin) / (rangeMax - rangeMin));
+        const bool  major = (int(db) % 12 == 0) || db == 0.0f;
+        const float len   = major ? 8.0f : 5.0f;
+        const float th    = major ? 1.6f : 1.0f;
+        g.setColour(Theme::textDim.withAlpha(major ? 0.55f : 0.25f));
+        g.fillRect(flankL - len, ty - th * 0.5f, len, th);
+        g.fillRect(flankR,       ty - th * 0.5f, len, th);
     }
+    // Unity gets a brighter mark on each flank — the one position on a gain
+    // fader anyone actually aims for. It stops at the cap rather than running
+    // under it, so it never competes with the cap's own index line.
+    g.setColour(Theme::textHi.withAlpha(0.50f));
+    g.fillRect(flankL - 10.0f, zeroY - 0.5f, 10.0f, 1.0f);
+    g.fillRect(flankR,         zeroY - 0.5f, 10.0f, 1.0f);
 
-    // Cap — slim, low-profile
-    const float capH = 12.0f; // 50% taller value fader handle
-    const float capW = (float(width) - 16.0f) * 0.52f;
-    const float capX = float(x) + (float(width) - capW) * 0.5f;
-    const float capY = clampedPos - capH * 0.5f;
-    const float capR = 1.6f;
-
-    for (int pass = 3; pass >= 1; --pass)
+    // ---- Cap: machined, wide, low ---------------------------------------
+    for (int pass = 4; pass >= 1; --pass)
     {
-        g.setColour(juce::Colour(0xff000000).withAlpha(0.05f * float(pass)));
-        g.fillRoundedRectangle(capX, capY + float(pass) * 0.8f, capW, capH, capR);
+        g.setColour(juce::Colours::black.withAlpha(0.055f * float(pass)));
+        g.fillRoundedRectangle(capX - float(pass) * 0.4f, capY + float(pass) * 0.9f,
+                               capW + float(pass) * 0.8f, capH, capR);
     }
-    juce::ColourGradient cg(juce::Colour(0xff3d3b36), capX, capY,
-                            juce::Colour(0xff151413), capX, capY + capH, false);
-    g.setGradientFill(cg);
+
+    juce::ColourGradient body(juce::Colour(0xff4a4841), capX, capY,
+                              juce::Colour(0xff121110), capX, capY + capH, false);
+    body.addColour(0.44, juce::Colour(0xff34322d));
+    body.addColour(0.56, juce::Colour(0xff232220));
+    g.setGradientFill(body);
     g.fillRoundedRectangle(capX, capY, capW, capH, capR);
 
-    // Lit centre line
-    g.setColour(Theme::accent);
-    g.fillRect(capX + 3.0f, capY + capH * 0.5f - 0.9f, capW - 6.0f, 1.8f);
+    // Fine machined grooves either side of the index channel — the grip
+    // knurling on a real cap. A few very low-contrast lines, no more.
+    for (int i = 1; i <= 2; ++i)
+    {
+        const float o = float(i) * 3.4f + 1.5f;
+        g.setColour(juce::Colours::black.withAlpha(0.22f));
+        g.fillRect(capX + 5.0f, capY + capH * 0.5f - o, capW - 10.0f, 0.7f);
+        g.fillRect(capX + 5.0f, capY + capH * 0.5f + o, capW - 10.0f, 0.7f);
+        g.setColour(Theme::text.withAlpha(0.05f));
+        g.fillRect(capX + 5.0f, capY + capH * 0.5f - o + 0.7f, capW - 10.0f, 0.5f);
+        g.fillRect(capX + 5.0f, capY + capH * 0.5f + o + 0.7f, capW - 10.0f, 0.5f);
+    }
 
-    g.setColour(juce::Colour(0xff000000).withAlpha(0.85f));
+    // Index: an engraved channel milled across the cap with a short accent
+    // pointer sitting in it. The pointer is deliberately a fraction of the
+    // cap's width — running it edge to edge turns the whole cap into one
+    // orange bar and buries the metal underneath it.
+    {
+        const float chY = capY + capH * 0.5f;
+        g.setColour(juce::Colours::black.withAlpha(0.55f));
+        g.fillRect(capX + 4.0f, chY - 1.6f, capW - 8.0f, 3.2f);
+        g.setColour(Theme::text.withAlpha(0.06f));
+        g.fillRect(capX + 4.0f, chY + 1.6f, capW - 8.0f, 0.6f);
+
+        const float pw = capW * 0.44f;
+        g.setColour(Theme::accent.withAlpha(0.22f));
+        g.fillRect(cx - pw * 0.5f - 1.5f, chY - 2.4f, pw + 3.0f, 4.8f);
+        g.setColour(Theme::accent);
+        g.fillRect(cx - pw * 0.5f, chY - 0.9f, pw, 1.8f);
+    }
+
+    // Specular top edge / dark bottom edge, then a tight outline.
+    g.setColour(juce::Colours::white.withAlpha(0.18f));
+    g.drawLine(capX + capR, capY + 0.5f, capX + capW - capR, capY + 0.5f, 1.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.70f));
+    g.drawLine(capX + capR, capY + capH - 0.5f, capX + capW - capR, capY + capH - 0.5f, 1.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.80f));
     g.drawRoundedRectangle(capX, capY, capW, capH, capR, 0.9f);
 }
 
@@ -671,12 +790,25 @@ void AzazelLookAndFeel::drawToggleButton(juce::Graphics& g,
 
     if (isAutoGain)
     {
-        g.setFont(Theme::label(14.0f));
-        const float midY = bounds.getCentreY();
-        g.drawText("AUTO", bounds.withBottom(midY + 1.0f),
-                   juce::Justification::centredBottom, false);
-        g.drawText("GAIN", bounds.withTop(midY - 1.0f),
-                   juce::Justification::centredTop, false);
+        // The AUTO/GAIN stack was written for a tall, narrow button in the
+        // old vertical utility column. In the compact utility strip the
+        // button is wide and short, where the two-line form is clipped and
+        // one line fits comfortably — so pick by what the bounds allow
+        // rather than always stacking.
+        const auto font = Theme::label(14.0f);
+        g.setFont(font);
+        if (bounds.getWidth() >= font.getStringWidthFloat("AUTO GAIN") + 12.0f)
+        {
+            g.drawText("AUTO GAIN", bounds, juce::Justification::centred, false);
+        }
+        else
+        {
+            const float midY = bounds.getCentreY();
+            g.drawText("AUTO", bounds.withBottom(midY + 1.0f),
+                       juce::Justification::centredBottom, false);
+            g.drawText("GAIN", bounds.withTop(midY - 1.0f),
+                       juce::Justification::centredTop, false);
+        }
     }
     else
     {
@@ -926,7 +1058,9 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
 
     setupToggle(limiterButton, "LIM");
     limiterLabel.setText("0 dB CEILING", juce::dontSendNotification);
-    limiterLabel.setJustificationType(juce::Justification::centred);
+    // Left-justified: these captions now sit inline to the RIGHT of their
+    // toggle in the bottom utility strip, not centred beneath it in a column.
+    limiterLabel.setJustificationType(juce::Justification::centredLeft);
     limiterLabel.setFont(Theme::label(12.0f));
     limiterLabel.setColour(juce::Label::textColourId, Theme::textDim);
     limiterLabel.setInterceptsMouseClicks(false, false);
@@ -939,7 +1073,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
                                               std::memory_order_relaxed);
     };
     sidechainLabel.setText("SIDECHAIN", juce::dontSendNotification);
-    sidechainLabel.setJustificationType(juce::Justification::centred);
+    sidechainLabel.setJustificationType(juce::Justification::centredLeft);
     sidechainLabel.setFont(Theme::label(12.0f));
     sidechainLabel.setColour(juce::Label::textColourId, Theme::textDim);
     sidechainLabel.setInterceptsMouseClicks(false, false);
@@ -1123,8 +1257,9 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // Demo mode watermark indicator
     addAndMakeVisible(demoModeIndicator);
 
-    // Undo/Redo visual feedback notification (fixed position overlay in top-right)
-    undoRedoNotification.setBounds(getWidth() - 220, 12, 208, 32);
+    // Undo/Redo visual feedback notification (top-right overlay). resized()
+    // is the only place this is positioned — it's the one that knows the
+    // ox/cshift the docked panels impose.
     addAndMakeVisible(undoRedoNotification);
 
     // Wire undo/redo callbacks for visual feedback
@@ -1180,11 +1315,11 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     auto setupBandKnob = [this](DragSlider& knob, float lo, float hi, float skew, float defVal)
     {
         knob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
-        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 96, 24);
+        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, kKnobSlotW - 4, kKnobValueH);
         knob.setTextBoxIsEditable(false);
         knob.setNumDecimalPlacesToDisplay(1);
         knob.setMouseDragSensitivity(1000);
-        knob.getProperties().set("topInset", kKnobLblH + 4);
+        knob.getProperties().set("topInset", kKnobTopInset);
         knob.setRange(lo, hi);
         knob.setSkewFactor(skew);
         knob.setDoubleClickReturnValue(true, defVal);
@@ -1445,12 +1580,12 @@ void VisualCompEditor::setupKnob(DragSlider& knob, juce::Label& label,
                                  const juce::String& paramId)
 {
     knob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
-    knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 96, 24);
+    knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, kKnobSlotW - 4, kKnobValueH);
     knob.setTextBoxIsEditable(false);          // whole box is a drag target
     knob.setTextValueSuffix(suffix);
     knob.setNumDecimalPlacesToDisplay(1);
     knob.setMouseDragSensitivity(1000);
-    knob.getProperties().set("topInset", kKnobLblH + 4);
+    knob.getProperties().set("topInset", kKnobTopInset);
     knob.getProperties().set("paramId", paramId);
     knob.onValueChange = [this] { repaint(0, kCtrlY, kContentW, kCtrlH); };
 
@@ -1471,7 +1606,7 @@ void VisualCompEditor::setupFader(DragSlider& fader, juce::Label& label,
                                   const juce::String& text, const juce::String& paramId)
 {
     fader.setSliderStyle(juce::Slider::LinearVertical);
-    fader.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 76, 20);
+    fader.setTextBoxStyle(juce::Slider::TextBoxBelow, false, kFaderW - 8, kKnobValueH);
     fader.setTextBoxIsEditable(false);
     fader.setTextValueSuffix(" dB");
     fader.setNumDecimalPlacesToDisplay(1);
@@ -2601,45 +2736,83 @@ void VisualCompEditor::drawTabPanel(juce::Graphics& g, juce::Rectangle<int> r,
 }
 
 //==============================================================================
-// Paint
+// Chassis backdrop
 //==============================================================================
 
-void VisualCompEditor::paint(juce::Graphics& g)
+// Renders the brushed-metal panel into `chassisTexture`. Every pixel here is
+// a pure function of (w, h), so this runs once per size change from resized()
+// and paint() just blits it — it used to run in full on every repaint, which
+// meant several hundred primitives per frame for the whole duration of a knob
+// drag.
+void VisualCompEditor::rebuildChassisTexture(int w, int h)
 {
-    const int   w  = getWidth();
-    const int   h  = getHeight();
-    const float fw = float(w);
-    const float fh = float(h);
+    if (w <= 0 || h <= 0)
+        return;
+    if (chassisTexture.isValid()
+        && chassisTexture.getWidth() == w && chassisTexture.getHeight() == h)
+        return;
+
+    chassisTexture = juce::Image(juce::Image::ARGB, w, h, true);
+    juce::Graphics g(chassisTexture);
+
+    const float fw = float(w), fh = float(h);
 
     g.setColour(Theme::bg);
     g.fillRect(0, 0, w, h);
 
-    // Metallic brush + wear
-    g.setColour(Theme::text.withAlpha(0.008f));
-    for (int yy = 1; yy < h; yy += 2)
-        g.drawHorizontalLine(yy, 0.0f, fw);
+    // Brushed grain: one horizontal pass per row, its alpha jittered a
+    // fraction of a level either side of the base. Being *directional* —
+    // rows, not a dot field — is what reads as machine-brushed metal rather
+    // than noise, and holding the swing near +/-1.5/255 keeps it below the
+    // threshold where it starts to look like dirt.
     {
-        juce::Random rng(0x5EED);
-        for (int i = 0; i < 110; ++i)
+        juce::Random rng(0x8A11);
+        for (int yy = 0; yy < h; ++yy)
         {
-            const float px = rng.nextFloat() * fw;
-            const float py = rng.nextFloat() * fh;
-            const float sz = 0.6f + rng.nextFloat() * 1.7f;
-            g.setColour(rng.nextBool()
-                ? Theme::text.withAlpha(0.012f + rng.nextFloat() * 0.020f)
-                : juce::Colours::black.withAlpha(0.10f + rng.nextFloat() * 0.16f));
-            g.fillEllipse(px, py, sz, sz);
+            const float n = rng.nextFloat() - 0.5f;          // -0.5 .. +0.5
+            const float a = std::abs(n) * 0.020f;
+            g.setColour(n >= 0.0f ? Theme::text.withAlpha(a)
+                                  : juce::Colours::black.withAlpha(a * 1.4f));
+            g.drawHorizontalLine(yy, 0.0f, fw);
         }
-        for (int i = 0; i < 12; ++i)
+
+        // A few long, very faint streaks so the grain isn't perfectly
+        // uniform across the panel. Horizontal only, and far too low-contrast
+        // to read as scratches.
+        for (int i = 0; i < 26; ++i)
         {
-            const float x1 = rng.nextFloat() * fw, y1 = rng.nextFloat() * fh;
-            const float len = 14.0f + rng.nextFloat() * 52.0f;
-            const float ang = rng.nextFloat() * juce::MathConstants<float>::twoPi;
-            g.setColour(Theme::text.withAlpha(0.007f + rng.nextFloat() * 0.012f));
-            g.drawLine(x1, y1, x1 + len * std::cos(ang), y1 + len * std::sin(ang), 0.6f);
+            const float y1  = rng.nextFloat() * fh;
+            const float x1  = rng.nextFloat() * fw * 0.7f;
+            const float len = fw * (0.12f + rng.nextFloat() * 0.30f);
+            g.setColour(rng.nextBool() ? Theme::text.withAlpha(0.016f)
+                                       : juce::Colours::black.withAlpha(0.022f));
+            g.drawLine(x1, y1, x1 + len, y1, 1.0f);
         }
     }
 
+    // Broad tonal irregularity — a handful of soft, very low-alpha pools so
+    // the surface isn't perfectly flat. Each is large enough that no single
+    // one is identifiable as a mark; the aim is "cast and brushed" unevenness,
+    // not wear.
+    {
+        juce::Random rng(0x5EED);
+        for (int i = 0; i < 9; ++i)
+        {
+            const float r    = fw * (0.14f + rng.nextFloat() * 0.22f);
+            const float px   = rng.nextFloat() * fw;
+            const float py   = rng.nextFloat() * fh;
+            const bool  lift = rng.nextBool();
+            juce::ColourGradient blob(lift ? Theme::text.withAlpha(0.024f)
+                                           : juce::Colours::black.withAlpha(0.042f),
+                                      px, py,
+                                      juce::Colour(0x00000000), px + r, py, true);
+            g.setGradientFill(blob);
+            g.fillEllipse(px - r, py - r, r * 2.0f, r * 2.0f);
+        }
+    }
+
+    // Overhead light, then the edge falloff that makes the panel read as a
+    // chassis recessed into its own shadow rather than a flat fill.
     {
         juce::ColourGradient top(juce::Colours::white.withAlpha(0.040f), fw * 0.5f, 0.0f,
                                  juce::Colours::white.withAlpha(0.000f), fw * 0.5f, fh * 0.60f, true);
@@ -2648,6 +2821,25 @@ void VisualCompEditor::paint(juce::Graphics& g)
     { juce::ColourGradient v(juce::Colour(0x00000000), 0.f, fh*0.58f, juce::Colour(0x66000000), 0.f, fh, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
     { juce::ColourGradient v(juce::Colour(0x40000000), 0.f, 0.f, juce::Colour(0x00000000), fw*0.16f, 0.f, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
     { juce::ColourGradient v(juce::Colour(0x00000000), fw*0.84f, 0.f, juce::Colour(0x40000000), fw, 0.f, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
+}
+
+//==============================================================================
+// Paint
+//==============================================================================
+
+void VisualCompEditor::paint(juce::Graphics& g)
+{
+    const int w = getWidth();
+    const int h = getHeight();
+
+    // Brushed-metal chassis — built once per size (see
+    // rebuildChassisTexture) and blitted, rather than regenerated per frame.
+    // resized() normally has it ready; this guard covers a paint that lands
+    // first, and costs one comparison otherwise.
+    if (! chassisTexture.isValid()
+        || chassisTexture.getWidth() != w || chassisTexture.getHeight() != h)
+        rebuildChassisTexture(w, h);
+    g.drawImageAt(chassisTexture, 0, 0);
 
     // Everything from here on is "main content" — when the docked EQ panel
     // is open it is pushed right by kEqPanelW (the panel itself is a child
@@ -2723,13 +2915,27 @@ void VisualCompEditor::paint(juce::Graphics& g)
 
     const int gainOutX = kContentW - kFaderM - kFaderW;
 
-    // Waveform/control surfaces stop before the independent Gain Out column,
-    // so their shared horizontal border cannot cut across that fader.
     g.setColour(juce::Colours::black.withAlpha(0.35f));
-    g.drawRect(3, kWaveY - 2, gainOutX - 6, kWaveH + 4, 1);
+    g.drawRect(3, kWaveY - 2, kContentW - 6, kWaveH + 4, 1);
 
     // The Dynamics and Gain Out areas intentionally have no perimeter boxes;
     // their internal dividers and aligned controls provide the structure.
+
+    // Machined section edges: a 1px shadow under a 1px highlight along the
+    // control pane's top boundary and under the band-selector strip. That
+    // pairing under a 315-degree light is what makes a milled panel edge read
+    // as an edge; it's two fillRects each, so it lives here rather than in
+    // the cached texture — these follow the ox-shifted content, the texture
+    // (drawn before the transform) does not.
+    {
+        auto bevel = [&g](int x, int y, int width)
+        {
+            g.setColour(Theme::edgeBottom);  g.fillRect(x, y,     width, 1);
+            g.setColour(Theme::edgeTop);     g.fillRect(x, y + 1, width, 1);
+        };
+        bevel(3,        kCtrlY - 1,                    kContentW - 6);
+        bevel(kFaderM,  kCtrlY + kCtrlTopStripH - 2,   kContentW - 2 * kFaderM);
+    }
 
     // Band-selector row — a colored ring (matching EqPanel::kNodeColours)
     // frames each enabled node's button, inset within the ring so it reads
@@ -2768,27 +2974,21 @@ void VisualCompEditor::paint(juce::Graphics& g)
         }
     }
 
-    // Knob dividers — pinned to kCtrlHOld (pre-fader-growth height) so they
-    // stay matched to the knobs' own (also-pinned) height instead of
-    // stretching along with the taller faders.
-    for (int sx : { kSlotKneeX, kSlotRatioX, kSlotAttackX, kSlotReleaseX })
+    // Module dividers — one span shared by all six gaps in the row (both
+    // fader edges and the four between the knobs), running from the module
+    // top to the bottom of the accent-bar row so every module is bounded
+    // identically.
     {
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.fillRect(sx, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlH - kCtrlTopStripH - 4);
-        g.setColour(Theme::line.withAlpha(0.55f));
-        g.fillRect(sx + 1, kCtrlY + kCtrlTopStripH + 4, 1, kCtrlH - kCtrlTopStripH - 4);
-    }
-
-    // Gain In divider and the meter-side Gain Out column divider.
-    {
-        const int faderRightEdge = kFaderM + kFaderW;
-        const int dy = kCtrlY + kCtrlTopStripH + 4, dh = kCtrlH - kCtrlTopStripH - 18;
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.fillRect(faderRightEdge, dy, 1, dh);
-        g.fillRect(gainOutX - 1,   kGainOutSectionY, 1, kGainOutSectionH);
-        g.setColour(Theme::line.withAlpha(0.55f));
-        g.fillRect(faderRightEdge + 1, dy, 1, dh);
-        g.fillRect(gainOutX,           kGainOutSectionY, 1, kGainOutSectionH);
+        const int dy = kCtrlY + kKnobRowY - 4;
+        const int dh = (kCtrlY + kBarRowY + kBarRowH) - dy;
+        for (int sx : { kFaderM + kFaderW, kSlotKneeX, kSlotRatioX,
+                        kSlotAttackX, kSlotReleaseX, gainOutX - 1 })
+        {
+            g.setColour(juce::Colours::black.withAlpha(0.55f));
+            g.fillRect(sx, dy, 1, dh);
+            g.setColour(Theme::line.withAlpha(0.55f));
+            g.fillRect(sx + 1, dy, 1, dh);
+        }
     }
 
     // Parameter position bars
@@ -2797,7 +2997,10 @@ void VisualCompEditor::paint(juce::Graphics& g)
         {
             const float bx = float(x) + 12.0f;
             const float bw = float(w) - 24.0f;
-            const float by = float(kCtrlY + kCtrlHOld - 20);
+            // Directly under the value read-out now, instead of 46px below it
+            // at the pane's bottom edge — this is the "bottom accent line"
+            // each module is cropped down to.
+            const float by = float(kCtrlY + kBarRowY + 4);
             g.setColour(Theme::accentDeep);
             g.fillRect(bx, by, bw, 3.0f);
             g.setColour(Theme::accent.withAlpha(0.30f));
@@ -2858,6 +3061,11 @@ void VisualCompEditor::paint(juce::Graphics& g)
 
 void VisualCompEditor::resized()
 {
+    // The chassis backdrop is size-dependent only, so this is the one place
+    // it needs regenerating — the two docked panels resize the window, which
+    // lands here before the repaint they trigger.
+    rebuildChassisTexture(getWidth(), getHeight());
+
     // Docked EQ panel always sits flush left; everything else ("main
     // content") is pushed right by its width while it's open.
     const int ox = eqPanelVisible ? kEqPanelW : 0;
@@ -2917,31 +3125,26 @@ void VisualCompEditor::resized()
             curveGrButton.setBounds(ox + 518 + kSmartMasterW + 5, sy, 100, sh);
     }
 
-    // Waveforms
-    const int inputWaveW = (kContentW - 14) / 2;
+    // Gain Out's module is anchored to the content area's right edge; the
+    // knob row's own right edge (kKnobAreaX + kKnobAreaW) meets it exactly.
     const int gainOutX = kContentW - kFaderM - kFaderW;
+
+    // Waveforms. These used to stop short of a full-height Gain Out column
+    // on the right; that column is gone (Gain Out is a control-row module
+    // now), so the two displays split the whole content width evenly.
+    const int inputWaveW  = (kContentW - 14) / 2;
     const int outputWaveX = inputWaveW + 9;
     inputDisplay .setBounds(ox + 5,           kWaveY, inputWaveW, kWaveH);
-    outputDisplay.setBounds(ox + outputWaveX, kWaveY, gainOutX - outputWaveX - 5, kWaveH);
+    outputDisplay.setBounds(ox + outputWaveX, kWaveY, kContentW - outputWaveX - 5, kWaveH);
 
     // Right column — vuMeter/curveDisplay always keep the same (expanded)
     // geometry; only levelMeter's x-position and the total window width
     // (see totalEditorWidth()) change with curveGrVisible, so when
     // collapsed that column simply sits outside the now-narrower window.
     const int levelMeterX = ox + kContentW + 2 + (curveGrVisible ? kCurveGrColW + 4 : 0);
-    vuMeter     .setBounds(ox + kContentW + 2, kHeadH,      kCurveGrColW, kVUH);
+    vuMeter     .setBounds(ox + kContentW + 2, kRightColY,  kCurveGrColW, kVUH);
     curveDisplay.setBounds(ox + kContentW + 2, kCurveY + 1, kCurveGrColW, kCurveH - 1);
-    levelMeter  .setBounds(levelMeterX, kHeadH, kLevelMeterW, kGainOutSectionH);
-
-    // Gain In
-    {
-        const int fx = ox + kFaderM;
-        gainInFaderLabel.setBounds(fx, kCtrlY + kKnobRowY, kFaderW, kKnobLblH);
-        // Keep both gain faders at the same component height as the Dynamics
-        // knobs; their tracks no longer stretch down the whole panel.
-        constexpr int dynamicsKnobH = kCtrlHOld - kKnobRowY - 28;
-        gainInFader.setBounds(fx, kCtrlY + kKnobRowY, kFaderW, dynamicsKnobH);
-    }
+    levelMeter  .setBounds(levelMeterX, kRightColY, kLevelMeterW, kRightColH);
 
     // Band-selector row — spans the full Dynamics-pane width, directly
     // above the Gain In / Threshold / Knee / Ratio / Attack / Release /
@@ -2982,8 +3185,11 @@ void VisualCompEditor::resized()
     // share this row; it moved to node-level editing — see EqPanel and
     // NodeIsland), so setupKnob/setupBandKnob's own initial text-box sizing
     // already matches and doesn't need re-applying here.
+    //
+    // knobH is kModuleH for every one of them: the five modules line up
+    // because there is one Y and one height in this function, not five.
     const int knobTop = kCtrlY + kKnobRowY;
-    const int knobH   = kCtrlHOld - kKnobRowY - 28;   // pinned — see kCtrlHOld comment above
+    const int knobH   = kModuleH;
 
     auto placeKnob = [&](DragSlider& knob, int x, int w)
     {
@@ -2994,6 +3200,18 @@ void VisualCompEditor::resized()
         label.setBounds(ox + x, knobTop, w, kKnobLblH);
         label.toFront(false);
     };
+
+    // Gain In — same module box as a rotary: label, control, value, one
+    // shared set of Y values. Unlike a knob (whose drawRotarySlider honours
+    // a topInset so the label can overlap it), the fader's own sliderPos is
+    // positional, so its component starts BELOW the label instead — an
+    // overlapping label would either cover live track or need the throw
+    // clamped away from it.
+    {
+        const int fx = ox + kFaderM;
+        gainInFaderLabel.setBounds(fx, knobTop, kFaderW, kKnobLblH);
+        gainInFader     .setBounds(fx, knobTop + kKnobTopInset, kFaderW, kModuleH - kKnobTopInset);
+    }
 
     placeKnob(thresholdKnob,     kSlotThresholdX, kSlotThresholdW);
     placeKnob(bandThresholdKnob, kSlotThresholdX, kSlotThresholdW);
@@ -3012,40 +3230,35 @@ void VisualCompEditor::resized()
     placeLabel(attackLabel,    kSlotAttackX,    kSlotAttackW);
     placeLabel(releaseLabel,   kSlotReleaseX,   kSlotReleaseW);
 
-    // Gain Out shares the right edge with the dB meter: the entire column
-    // spans exactly the meter height, while its utility controls live below
-    // the shortened fader rather than making the editor taller.
+    // Gain Out — the mirror of Gain In at the far end of the same row. It
+    // used to own a full-height column down the meter side, which is where
+    // the row's asymmetry (and 114px of stacked buttons) came from; the
+    // three utility toggles it carried now sit in their own strip below.
     {
         const int fx = ox + gainOutX;
-        constexpr int columnY = kGainOutSectionY;
-        constexpr int columnH = kGainOutSectionH;
-        gainOutFaderLabel.setBounds(fx, columnY + 4, kFaderW, kKnobLblH);
+        gainOutFaderLabel.setBounds(fx, knobTop, kFaderW, kKnobLblH);
+        gainOutFader     .setBounds(fx, knobTop + kKnobTopInset, kFaderW, kModuleH - kKnobTopInset);
+    }
 
-        // Restored to 24/32/3/14 (was trimmed to 20/28/2/11 to steal room for
-        // the fader above) now that shrinking the waveform boxes (see kWaveH)
-        // freed enough kCtrlH that AUTO GAIN/LIM/SC no longer need to be the
-        // ones giving space up — this was the tightest-packed cluster in the
-        // Dynamics pane and reads noticeably less cramped at full size.
-        constexpr int btnH   = 24;
-        constexpr int agBtnH = 32;
-        constexpr int gap    = 3;
-        constexpr int miniH  = 14;
+    // Utility strip — AUTO GAIN / LIM / SC as one centred horizontal group
+    // along the bottom of the pane. Each toggle carries its caption inline to
+    // its right rather than stacked beneath it, which is what let a 114px
+    // vertical cluster become a single 26px row.
+    {
+        const int uy = kCtrlY + kUtilRowY, uh = kUtilRowH;
+        constexpr int agW = 116, limW = 44, scW = 40;   // agW fits "AUTO GAIN" on one line
+        constexpr int limCapW = 84, scCapW = 68;
+        constexpr int capGap = 5, groupGap = 20;
 
-        const int controlsH = agBtnH + gap + btnH + miniH + gap + btnH + miniH;
-        const int faderY = columnY + kKnobLblH + 6;
-        const int faderH = columnH - (faderY - columnY) - controlsH - 3 * gap;
-        gainOutFader.setBounds(fx, faderY, kFaderW, faderH);
+        const int totalW = agW + groupGap + limW + capGap + limCapW
+                              + groupGap + scW + capGap + scCapW;
+        int gx = ox + kFaderM + (kContentW - 2 * kFaderM - totalW) / 2;
 
-        int agY = faderY + faderH + gap;
-        autoGainButton.setBounds(fx + 4, agY, kFaderW - 8, agBtnH);
-
-        int limY = agY + agBtnH + gap;
-        limiterButton.setBounds(fx + 4, limY, kFaderW - 8, btnH);
-        limiterLabel .setBounds(fx, limY + btnH, kFaderW, miniH);
-
-        int scY = limY + btnH + miniH + gap;
-        sidechainButton.setBounds(fx + 4, scY, kFaderW - 8, btnH);
-        sidechainLabel .setBounds(fx, scY + btnH, kFaderW, miniH);
+        autoGainButton .setBounds(gx, uy, agW, uh);            gx += agW + groupGap;
+        limiterButton  .setBounds(gx, uy, limW, uh);           gx += limW + capGap;
+        limiterLabel   .setBounds(gx, uy, limCapW, uh);        gx += limCapW + groupGap;
+        sidechainButton.setBounds(gx, uy, scW, uh);            gx += scW + capGap;
+        sidechainLabel .setBounds(gx, uy, scCapW, uh);
     }
 
     helpOverlay.setBounds(getLocalBounds());

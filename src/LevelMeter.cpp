@@ -95,8 +95,12 @@ void LevelMeter::drawChannel(juce::Graphics& g, juce::Rectangle<float> bar, floa
 // fits the meter strip's tight width instead of a horizontal one below.
 void LevelMeter::drawSideLabel(juce::Graphics& g, juce::Rectangle<float> bar, const juce::String& text)
 {
-    constexpr float kPad = 2.0f, kLabelW = 11.0f;
-    const juce::Rectangle<float> area(bar.getRight() + kPad, bar.getY(), kLabelW, bar.getHeight());
+    // Uses the class's own kLabelPad/kLabelW so the label occupies exactly
+    // the space the group width reserves for it -- these were a separate
+    // 2.0/11.0 pair, which quietly disagreed with the 3.0/13.0 the layout
+    // was budgeting.
+    const juce::Rectangle<float> area(bar.getRight() + kLabelPad, bar.getY(),
+                                      kLabelW, bar.getHeight());
 
     juce::Graphics::ScopedSaveState save(g);
     g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi,
@@ -160,32 +164,29 @@ void LevelMeter::drawNotches(juce::Graphics& g, juce::Rectangle<float> bar,
 void LevelMeter::paint(juce::Graphics& g)
 {
     const auto full = getLocalBounds().toFloat();
-    const float barW = 19.0f;
-    constexpr float kLabelPad = 3.0f, kLabelW = 13.0f;
-    const float groupW = barW + kLabelPad + kLabelW;   // bar + its side label, as one unit
 
-    // Shared left/right breathing room: kSidePad is the gap from the strip's
-    // own edge to the nearest bar+label group, on both sides -- chosen (with
-    // kMidGap, the gap between the two groups) so that once LUFS is fully
-    // revealed, the dB group's left padding and the LUFS group's right
-    // padding come out exactly equal (2*kSidePad + kMidGap + 2*groupW ==
-    // this component's width; see kLevelMeterW in PluginEditor.cpp).
-    constexpr float kSidePad = 5.0f, kMidGap = 4.0f;
-
-    // With the LUFS bar collapsed, the dB bar+label is the only thing in
-    // this segment and should sit centred rather than stranded at the
-    // paired-up (left) position it needs once LUFS reveals alongside it.
-    const float pairedX  = full.getX() + kSidePad;
-    const float centredX = full.getX() + (full.getWidth() - groupW) * 0.5f;
-    const float dbX = centredX + (pairedX - centredX) * revealAmount;
+    // Both states are centred groups derived from the parent bounds -- there
+    // is no tuned X offset anywhere here. Revealed, the pair is centred as
+    // ONE unit, so its left and right outer padding are equal by
+    // construction (each (width - pairW)/2, == kSidePad at kPreferredWidth)
+    // rather than by one side being pinned and the other taking the
+    // remainder. Collapsed, the lone dB group is centred on its own.
+    const float pairW = 2.0f * kGroupW + kMidGap;
+    const float pairX = full.getX() + (full.getWidth() - pairW)   * 0.5f;
+    const float soloX = full.getX() + (full.getWidth() - kGroupW) * 0.5f;
+    const float dbX   = soloX + (pairX - soloX) * revealAmount;
+    const float lufsX = pairX + kGroupW + kMidGap;
 
     // Top strip reserved for the peak-hold readout, bottom strip for each
-    // bar's own live-value readout; the bars fill whatever's left.
-    constexpr float kTopPad = 15.0f, kBottomPad = 14.0f;
-    const auto dbBar   = juce::Rectangle<float>(dbX, full.getY() + kTopPad,
-                                                barW, full.getHeight() - kTopPad - kBottomPad);
-    const auto lufsBar = juce::Rectangle<float>(pairedX + groupW + kMidGap, full.getY() + kTopPad,
-                                                barW, full.getHeight() - kTopPad - kBottomPad);
+    // bar's own live-value readout; the bars fill whatever's left. Both are
+    // capped at a share of the strip's height so a short meter loses bar
+    // rather than inverting into a negative-height rectangle.
+    const float kTopPad    = juce::jmin(15.0f, full.getHeight() * 0.10f);
+    const float kBottomPad = juce::jmin(14.0f, full.getHeight() * 0.09f);
+    const float barH       = juce::jmax(8.0f, full.getHeight() - kTopPad - kBottomPad);
+
+    const auto dbBar   = juce::Rectangle<float>(dbX,   full.getY() + kTopPad, kBarW, barH);
+    const auto lufsBar = juce::Rectangle<float>(lufsX, full.getY() + kTopPad, kBarW, barH);
 
     // dB (peak) bar gets a little headroom above 0 dBFS so the 0 dB
     // reference notch sits clearly mid-scale rather than glued to the top
@@ -230,10 +231,16 @@ void LevelMeter::paint(juce::Graphics& g)
     {
         for (int i = 0; i < peakHistoryPos; ++i) peak3s = juce::jmax(peak3s, peakHistory[size_t(i)]);
     }
+    // Centred over the bars themselves, not over the whole strip: the
+    // chevron owns the top-right corner, so the readout's own area is the
+    // strip minus that corner. Derived from kChevronW rather than the bare
+    // 13 this used to subtract, which was the same number by coincidence.
+    constexpr float kChevronW = 12.0f;
     const juce::String peakText = (peak3s <= -99.5f) ? juce::String("--") : juce::String(peak3s, 1);
     g.setColour(Theme::textHi);
     g.setFont(Theme::mono(9.5f, juce::Font::bold));
-    g.drawText(peakText, int(full.getX()), int(full.getY()), int(full.getWidth()) - 13, 11,
+    g.drawText(peakText, int(full.getX()), int(full.getY()),
+               int(full.getWidth() - kChevronW), 11,
                juce::Justification::centred, false);
 
     // Hint chevron showing there is more to reveal -- top-right, clear of
@@ -242,6 +249,6 @@ void LevelMeter::paint(juce::Graphics& g)
     g.setColour(Theme::textFaint.withAlpha(0.6f));
     g.setFont(Theme::mono(9.0f));
     g.drawText(revealed ? juce::String::charToString(0x2039) : juce::String::charToString(0x203a),
-               int(full.getRight()) - 12, int(full.getY()), 12, 12,
+               int(full.getRight() - kChevronW), int(full.getY()), int(kChevronW), 12,
                juce::Justification::centred, false);
 }
