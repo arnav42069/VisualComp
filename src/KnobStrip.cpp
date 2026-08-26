@@ -131,11 +131,91 @@ static const juce::Image& stripAt (int cell)
     return it->second;   // std::map references are stable across later inserts
 }
 
+static void drawCap (juce::Graphics& g, juce::Rectangle<float> dest, float pos)
+{
+    const auto r = dest.reduced (dest.getWidth() * 0.06f, dest.getHeight() * 0.06f);
+    const auto c = r.getCentre();
+    const float radius = juce::jmin (r.getWidth(), r.getHeight()) * 0.5f;
+
+    g.setColour (juce::Colour (0xff0a0a0a));
+    g.fillEllipse (dest);
+
+    g.setGradientFill (juce::ColourGradient (juce::Colour (0xfff3f3f3), c.x - radius * 0.55f, c.y - radius * 0.55f,
+                                             juce::Colour (0xff6d6d6d), c.x + radius * 0.75f, c.y + radius * 0.75f,
+                                             true));
+    g.fillEllipse (r);
+
+    g.setColour (juce::Colour (0xffd8d8d8).withAlpha (0.70f));
+    g.drawEllipse (r, juce::jmax (1.0f, radius * 0.03f));
+
+    const float a = juce::jmap (pos, 0.0f, 1.0f, juce::MathConstants<float>::pi * 1.15f,
+                                juce::MathConstants<float>::pi * 1.85f);
+    const float sa = std::sin (a), ca = -std::cos (a);
+    g.setColour (juce::Colours::black);
+    g.drawLine (c.x + radius * 0.12f * sa, c.y + radius * 0.12f * ca,
+                c.x + radius * 0.86f * sa, c.y + radius * 0.86f * ca,
+                juce::jmax (2.0f, radius * 0.08f));
+}
+
+void drawMetallicFallback (juce::Graphics& g, juce::Rectangle<float> dest, float pos)
+{
+    const auto c = dest.getCentre();
+    const float outerR = juce::jmin (dest.getWidth(), dest.getHeight()) * 0.5f;
+    g.setColour (juce::Colour (0xff050505));
+    g.fillEllipse (dest);
+
+    juce::ColourGradient shellGrad (juce::Colour (0xff303030), c.x - outerR * 0.62f, c.y - outerR * 0.68f,
+                                    juce::Colour (0xff070707), c.x + outerR * 0.70f, c.y + outerR * 0.72f,
+                                    true);
+    shellGrad.addColour (0.18, juce::Colour (0xff676767).withAlpha (0.50f));
+    shellGrad.addColour (0.40, juce::Colour (0xff141414));
+    g.setGradientFill (shellGrad);
+    g.fillEllipse (dest.reduced (outerR * 0.03f));
+
+    g.setColour (juce::Colour (0xff000000).withAlpha (0.75f));
+    g.drawEllipse (dest.reduced (outerR * 0.03f), juce::jmax (1.0f, outerR * 0.03f));
+
+    const auto ring = dest.reduced (outerR * 0.18f);
+    juce::ColourGradient ringGrad (juce::Colour (0xff3a3a3a), c.x, ring.getY(),
+                                   juce::Colour (0xff101010), c.x, ring.getBottom(), true);
+    g.setGradientFill (ringGrad);
+    g.fillEllipse (ring);
+
+    g.setColour (juce::Colour (0xff8a8a8a).withAlpha (0.35f));
+    g.drawEllipse (ring, juce::jmax (1.0f, outerR * 0.025f));
+
+    const auto cap = dest.reduced (outerR * 0.24f);
+    const auto capC = cap.getCentre();
+    const float capR = juce::jmin (cap.getWidth(), cap.getHeight()) * 0.5f;
+    juce::ColourGradient capGrad (juce::Colour (0xfff0f0f0), capC.x - capR * 0.55f, capC.y - capR * 0.55f,
+                                  juce::Colour (0xff6f6f6f), capC.x + capR * 0.75f, capC.y + capR * 0.70f,
+                                  true);
+    capGrad.addColour (0.48, juce::Colour (0xffcfcfcf));
+    g.setGradientFill (capGrad);
+    g.fillEllipse (cap);
+
+    g.setColour (juce::Colour (0xff4a4a4a).withAlpha (0.60f));
+    g.drawEllipse (cap, juce::jmax (1.0f, capR * 0.035f));
+
+    g.setColour (juce::Colour (0xffffffff).withAlpha (0.45f));
+    g.drawLine (cap.getX() + cap.getWidth() * 0.18f, cap.getY() + cap.getHeight() * 0.12f,
+                cap.getX() + cap.getWidth() * 0.46f, cap.getY() + cap.getHeight() * 0.33f,
+                juce::jmax (1.0f, capR * 0.08f));
+
+    drawCap (g, cap, pos);
+}
+
 //==============================================================================
 bool draw (juce::Graphics& g, juce::Rectangle<float> dest, float pos)
 {
-    if (dest.getWidth() < 4.0f || ! master().isValid())
+    if (dest.getWidth() < 4.0f)
         return false;
+
+    if (! master().isValid())
+    {
+        drawMetallicFallback (g, dest, pos);
+        return true;
+    }
 
     // Resolve the size in *physical* pixels, so the blit below lands 1:1 on a
     // HiDPI display instead of being scaled twice. Clamped at the master size:

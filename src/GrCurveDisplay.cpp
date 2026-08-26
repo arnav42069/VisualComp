@@ -46,9 +46,19 @@ void GrCurveDisplay::paint(juce::Graphics& g)
 
     constexpr float kDbMin = -60.0f, kDbMax = 0.0f;
     constexpr float kDbRange = kDbMax - kDbMin;
+    constexpr float kZeroDbHeight = 0.70f;
 
     auto dbToX = [&](float db) { return plotX + plotW * (db - kDbMin) / kDbRange; };
-    auto dbToY = [&](float db) { return plotB - plotH * (db - kDbMin) / kDbRange; };
+    auto dbToY = [&](float db)
+    {
+        const float norm = juce::jlimit(0.0f, 1.0f, (db - kDbMin) / kDbRange);
+        const float yNorm = norm <= 0.0f ? 1.0f
+                          : norm >= 1.0f ? 0.0f
+                          : (norm <= 0.5f
+                             ? 1.0f - (0.30f * (norm / 0.5f))
+                             : 0.70f - (0.70f * ((norm - 0.5f) / 0.5f)));
+        return plotY + plotH * yNorm;
+    };
 
     // Recessed screen -- sunk into the chassis, no outline; depth alone
     // separates the plot from its surroundings.
@@ -131,11 +141,10 @@ void GrCurveDisplay::paint(juce::Graphics& g)
 
     // === Operating point ===
     {
-        const float inDb  = juce::jlimit(kDbMin, kDbMax,
-                                         inputLevelDb.load(std::memory_order_relaxed));
-        const float outDb = computeOutputDb(inDb, thresh, ratio, knee);
+        const float inDb = juce::jlimit(kDbMin, kDbMax,
+                                        inputLevelDb.load(std::memory_order_relaxed));
         const float dx = dbToX(inDb);
-        const float dy = juce::jlimit(float(plotY), float(plotB), dbToY(outDb));
+        const float dy = juce::jlimit(float(plotY), float(plotB), dbToY(inDb));
 
         g.setColour(Theme::textHi.withAlpha(0.18f));
         g.fillEllipse(dx - 6.0f, dy - 6.0f, 12.0f, 12.0f);

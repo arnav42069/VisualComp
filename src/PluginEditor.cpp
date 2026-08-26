@@ -1295,7 +1295,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     for (int i = 0; i < kMaxEqNodes; ++i)
     {
         auto& b = bandButtons[size_t(i)];
-        b.setButtonText(juce::String(i + 1));
+        b.setButtonText(juce::String("N") + juce::String(i + 1));
         b.setColour(juce::TextButton::textColourOffId, Theme::textDim);
         b.setColour(juce::TextButton::textColourOnId,  juce::Colours::white);
         // Opts this button into AzazelLookAndFeel's solid-orange selected

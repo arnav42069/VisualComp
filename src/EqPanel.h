@@ -98,6 +98,7 @@ private:
     // snapRadiusHz, bonding them on success (or breaking any existing bond on
     // failure); returns the resulting target frequency (== rawHz if no snap).
     float trySnapEdge(int node, int edge, float rawHz, float snapRadiusHz = 100.0f);
+    float snapToAdjacentEdge(int node, int edge, float rawHz) const;
     // Moves (node,edge) to point p's frequency (snapping/bonding as above)
     // and applies it immediately -- used by both the click-to-jump on
     // mouseDown and continued dragging in mouseDrag.

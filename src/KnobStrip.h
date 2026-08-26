@@ -39,6 +39,12 @@ namespace KnobStrip
         inside this radius will be sitting in the knob's own shadow. */
     constexpr float kShadowOuterFrac = 59.0f / 64.0f;
 
+    /** Draw a fully procedural metallic knob when the filmstrip asset is not
+        available. This is intentionally style-matched to the reference image: a
+        black outer shell, knurled dark ring, brushed aluminium cap, and a thin
+        vertical indicator. */
+    void drawMetallicFallback (juce::Graphics& g, juce::Rectangle<float> dest, float pos);
+
     /** Draws the frame nearest `pos` (0 = min, 1 = max) into `dest`.
 
         Returns false if the asset could not be decoded, so the caller can fall

@@ -12,6 +12,8 @@ namespace
 {
     constexpr float kFreqLo = 20.0f, kFreqHi = 20000.0f;
     constexpr float kGainRange = 18.0f;   // +/- dB shown on the graph
+    constexpr float kSnapRadiusHz = 120.0f;
+    constexpr float kSnapEdgeToleranceHz = 18.0f;
     constexpr float kLeftGutter   = 34.0f;   // dB-axis labels
     constexpr float kBottomMargin = 34.0f;   // freq-axis labels + hint text
     constexpr float kHeaderH      = 40.0f;   // title row
@@ -338,7 +340,7 @@ float EqPanel::trySnapEdge(int node, int edge, float rawHz, float snapRadiusHz)
 void EqPanel::moveEdgeTo(int node, int edge, juce::Point<float> p)
 {
     const float rawHz = juce::jlimit(kFreqLo, kFreqHi, xToFreq(p.x));
-    const float snappedHz = trySnapEdge(node, edge, rawHz);
+    const float snappedHz = trySnapEdge(node, edge, rawHz, kSnapRadiusHz);
     setEdgeHz(node, edge, snappedHz);
     propagateJunctions(node);
     repaint();
@@ -385,7 +387,7 @@ void EqPanel::createNodeAt(juce::Point<float> p)
     // crossover without the user having to nudge borders by hand afterwards.
     for (int e = 0; e < 2; ++e)
     {
-        const float snappedHz = trySnapEdge(freeIdx, e, edgeHzOf(freeIdx, e));
+        const float snappedHz = trySnapEdge(freeIdx, e, edgeHzOf(freeIdx, e), kSnapRadiusHz);
         setEdgeHz(freeIdx, e, snappedHz);
     }
 
@@ -694,7 +696,7 @@ void EqPanel::showNodeMenu(int i)
                 // Snap edges to nearby linked nodes when linking
                 for (int e = 0; e < 2; ++e)
                 {
-                    const float snappedHz = trySnapEdge(i, e, edgeHzOf(i, e));
+                    const float snappedHz = trySnapEdge(i, e, edgeHzOf(i, e), kSnapRadiusHz);
                     setEdgeHz(i, e, snappedHz);
                 }
             }
@@ -823,7 +825,11 @@ void EqPanel::paint(juce::Graphics& g)
         if (amount <= 0.01f) continue;
         const float x0 = r.getX() + r.getWidth() * t0 + 1.0f, x1 = r.getX() + r.getWidth() * t1 - 1.0f;
         const float freq = kFreqLo * std::pow(kFreqHi / kFreqLo, (t0 + t1) * 0.5f);
-        const auto colour = freq < 250.0f ? juce::Colour(0xff4c8dce) : freq < 2200.0f ? Theme::meterLow : freq < 7000.0f ? Theme::meterMid : Theme::accent;
+        const auto colour = freq < 120.0f ? juce::Colour(0xff4c8dce)
+                          : freq < 420.0f ? juce::Colour(0xff40b7ff)
+                          : freq < 1800.0f ? Theme::meterLow
+                          : freq < 5500.0f ? Theme::meterMid
+                          : Theme::accent;
         const float top = r.getBottom() - r.getHeight() * amount;
         juce::ColourGradient fill(colour.withAlpha(0.05f), 0.0f, top, colour.withAlpha(0.30f), 0.0f, r.getBottom(), false);
         g.setGradientFill(fill); g.fillRect(x0, top, x1 - x0, r.getBottom() - top);
@@ -836,15 +842,15 @@ void EqPanel::paint(juce::Graphics& g)
     for (float f : { 50.0f, 200.0f, 500.0f, 2000.0f, 5000.0f, 20000.0f })
     {
         const float x = freqToX(f);
-        g.setColour(Theme::text.withAlpha(0.05f));
+        g.setColour(Theme::text.withAlpha(0.09f));
         g.drawVerticalLine(int(x), r.getY(), r.getBottom());
     }
     for (float f : { 20.0f, 100.0f, 1000.0f, 10000.0f })
     {
         const float x = freqToX(f);
-        g.setColour(Theme::text.withAlpha(0.16f));
+        g.setColour(Theme::text.withAlpha(0.24f));
         g.drawVerticalLine(int(x), r.getY(), r.getBottom());
-        g.setColour(Theme::text.withAlpha(0.75f));
+        g.setColour(Theme::textHi.withAlpha(0.92f));
         const juce::String lbl = f >= 1000.0f ? juce::String(int(f / 1000.0f)) + "kHz" : juce::String(int(f)) + "Hz";
         const auto just = (f <= kFreqLo) ? juce::Justification::centredLeft : juce::Justification::centred;
         const float lblX = (f <= kFreqLo) ? x : x - 22.0f;
@@ -854,9 +860,9 @@ void EqPanel::paint(juce::Graphics& g)
     for (float db : { -12.0f, -6.0f, 0.0f, 6.0f, 12.0f })
     {
         const float y = gainDbToY(db);
-        g.setColour(Theme::text.withAlpha(db == 0.0f ? 0.22f : 0.12f));
+        g.setColour(Theme::text.withAlpha(db == 0.0f ? 0.32f : 0.18f));
         g.drawHorizontalLine(int(y), r.getX(), r.getRight());
-        g.setColour(Theme::text.withAlpha(0.75f));
+        g.setColour(Theme::textHi.withAlpha(0.9f));
         const juce::String lbl = (db > 0.0f ? "+" : "") + juce::String(int(db)) + "dB";
         g.drawText(lbl, 0.0f, y - 6.0f, kLeftGutter - 4.0f, 12.0f,
                    juce::Justification::centredRight, false);
@@ -923,8 +929,8 @@ void EqPanel::paint(juce::Graphics& g)
                 juce::Path dashed;
                 const float dashLengths[] = { 3.0f, 3.0f };
                 juce::PathStrokeType(1.0f).createDashedStroke(dashed, rangePath, dashLengths, 2);
-                g.setColour(colourRange.withAlpha(0.35f));
-                g.strokePath(dashed, juce::PathStrokeType(1.0f));
+            g.setColour(colourRange.withAlpha(0.22f));
+            g.strokePath(dashed, juce::PathStrokeType(1.0f));
             }
 
             const float grDb = processor.bandGrDb[size_t(i)].load(std::memory_order_relaxed);
@@ -972,14 +978,14 @@ void EqPanel::paint(juce::Graphics& g)
             const float loX = freqToX(detectorLoHz(n));
             const float hiX = freqToX(detectorHiHz(n, srDisp));
 
-            g.setColour(colour.withAlpha(0.06f));
+            g.setColour(colour.withAlpha(0.10f));
             g.fillRect(juce::Rectangle<float>(loX, r.getY(), hiX - loX, r.getHeight()));
 
             for (float x : { loX, hiX })
             {
                 juce::Path flag;
                 flag.addTriangle(x - 4.0f, flagY - 5.0f, x + 4.0f, flagY - 5.0f, x, flagY + 4.0f);
-                g.setColour(colour.withAlpha(0.85f));
+                g.setColour(colour.brighter(0.2f).withAlpha(0.95f));
                 g.fillPath(flag);
             }
         }
@@ -1030,7 +1036,7 @@ void EqPanel::paint(juce::Graphics& g)
         // Keep every node's identity colour stable while audio plays. The
         // detector may change its gain-reduction trace, but it must not make
         // a node (notably N2) appear to change colour or state.
-        g.setColour(colour.withAlpha(0.11f));
+        g.setColour(colour.brighter(0.2f).withAlpha(0.16f));
         g.fillEllipse(p.x - radius * 1.8f, p.y - radius * 1.8f, radius * 3.6f, radius * 3.6f);
 
         // Drop shadow
@@ -1041,13 +1047,13 @@ void EqPanel::paint(juce::Graphics& g)
         // Given some transparency (rather than fully opaque) so the curve
         // stays visible through the node itself.
         {
-            juce::ColourGradient body(colour.brighter(0.9f).withAlpha(0.82f), p.x - radius * 0.4f, p.y - radius * 0.4f,
-                                       colour.darker(0.5f).withAlpha(0.82f),   p.x + radius * 0.5f, p.y + radius * 0.6f, true);
+            juce::ColourGradient body(colour.brighter(1.0f).withAlpha(0.88f), p.x - radius * 0.4f, p.y - radius * 0.4f,
+                                       colour.darker(0.35f).withAlpha(0.88f), p.x + radius * 0.5f, p.y + radius * 0.6f, true);
             body.addColour(0.45, colour.withAlpha(0.82f));
             g.setGradientFill(body);
             g.fillEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f);
         }
-        g.setColour(colour.darker(0.6f).withAlpha(0.65f));
+        g.setColour(colour.darker(0.5f).withAlpha(0.8f));
         g.drawEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f, 1.0f);
 
         const bool darkText = colour.getPerceivedBrightness() > 0.6f;
@@ -1084,9 +1090,9 @@ void EqPanel::paint(juce::Graphics& g)
             juce::Rectangle<float> lblR(p.x - textW * 0.5f, ly, textW, 12.0f);
             lblR.setX(juce::jlimit(r.getX(), juce::jmax(r.getX(), r.getRight() - textW), lblR.getX()));
 
-            g.setColour(juce::Colours::black.withAlpha(0.55f));
+            g.setColour(juce::Colours::black.withAlpha(0.62f));
             g.fillRoundedRectangle(lblR.expanded(2.0f, 1.0f), 2.5f);
-            g.setColour(colour.withAlpha(0.95f));
+            g.setColour(colour.brighter(0.15f).withAlpha(0.98f));
             g.drawText(line, lblR, juce::Justification::centred, false);
         }
 
@@ -1154,3 +1160,4 @@ void EqPanel::paint(juce::Graphics& g)
                "Wheel: Q   Right-click: type/Q/link/remove",
                10, getHeight() - 16, getWidth() - 20, 14, juce::Justification::centredLeft, false);
 }
+
