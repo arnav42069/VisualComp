@@ -1586,7 +1586,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     mixKnob.setMouseDragSensitivity(600);
     mixKnob.setRange(0.0, 1.0);
     mixKnob.getProperties().set("paramId", "mix");
-    setKnobFamily(mixKnob, KnobFamily::mix);
+    setKnobFamily(mixKnob, KnobFamily::console);
     mixKnob.onValueChange = [this] { repaint(0, 0, getWidth(), kTitleH); };
     addAndMakeVisible(mixKnob);
 
@@ -1635,8 +1635,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         knob.setVisible(false);
         addAndMakeVisible(knob);
     };
-    setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f,  KnobFamily::console);
-    setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f, KnobFamily::console);
+    setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f,  KnobFamily::ratio);
+    setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f, KnobFamily::ratio);
     // FabFilter Pro-MB style: Threshold is downward-only (0..-60dB). Direction
     // (downward/upward) and how far the band can swing now live on the Range
     // knob instead (see NodeIsland) — that's what used to make a positive
@@ -1645,10 +1645,10 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // get overridden immediately after by setupThresholdKnobRange() — see
     // EqEngine.h.
     setupBandKnob(bandThresholdKnob, -60.0f, 0.0f, 0.5f, -20.0f,
-                  KnobFamily::console);
+                  KnobFamily::ratio);
     setupThresholdKnobRange(bandThresholdKnob);
     setupBandKnob(bandKneeKnob,        0.0f, 20.0f, 1.0f,   6.0f,
-                  KnobFamily::console);
+                  KnobFamily::ratio);
     setupBandKnob(bandRatioKnob,       1.0f, 20.0f, 0.4f,   2.0f,
                   KnobFamily::ratio);
     bandAttackKnob.setTextValueSuffix(" ms");
@@ -1897,8 +1897,7 @@ void VisualCompEditor::setupKnob(DragSlider& knob, juce::Label& label,
     knob.setMouseDragSensitivity(1000);
     knob.getProperties().set("topInset", kKnobTopInset);
     knob.getProperties().set("paramId", paramId);
-    setKnobFamily(knob, paramId == "ratio" ? KnobFamily::ratio
-                                            : KnobFamily::console);
+    setKnobFamily(knob, KnobFamily::ratio);
     knob.onValueChange = [this] { repaint(0, kCtrlY, kContentW, kCtrlH); };
 
     if (auto* par = audioProcessor.apvts.getParameter(paramId))
@@ -3182,7 +3181,7 @@ void VisualCompEditor::paint(juce::Graphics& g)
         g.setFont(Theme::label(15.0f));
         g.setColour(Theme::text.withAlpha(0.85f));
         g.drawText("MIX", labelX, 8, 62, 19, juce::Justification::centred, false);
-        g.setFont(Theme::mono(17.0f, juce::Font::bold));
+        g.setFont(Theme::value(13.0f));
         g.setColour(Theme::accent);
         g.drawText(juce::String(int(mixVal)) + "%", labelX, 29, 62, 21,
                    juce::Justification::centred, false);
