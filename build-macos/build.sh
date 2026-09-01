@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build VisualComp 2.57 VST3 + AU for macOS — Azazel Audio
+# Build VisualComp 2.58 VST3 + AU for macOS — Azazel Audio
 # Run this ON a Mac (Xcode Command Line Tools + CMake required).
 #
 # The build auto-installs both formats (handled by COPY_PLUGIN_AFTER_BUILD in
@@ -14,9 +14,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$SCRIPT_DIR/cmake-build"
 
-PLUGIN_NAME="VisualComp 2.57"
+PLUGIN_NAME="VisualComp 2.58"
 
-echo "=== VisualComp 2.57 macOS Build (VST3 + AU) ==="
+echo "=== VisualComp 2.58 macOS Build (VST3 + AU) ==="
 echo "Source : $ROOT_DIR"
 echo "Build  : $BUILD_DIR"
 

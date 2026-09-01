@@ -81,7 +81,7 @@ namespace
     constexpr int kKnobRowY      = kCtrlTopStripH + 4;      // 32 — module top
     constexpr int kBarRowY       = kKnobRowY + kModuleH;    // 170 — parameter position bars
     constexpr int kBarRowH       = 12;
-    constexpr int kUtilRowY      = kBarRowY + kBarRowH;     // 182 — AUTO GAIN / LIM / SC
+    constexpr int kUtilRowY      = kBarRowY + kBarRowH;     // 182 — AUTO GAIN / CLIP / LIM / SC
     constexpr int kUtilRowH      = 26;
     constexpr int kCtrlBotPad    = 6;
     constexpr int kCtrlH  = kUtilRowY + kUtilRowH + kCtrlBotPad;   // 214 (was 340)
@@ -457,6 +457,8 @@ bool WaveEnlargeOverlay::keyPressed(const juce::KeyPress& key)
 
 AzazelLookAndFeel::AzazelLookAndFeel()
 {
+    setUsingNativeAlertWindows(false);
+
     setColour(juce::Slider::textBoxTextColourId,       Theme::accent);
     setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
     setColour(juce::Slider::textBoxOutlineColourId,    juce::Colours::transparentBlack);
@@ -467,6 +469,132 @@ AzazelLookAndFeel::AzazelLookAndFeel()
     setColour(juce::PopupMenu::highlightedBackgroundColourId, Theme::accentDim);
     setColour(juce::PopupMenu::highlightedTextColourId,       juce::Colours::white);
     setColour(juce::PopupMenu::headerTextColourId,            Theme::accent);
+
+    // Dialogs and their child controls use the same recessed, warm-neutral
+    // palette as the plugin instead of JUCE's stock grey/cyan treatment.
+    setColour(juce::AlertWindow::backgroundColourId, Theme::bgDeep);
+    setColour(juce::AlertWindow::textColourId,       Theme::text);
+    setColour(juce::AlertWindow::outlineColourId,    Theme::line);
+    setColour(juce::TextButton::buttonColourId,      Theme::surfRaised);
+    setColour(juce::TextButton::buttonOnColourId,    Theme::accentDim);
+    setColour(juce::TextButton::textColourOffId,     Theme::textHi);
+    setColour(juce::TextButton::textColourOnId,      juce::Colours::white);
+    setColour(juce::TextEditor::backgroundColourId,      Theme::surfSunk);
+    setColour(juce::TextEditor::textColourId,            Theme::textHi);
+    setColour(juce::TextEditor::highlightColourId,       Theme::accentDim);
+    setColour(juce::TextEditor::highlightedTextColourId, juce::Colours::white);
+    setColour(juce::TextEditor::outlineColourId,         Theme::line);
+    setColour(juce::TextEditor::focusedOutlineColourId,  Theme::accent);
+    setColour(juce::TextEditor::shadowColourId,          juce::Colours::black.withAlpha(0.45f));
+    setColour(juce::CaretComponent::caretColourId,       Theme::accent);
+    setColour(juce::ComboBox::backgroundColourId,     Theme::surfSunk);
+    setColour(juce::ComboBox::textColourId,           Theme::textHi);
+    setColour(juce::ComboBox::outlineColourId,        Theme::line);
+    setColour(juce::ComboBox::buttonColourId,         Theme::surfRaised);
+    setColour(juce::ComboBox::arrowColourId,          Theme::textMid);
+    setColour(juce::ComboBox::focusedOutlineColourId, Theme::accent);
+    setColour(juce::ProgressBar::backgroundColourId, Theme::surfSunk);
+    setColour(juce::ProgressBar::foregroundColourId, Theme::accent);
+    setColour(juce::ListBox::backgroundColourId, Theme::surfSunk);
+    setColour(juce::ListBox::outlineColourId,    Theme::line);
+    setColour(juce::ListBox::textColourId,       Theme::text);
+    setColour(juce::DirectoryContentsDisplayComponent::highlightColourId,       Theme::accentDim);
+    setColour(juce::DirectoryContentsDisplayComponent::textColourId,            Theme::text);
+    setColour(juce::DirectoryContentsDisplayComponent::highlightedTextColourId, juce::Colours::white);
+    setColour(juce::FileBrowserComponent::currentPathBoxBackgroundColourId, Theme::surfSunk);
+    setColour(juce::FileBrowserComponent::currentPathBoxTextColourId,       Theme::textHi);
+    setColour(juce::FileBrowserComponent::currentPathBoxArrowColourId,      Theme::accent);
+    setColour(juce::FileBrowserComponent::filenameBoxBackgroundColourId,    Theme::surfSunk);
+    setColour(juce::FileBrowserComponent::filenameBoxTextColourId,          Theme::textHi);
+    setColour(juce::ScrollBar::backgroundColourId, juce::Colours::transparentBlack);
+    setColour(juce::ScrollBar::trackColourId,      Theme::bgDeep);
+    setColour(juce::ScrollBar::thumbColourId,      Theme::textFaint);
+    setColour(juce::TooltipWindow::backgroundColourId, Theme::bgDeep);
+    setColour(juce::TooltipWindow::textColourId,       Theme::text);
+    setColour(juce::TooltipWindow::outlineColourId,    Theme::line);
+    setColour(juce::ResizableWindow::backgroundColourId, Theme::bgDeep);
+    setColour(juce::TreeView::backgroundColourId,             Theme::surfSunk);
+    setColour(juce::TreeView::linesColourId,                  Theme::line);
+    setColour(juce::TreeView::selectedItemBackgroundColourId, Theme::accentDim);
+    setColour(juce::TreeView::oddItemsColourId,               Theme::surfSunk);
+    setColour(juce::TreeView::evenItemsColourId,              Theme::bgDeep);
+}
+
+void AzazelLookAndFeel::drawAlertBox(juce::Graphics& g,
+                                     juce::AlertWindow& alert,
+                                     const juce::Rectangle<int>& textArea,
+                                     juce::TextLayout& textLayout)
+{
+    juce::ignoreUnused(textArea);
+
+    const auto outer = alert.getLocalBounds().toFloat().reduced(0.5f);
+    constexpr float corner = 6.0f;
+
+    g.setColour(juce::Colours::black.withAlpha(0.42f));
+    g.fillRoundedRectangle(outer.translated(0.0f, 1.5f), corner);
+
+    juce::ColourGradient panel(Theme::bgRaised, outer.getX(), outer.getY(),
+                               Theme::bgDeep, outer.getX(), outer.getBottom(), false);
+    panel.addColour(0.32, Theme::bg);
+    g.setGradientFill(panel);
+    g.fillRoundedRectangle(outer, corner);
+
+    g.setColour(alert.findColour(juce::AlertWindow::outlineColourId));
+    g.drawRoundedRectangle(outer, corner, 1.0f);
+
+    // The narrow signal-orange cap is the same detail accent used by the
+    // hardware UI and replaces JUCE's generic cyan alert treatment.
+    g.setColour(Theme::accent.withAlpha(0.92f));
+    g.fillRoundedRectangle(outer.withHeight(3.0f).reduced(1.0f, 0.0f), 1.5f);
+
+    int iconSpace = 0;
+    if (alert.getAlertType() != juce::MessageBoxIconType::NoIcon)
+    {
+        constexpr int iconWidth = 54;
+        const juce::Rectangle<float> iconRect(12.0f, 28.0f, 30.0f, 30.0f);
+        const bool warning = alert.getAlertType() == juce::MessageBoxIconType::WarningIcon;
+
+        juce::Path icon;
+        if (warning)
+            icon.addTriangle(iconRect.getCentreX(), iconRect.getY(),
+                             iconRect.getRight(), iconRect.getBottom(),
+                             iconRect.getX(), iconRect.getBottom());
+        else
+            icon.addEllipse(iconRect);
+
+        g.setColour((warning ? Theme::warn : Theme::accent).withAlpha(0.24f));
+        g.fillPath(icon);
+        g.setColour((warning ? Theme::warn : Theme::accent).withAlpha(0.78f));
+        g.strokePath(icon, juce::PathStrokeType(1.2f));
+
+        const juce::String mark = warning ? "!"
+            : (alert.getAlertType() == juce::MessageBoxIconType::InfoIcon ? "i" : "?");
+        g.setFont(Theme::label(18.0f));
+        g.setColour(Theme::textHi);
+        g.drawText(mark, iconRect, juce::Justification::centred, false);
+        iconSpace = iconWidth;
+    }
+
+    g.setColour(alert.findColour(juce::AlertWindow::textColourId));
+    const juce::Rectangle<int> alertBounds(iconSpace, 24,
+                                            alert.getWidth() - iconSpace,
+                                            alert.getHeight() - getAlertWindowButtonHeight() - 18);
+    textLayout.draw(g, alertBounds.toFloat());
+}
+
+juce::Font AzazelLookAndFeel::getAlertWindowTitleFont()
+{
+    return Theme::label(18.0f);
+}
+
+juce::Font AzazelLookAndFeel::getAlertWindowMessageFont()
+{
+    return Theme::label(14.0f, juce::Font::plain);
+}
+
+juce::Font AzazelLookAndFeel::getAlertWindowFont()
+{
+    return Theme::label(12.5f, juce::Font::plain);
 }
 
 void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
@@ -751,21 +879,21 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         // index tip. It is recognisably different from the round console caps
         // while remaining an original VisualComp construction.
         const float bezelR = bodyR * 1.07f;
-        juce::ColourGradient bezel(juce::Colour(0xff77736b), cx - bezelR, cy - bezelR,
+        juce::ColourGradient bezel(juce::Colour(0xff7a7771), cx - bezelR, cy - bezelR,
                                    juce::Colour(0xff080807), cx + bezelR, cy + bezelR, false);
-        bezel.addColour(0.42, juce::Colour(0xff262522));
+        bezel.addColour(0.42, juce::Colour(0xff302f2d));
         g.setGradientFill(bezel);
         g.fillEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f);
         g.setColour(juce::Colours::black.withAlpha(0.95f));
         g.drawEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f, 1.5f);
 
         const float faceR = bodyR * 0.89f;
-        juce::ColourGradient face(hovered ? juce::Colour(0xff45413b)
-                                           : juce::Colour(0xff393631),
+        juce::ColourGradient face(hovered ? juce::Colour(0xff454545)
+                                           : juce::Colour(0xff3a3a3a),
                                    cx - faceR * 0.35f, cy - faceR * 0.40f,
-                                   juce::Colour(0xff090908),
+                                   juce::Colour(0xff151515),
                                    cx + faceR * 0.80f, cy + faceR * 0.90f, true);
-        face.addColour(0.62, juce::Colour(0xff211f1d));
+        face.addColour(0.62, juce::Colour(0xff2e2e2e));
         g.setGradientFill(face);
         g.fillEllipse(cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
 
@@ -785,12 +913,12 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         g.strokePath(grip, juce::PathStrokeType(2.6f,
                                                 juce::PathStrokeType::curved,
                                                 juce::PathStrokeType::rounded));
-        juce::ColourGradient gripFill(hovered ? juce::Colour(0xff403c37)
-                                               : juce::Colour(0xff34312d),
+        juce::ColourGradient gripFill(hovered ? juce::Colour(0xff444444)
+                                               : juce::Colour(0xff393939),
                                         cx - gripW, cy - bodyR,
-                                        juce::Colour(0xff11100f),
+                                        juce::Colour(0xff171717),
                                         cx + gripW, cy + bodyR, false);
-        gripFill.addColour(0.46, juce::Colour(0xff292622));
+        gripFill.addColour(0.46, juce::Colour(0xff2e2e2e));
         g.setGradientFill(gripFill);
         g.fillPath(grip);
         g.setColour(juce::Colours::white.withAlpha(hovered ? 0.10f : 0.065f));
@@ -1391,7 +1519,10 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
                                              std::memory_order_relaxed);
     };
 
-    setupToggle(bypassButton, "BYPASS");
+    // Bypass uses the same renderer and interaction model as the clipping
+    // selector; the only behavioural difference is that it toggles state.
+    setupTextButton(bypassButton, "BYPASS");
+    bypassButton.setClickingTogglesState(true);
     if (juce::SystemStats::getEnvironmentVariable("VC2_FORCE_BYPASS", {}).isNotEmpty())
     {
         bypassButton.setToggleState(true, juce::dontSendNotification);
@@ -1453,7 +1584,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     eqButton.setClickingTogglesState(true);
     eqButton.onClick = [this] { toggleEqPanel(); };
 
-    // Clip mode (Soft / Brickwall / Off) + the hidden oversampling factor
+    // Clip mode (Soft / Brickwall / Off) + the hidden oversampling factor.
+    // resized() places it beside LIM with the output-stage controls.
     setupTextButton(clipModeButton,
         OutputClipper::modeName(static_cast<ClipMode>(audioProcessor.clipMode.load())));
     clipModeButton.onClick = [this] { showClipModeMenu(); };
@@ -1583,7 +1715,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     mixKnob.setMouseDragSensitivity(600);
     mixKnob.setRange(0.0, 1.0);
     mixKnob.getProperties().set("paramId", "mix");
-    setKnobFamily(mixKnob, KnobFamily::console);
+    setKnobFamily(mixKnob, KnobFamily::ratio);
     mixKnob.onValueChange = [this] { repaint(0, 0, getWidth(), kTitleH); };
     addAndMakeVisible(mixKnob);
 
@@ -2369,8 +2501,16 @@ void VisualCompEditor::saveUserPreset()
 void VisualCompEditor::launchSavePresetFileChooser(const juce::String& author)
 {
     fileChooser = std::make_unique<juce::FileChooser>(
-        "Save preset", getUserPresetDir().getChildFile("My Preset.vcpreset"), "*.vcpreset");
+        "Save preset", getUserPresetDir().getChildFile("My Preset.vcpreset"), "*.vcpreset",
+        false, false, this);
 
+    // JUCE constructs the non-native browser before attaching it to `this`,
+    // so it samples the process-default LAF for its one-time window colour.
+    // Briefly expose our LAF during that synchronous construction, then put
+    // the previous global default straight back; the dialog subsequently
+    // inherits `laf` from this editor as normal.
+    auto* previousDefaultLaf = &juce::LookAndFeel::getDefaultLookAndFeel();
+    juce::LookAndFeel::setDefaultLookAndFeel(&laf);
     fileChooser->launchAsync(
         juce::FileBrowserComponent::saveMode
             | juce::FileBrowserComponent::canSelectFiles
@@ -2419,6 +2559,7 @@ void VisualCompEditor::launchSavePresetFileChooser(const juce::String& author)
                     setPresetAuthor(author);
                 }
         });
+    juce::LookAndFeel::setDefaultLookAndFeel(previousDefaultLaf);
 }
 
 void VisualCompEditor::loadUserPreset(const juce::File& file)
@@ -3388,24 +3529,24 @@ void VisualCompEditor::resized()
     // and sample-rate text mirror this with the same `cshift`.
     const int cshift = curveGrVisible ? 0 : kCurveGrColW;
     mixKnob.setBounds(ox + kWidth - cshift - kMixSz - 8, 6, kMixSz, kMixSz);
-    bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104, 14, 100, kTitleH - 28);
-    clipModeButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104 - 100 - 8, 14, 96, kTitleH - 28);
+    // 52 x 22 is exactly half the previous 104 x 44 Bypass footprint. Its
+    // bounds are also its tested hit target; no transparent overlay shares it.
+    constexpr int bypassW = 52, bypassH = 22;
+    bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - bypassW,
+                           (kTitleH - bypassH) / 2, bypassW, bypassH);
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
     if (testDemoUiEnabled)
         demoPlayButton.setBounds(ox + 136, 15, 58, kTitleH - 30);
-    // Demo mode watermark indicator — positioned in top-right corner, fixed 24px height
-    demoModeIndicator.setBounds(ox + kWidth - cshift - 224, 8, 216, 24);
+    // Keep the live demo/license target clear of Bypass. When licensed its
+    // hitTest() returns false as well, so the invisible component is inert.
+    demoModeIndicator.setBounds(bypassButton.getX() - 208, 8, 200, 24);
     // Undo/Redo notification — positioned in top-right, just below the title bar
     undoRedoNotification.setBounds(ox + kWidth - cshift - 220, 12, 208, 32);
-    // Preset name now lives up here, left of SoftClip — same row/height as
-    // bypassButton/clipModeButton. Worst case (Curve/GR collapsed) leaves
-    // 290px between logoZone's right edge and clipModeButton's left edge;
-    // centred in that gap (rather than flush against the logo) so it sits
-    // perfectly between the two, not just clear of both.
+    // Preset name lives between the wordmark and the demo/bypass controls.
     {
         constexpr int presetW = 270;
         const int gapLeft  = logoZone.getRight();
-        const int gapRight = clipModeButton.getX();
+        const int gapRight = demoModeIndicator.getX();
         const int presetX  = gapLeft + (gapRight - gapLeft - presetW) / 2;
         presetButton.setBounds(presetX, 14, presetW, kTitleH - 28);
     }
@@ -3548,21 +3689,22 @@ void VisualCompEditor::resized()
         gainOutFader     .setBounds(fx, knobTop + kKnobTopInset, kFaderW, kModuleH - kKnobTopInset);
     }
 
-    // Utility strip — AUTO GAIN / LIM / SC as one centred horizontal group
+    // Utility strip — AUTO GAIN / CLIP / LIM / SC as one centred horizontal group
     // along the bottom of the pane. Each toggle carries its caption inline to
     // its right rather than stacked beneath it, which is what let a 114px
     // vertical cluster become a single 26px row.
     {
         const int uy = kCtrlY + kUtilRowY, uh = kUtilRowH;
-        constexpr int agW = 116, limW = 44, scW = 40;   // agW fits "AUTO GAIN" on one line
+        constexpr int agW = 116, clipW = 94, limW = 44, scW = 40;
         constexpr int limCapW = 84, scCapW = 68;
-        constexpr int capGap = 5, groupGap = 20;
+        constexpr int capGap = 5, controlGap = 8, groupGap = 18;
 
-        const int totalW = agW + groupGap + limW + capGap + limCapW
+        const int totalW = agW + groupGap + clipW + controlGap + limW + capGap + limCapW
                               + groupGap + scW + capGap + scCapW;
         int gx = ox + kFaderM + (kContentW - 2 * kFaderM - totalW) / 2;
 
         autoGainButton .setBounds(gx, uy, agW, uh);            gx += agW + groupGap;
+        clipModeButton .setBounds(gx, uy, clipW, uh);          gx += clipW + controlGap;
         limiterButton  .setBounds(gx, uy, limW, uh);           gx += limW + capGap;
         limiterLabel   .setBounds(gx, uy, limCapW, uh);        gx += limCapW + groupGap;
         sidechainButton.setBounds(gx, uy, scW, uh);            gx += scW + capGap;

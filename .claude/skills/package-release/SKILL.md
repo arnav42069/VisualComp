@@ -1,11 +1,11 @@
 ---
 name: package-release
-description: Build VisualComp 2.57 (VST3 + Standalone, AU on Mac) in Release, code-sign the Windows binaries if a certificate is configured, and assemble the distributable zip via package.ps1. Use when asked to "package the release", "build the release zip", "cut a release build", or "/package-release".
+description: Build VisualComp 2.58 (VST3 + Standalone, AU on Mac) in Release, code-sign the Windows binaries if a certificate is configured, and assemble the distributable zip via package.ps1. Use when asked to "package the release", "build the release zip", "cut a release build", or "/package-release".
 ---
 
 # Package Release
 
-Builds VisualComp 2.57 and assembles the Windows+Mac distributable zip in `Build Final\`.
+Builds VisualComp 2.58 and assembles the Windows+Mac distributable zip in `Build Final\`.
 
 ## Workflow
 
@@ -83,7 +83,7 @@ Builds VisualComp 2.57 and assembles the Windows+Mac distributable zip in `Build
 
 ## Notes
 
-- The version string lives in `package.ps1` (`$version = '2.57'`) and `CMakeLists.txt`
+- The version string lives in `package.ps1` (`$version = '2.58'`) and `CMakeLists.txt`
   (`VC2_VERSION_STRING`) — both are now kept in sync automatically by
   `bump-version.ps1` (see "Auto-versioning" above), not hand-edited.
 - Ignore/do not use anything referencing `SimpleCompressor` as a build target, `Source/` as a directory, or a script at `scripts/package_release.ps1` — those don't match this codebase's actual CMake targets (`VisualComp_VST3`/`VisualComp_Standalone`) or layout (`src/`), and appear to be stale leftovers from an earlier/different project.

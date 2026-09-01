@@ -111,6 +111,7 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    bool hitTest(int x, int y) override;
 
     // Click handler for showing license activation dialog
     void mouseUp(const juce::MouseEvent& e) override;

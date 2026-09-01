@@ -237,6 +237,13 @@ public:
                         bool shouldDrawButtonAsHighlighted,
                         bool shouldDrawButtonAsDown) override;
 
+    void drawAlertBox(juce::Graphics&, juce::AlertWindow&,
+                      const juce::Rectangle<int>& textArea,
+                      juce::TextLayout&) override;
+    juce::Font getAlertWindowTitleFont() override;
+    juce::Font getAlertWindowMessageFont() override;
+    juce::Font getAlertWindowFont() override;
+
     void drawLabel(juce::Graphics&, juce::Label&) override;
     juce::Font getLabelFont(juce::Label&) override;
     juce::Font getTextButtonFont(juce::TextButton&, int height) override;
@@ -369,7 +376,7 @@ private:
     juce::ToggleButton autoGainButton;
 
     // Header controls
-    juce::ToggleButton bypassButton;
+    juce::TextButton   bypassButton;
     juce::TextButton   modeButton;
     juce::TextButton   eqButton;
     juce::TextButton   presetButton, presetPrev, presetNext, presetSave, autoAnalyzeButton;

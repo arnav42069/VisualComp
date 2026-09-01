@@ -388,6 +388,13 @@ void DemoModeIndicator::resized()
     // Small fixed-height indicator
 }
 
+bool DemoModeIndicator::hitTest(int x, int y)
+{
+    // A licensed build paints nothing here, so its otherwise-transparent
+    // component must not steal pointer events from nearby header controls.
+    return licenseMgr.isDemoMode() && juce::Component::hitTest(x, y);
+}
+
 void DemoModeIndicator::mouseUp(const juce::MouseEvent&)
 {
     if (licenseMgr.isDemoMode())
