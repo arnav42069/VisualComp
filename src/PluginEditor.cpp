@@ -121,6 +121,45 @@ namespace
 
     constexpr int kMixSz    = 48;
 
+    // Rotary construction families. Stored as a small integer property on
+    // each Slider so every family still shares one LookAndFeel, one layout
+    // path and the same parameter/attachment behaviour.
+    enum class KnobFamily : int
+    {
+        azazel = 0,   // existing baked gunmetal filmstrip (EQ/Island controls)
+        console,      // pale matte console cap (Dynamics)
+        ratio,        // dark indexed selector (Ratio)
+        mix            // compact charcoal ring (header Mix)
+    };
+
+    constexpr const char* kKnobFamilyProperty = "knobFamily";
+
+    void setKnobFamily(juce::Slider& slider, KnobFamily family)
+    {
+        slider.getProperties().set(kKnobFamilyProperty, static_cast<int>(family));
+    }
+
+    KnobFamily getKnobFamily(juce::Slider& slider)
+    {
+        const int raw = int(slider.getProperties().getWithDefault(
+            kKnobFamilyProperty, static_cast<int>(KnobFamily::azazel)));
+        return static_cast<KnobFamily>(juce::jlimit(
+            static_cast<int>(KnobFamily::azazel),
+            static_cast<int>(KnobFamily::mix), raw));
+    }
+
+    // VisualComp's semantic value ramp. Arc length and pointer position
+    // still carry the value when colour perception is limited.
+    juce::Colour knobValueColour(float amount)
+    {
+        const auto low  = juce::Colour(0xffd94a45);  // red
+        const auto mid  = juce::Colour(0xfff1a33c);  // amber
+        const auto high = juce::Colour(0xff62e68a);  // green
+        const float t = juce::jlimit(0.0f, 1.0f, amount);
+        return t < 0.5f ? low.interpolatedWith(mid, t * 2.0f)
+                        : mid.interpolatedWith(high, (t - 0.5f) * 2.0f);
+    }
+
     constexpr int kEqPanelW = 520;   // docked EQ panel width when open (2x its base 260)
 
     // Genres offered by the Auto-Analyze wizard, with a sensible default LUFS
@@ -460,86 +499,160 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     if (maxR <= 4.0f) return;
 
     const float valueAngle = startAngle + (endAngle - startAngle) * sliderPos;
+    const auto  family     = getKnobFamily(slider);
+    const bool  hovered    = slider.isMouseOver(true);
+    const bool  focused    = slider.hasKeyboardFocus(true);
     const bool  simpleTicks = slider.getProperties().contains("simpleTicks");
 
-    // The dial itself is the pre-rendered filmstrip (src/KnobStrip.h) rather
-    // than the vector bezel/body/glare stack this used to draw: a real spun
-    // aluminium cap with a light fixed at 315 degrees, whose shadow and
-    // specular rim provably do not rotate with the value. The strip is baked
-    // for a 270-degree sweep — JUCE's rotary default, and what every knob here
-    // uses. One that called setRotaryParameters would get an etched pointer
-    // aiming somewhere its own graduation ticks don't.
+    auto polar = [cx, cy](float angle, float radius)
+    {
+        return juce::Point<float>(cx + radius * std::sin(angle),
+                                  cy - radius * std::cos(angle));
+    };
+
+    // The legacy Azazel family remains the baked filmstrip used by the small
+    // Dynamic-Island controls. Main Dynamics, Ratio and Mix opt into original
+    // procedural constructions below; all families use the same normalized
+    // Slider value and JUCE rotary angles.
     jassert(std::abs((endAngle - startAngle) - KnobStrip::kSweepRadians) < 0.01f);
 
-    // A filmstrip frame is wider than the metal it depicts: it also carries the
-    // ambient shadow and a clear margin past it. `knobR` is the frame's half
-    // width, so the bezel's real outer edge lands at knobR * kBezelOuterFrac
-    // (~0.73 maxR, near enough the 0.75 the vector bezel used) and the shadow
-    // fades out by knobR * kShadowOuterFrac.
-    const float knobR   = maxR * 0.86f;
-    const float shadowR = knobR * KnobStrip::kShadowOuterFrac;
-
-    // Graduation ticks. These belong to the faceplate, not the knob, so they
-    // are drawn FIRST and the knob's baked ambient shadow then falls across
-    // their inner ends — the way a real dial shadows the panel it is seated
-    // in. They begin just outside that shadow rather than hard against the
-    // metal, which is where they sat back when the dial was flat vector art
-    // with no shadow to be swallowed by.
+    if (family == KnobFamily::azazel)
     {
-        const float tickIn  = shadowR * 1.005f;
-        const float tickOut = maxR * 0.865f;
+        // A filmstrip frame is wider than the metal it depicts: it also
+        // carries the ambient shadow and a clear margin past it.
+        const float knobR   = maxR * 0.86f;
+        const float shadowR = knobR * KnobStrip::kShadowOuterFrac;
 
-        // A fine mastering-grade scale on the 78px dials, without turning the
-        // small ones into a solid grey ring. The count is chosen from the arc
-        // length the marks actually have to share rather than being fixed:
-        // below roughly 3.2px of spacing adjacent ticks stop resolving and
-        // the whole scale reads as a smudge, so the next coarser division
-        // wins. 78px dial -> 4.6px spacing -> 40 divisions (41 marks); the
-        // 49px NodeIsland knobs land on 20; anything tiny falls back to 12.
-        const float arcLen = (endAngle - startAngle) * tickOut;
-        int divisions = 12;
-        for (int cand : { 40, 20, 12 })
-            if (arcLen / float(cand) >= 3.2f) { divisions = cand; break; }
+        // Graduation ticks live on the faceplate and are drawn before the
+        // filmstrip so the baked contact shadow falls over their inner ends.
+        {
+            const float tickIn  = shadowR * 1.005f;
+            const float tickOut = maxR * 0.865f;
+            const float arcLen = (endAngle - startAngle) * tickOut;
+            int divisions = 12;
+            for (int cand : { 40, 20, 12 })
+                if (arcLen / float(cand) >= 3.2f) { divisions = cand; break; }
+
+            for (int i = 0; i <= divisions; ++i)
+            {
+                const float frac  = float(i) / float(divisions);
+                const float angle = startAngle + frac * (endAngle - startAngle);
+                const bool  isMaj = (i * 8) % divisions == 0;
+                if (simpleTicks && !isMaj) continue;
+
+                const float from = isMaj ? tickIn : tickIn + (tickOut - tickIn) * 0.45f;
+                const auto p0 = polar(angle, from);
+                const auto p1 = polar(angle, tickOut);
+                g.setColour(isMaj ? Theme::textDim.withAlpha(0.50f)
+                                  : Theme::textFaint.withAlpha(0.22f));
+                g.drawLine(p0.x, p0.y, p1.x, p1.y, isMaj ? 1.1f : 0.6f);
+            }
+        }
+
+        // Existing procedural value arc, including centre-out fill for
+        // bipolar Island controls.
+        {
+            const float arcR = maxR * 0.93f;
+            juce::Path track, active;
+            track.addCentredArc(cx, cy, arcR, arcR, 0.0f, startAngle, endAngle, true);
+            g.setColour(Theme::accentDeep);
+            g.strokePath(track, juce::PathStrokeType(2.2f));
+
+            const bool centerFill = slider.getProperties().contains("centerFill");
+            const float zeroAngle = centerFill
+                ? startAngle + (endAngle - startAngle)
+                    * float(slider.valueToProportionOfLength(0.0))
+                : startAngle;
+
+            if (centerFill ? (std::abs(valueAngle - zeroAngle) > 0.001f)
+                           : (valueAngle > startAngle + 0.001f))
+            {
+                const float a0 = juce::jmin(zeroAngle, valueAngle);
+                const float a1 = juce::jmax(zeroAngle, valueAngle);
+                active.addCentredArc(cx, cy, arcR, arcR, 0.0f, a0, a1, true);
+                const bool threshold = slider.getProperties()
+                    .getWithDefault("paramId", "").toString() == "threshold";
+                const float heat = threshold ? 1.0f - sliderPos : sliderPos;
+                const auto glow = Theme::meterLow.interpolatedWith(Theme::meterHot, heat);
+                g.setColour(glow.withAlpha(0.28f));
+                g.strokePath(active, juce::PathStrokeType(5.0f));
+                g.setColour(glow);
+                g.strokePath(active, juce::PathStrokeType(2.2f));
+            }
+        }
+
+        if (! KnobStrip::draw(g, { cx - knobR, cy - knobR, knobR * 2.0f, knobR * 2.0f },
+                              sliderPos))
+        {
+            // The asset is compiled in, but retain a readable fallback if a
+            // host ever fails to decode it.
+            const float bodyR = knobR * KnobStrip::kBezelOuterFrac;
+            const auto p0 = polar(valueAngle, bodyR * 0.32f);
+            const auto p1 = polar(valueAngle, bodyR * 0.88f);
+            g.setColour(Theme::surfRaised);
+            g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f);
+            g.setColour(juce::Colour(0xff0a0a09));
+            g.drawEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f, 1.0f);
+            g.setColour(Theme::accent);
+            g.drawLine(p0.x, p0.y, p1.x, p1.y, 2.0f);
+        }
+
+        if (focused)
+        {
+            const float focusR = maxR * 0.985f;
+            g.setColour(Theme::textHi.withAlpha(0.42f));
+            g.drawEllipse(cx - focusR, cy - focusR, focusR * 2.0f, focusR * 2.0f, 1.0f);
+        }
+        return;
+    }
+
+    // ------------------------------------------------------------------
+    // Original VisualComp procedural families
+    // ------------------------------------------------------------------
+    const bool isMix   = family == KnobFamily::mix;
+    const bool isRatio = family == KnobFamily::ratio;
+    const float bodyR  = maxR * (isMix ? 0.68f : 0.67f);
+    const float arcR   = maxR * (isMix ? 0.91f : 0.93f);
+
+    // Faceplate graduations: dense, warm marks for Dynamics/Ratio; only
+    // minimum, midpoint and maximum landmarks on the compact Mix dial.
+    {
+        const int divisions = isMix ? 8 : 40;
+        const float tickIn  = maxR * (isMix ? 0.78f : 0.75f);
+        const float tickOut = maxR * (isMix ? 0.84f : 0.85f);
 
         for (int i = 0; i <= divisions; ++i)
         {
+            if (isMix && i != 0 && i != divisions / 2 && i != divisions)
+                continue;
+
             const float frac  = float(i) / float(divisions);
             const float angle = startAngle + frac * (endAngle - startAngle);
-            // Majors every eighth of the sweep whatever the division count,
-            // so the dial always reads as a 9-position scale with the minors
-            // subdividing it — rather than the major spacing changing with
-            // the knob's size.
-            const bool  isMaj = (i * 8) % divisions == 0;
-            if (simpleTicks && !isMaj) continue;
-
-            // Minors are deliberately short and faint: they are texture that
-            // tells you the dial is finely graduated, not marks anyone reads.
-            const float from = isMaj ? tickIn : tickIn + (tickOut - tickIn) * 0.45f;
-            const float sa = std::sin(angle), ca = -std::cos(angle);
-            g.setColour(isMaj ? Theme::textDim.withAlpha(0.50f)
-                              : Theme::textFaint.withAlpha(0.22f));
-            g.drawLine(cx + from    * sa, cy + from    * ca,
-                       cx + tickOut * sa, cy + tickOut * ca,
-                       isMaj ? 1.1f : 0.6f);
+            const bool isMajor = isMix || i % 5 == 0;
+            const float from = isMajor ? tickIn
+                                       : tickIn + (tickOut - tickIn) * 0.48f;
+            const auto p0 = polar(angle, from);
+            const auto p1 = polar(angle, tickOut);
+            const auto tickColour = isRatio ? juce::Colour(0xffc8baa0) : Theme::textMid;
+            g.setColour(tickColour.withAlpha(isMajor ? (hovered ? 0.62f : 0.48f)
+                                                       : (hovered ? 0.30f : 0.20f)));
+            g.drawLine(p0.x, p0.y, p1.x, p1.y,
+                       isMajor ? (isMix ? 1.0f : 1.15f) : 0.65f);
         }
     }
 
-    // Value arc. Nudged out from 0.90 to 0.93 maxR to keep its 5px glow clear
-    // of the ticks, which had to move outward themselves to escape the knob's
-    // new ambient shadow. Everything else here is unchanged — in particular
-    // the arc stays procedural precisely so it can keep being coloured by
-    // value, which is why it is not baked into the filmstrip.
+    // Semantic three-stop value arc. Ratio reverses the ramp because a high
+    // ratio means more aggressive dynamics; Mix and the remaining Dynamics
+    // controls progress red -> amber -> green from minimum to maximum.
+    const auto valueColour = knobValueColour(isRatio ? 1.0f - sliderPos : sliderPos);
     {
-        const float arcR = maxR * 0.93f;
         juce::Path track, active;
         track.addCentredArc(cx, cy, arcR, arcR, 0.0f, startAngle, endAngle, true);
-        g.setColour(Theme::accentDeep);
-        g.strokePath(track, juce::PathStrokeType(2.2f));
+        g.setColour(juce::Colour(0xff37342f).withAlpha(0.88f));
+        g.strokePath(track, juce::PathStrokeType(isMix ? 1.8f : 2.1f,
+                                                  juce::PathStrokeType::curved,
+                                                  juce::PathStrokeType::rounded));
 
-        // Bipolar knobs (e.g. Range) fill from their centre value outward to
-        // whichever side they're currently on, never from the dial's start —
-        // a plain start-to-value fill would misleadingly always show "some"
-        // glow even sitting at the neutral centre value.
         const bool centerFill = slider.getProperties().contains("centerFill");
         const float zeroAngle = centerFill
             ? startAngle + (endAngle - startAngle) * float(slider.valueToProportionOfLength(0.0))
@@ -551,32 +664,227 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
             const float a0 = juce::jmin(zeroAngle, valueAngle);
             const float a1 = juce::jmax(zeroAngle, valueAngle);
             active.addCentredArc(cx, cy, arcR, arcR, 0.0f, a0, a1, true);
-            const bool threshold = slider.getProperties().getWithDefault("paramId", "").toString() == "threshold";
-            const float heat = threshold ? 1.0f - sliderPos : sliderPos;
-            const auto glow = Theme::meterLow.interpolatedWith(Theme::meterHot, heat);
-            g.setColour(glow.withAlpha(0.28f));
-            g.strokePath(active, juce::PathStrokeType(5.0f));
-            g.setColour(glow);
-            g.strokePath(active, juce::PathStrokeType(2.2f));
+            g.setColour(valueColour.withAlpha(hovered ? 0.30f : 0.20f));
+            g.strokePath(active, juce::PathStrokeType(isMix ? 4.0f : 4.8f,
+                                                       juce::PathStrokeType::curved,
+                                                       juce::PathStrokeType::rounded));
+            g.setColour(valueColour.brighter(hovered ? 0.10f : 0.0f));
+            g.strokePath(active, juce::PathStrokeType(isMix ? 1.9f : 2.2f,
+                                                       juce::PathStrokeType::curved,
+                                                       juce::PathStrokeType::rounded));
         }
+
+        // A coloured endpoint remains visible at the minimum, where the arc
+        // has zero length (especially important for Mix: 0% must still read
+        // red rather than merely "off").
+        const auto endPoint = polar(valueAngle, arcR);
+        const float dotR = isMix ? 1.45f : 1.65f;
+        g.setColour(valueColour.withAlpha(hovered ? 0.42f : 0.26f));
+        g.fillEllipse(endPoint.x - dotR * 1.9f, endPoint.y - dotR * 1.9f,
+                      dotR * 3.8f, dotR * 3.8f);
+        g.setColour(valueColour.brighter(hovered ? 0.14f : 0.04f));
+        g.fillEllipse(endPoint.x - dotR, endPoint.y - dotR, dotR * 2.0f, dotR * 2.0f);
     }
 
-    // The dial.
-    if (! KnobStrip::draw(g, { cx - knobR, cy - knobR, knobR * 2.0f, knobR * 2.0f },
-                          sliderPos))
+    // Soft contact shadow shared by all three procedural constructions.
+    for (int pass = 3; pass >= 1; --pass)
     {
-        // The asset is compiled in, so this only fires if the PNG failed to
-        // decode — but a knob that draws nothing at all is worse than a plain
-        // one, and the user still has to be able to see where the value is.
-        const float bodyR = knobR * KnobStrip::kBezelOuterFrac;
-        const float sa = std::sin(valueAngle), ca = -std::cos(valueAngle);
-        g.setColour(Theme::surfRaised);
-        g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f);
-        g.setColour(juce::Colour(0xff0a0a09));
-        g.drawEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f, 1.0f);
-        g.setColour(Theme::accent);
-        g.drawLine(cx + bodyR * 0.32f * sa, cy + bodyR * 0.32f * ca,
-                   cx + bodyR * 0.88f * sa, cy + bodyR * 0.88f * ca, 2.0f);
+        const float spread = float(pass) * 0.8f;
+        g.setColour(juce::Colours::black.withAlpha(0.075f * float(4 - pass)));
+        g.fillEllipse(cx - bodyR - spread, cy - bodyR + 1.8f,
+                      (bodyR + spread) * 2.0f, (bodyR + spread) * 2.0f);
+    }
+
+    if (family == KnobFamily::console)
+    {
+        // Pale matte console construction inspired by large-format hardware,
+        // adapted to the dark VisualComp chassis: twin dark mounting rings,
+        // a warm metal face and a recessed index slot.
+        const float bezelR = bodyR * 1.06f;
+        juce::ColourGradient bezel(juce::Colour(0xff5d5b56), cx - bezelR, cy - bezelR,
+                                   juce::Colour(0xff111110), cx + bezelR, cy + bezelR, false);
+        bezel.addColour(0.48, juce::Colour(0xff302f2c));
+        g.setGradientFill(bezel);
+        g.fillEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.92f));
+        g.drawEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f, 1.4f);
+
+        const float ringR = bodyR * 0.96f;
+        g.setColour(juce::Colour(0xff9a9790));
+        g.fillEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f);
+        g.setColour(juce::Colour(0xff292824));
+        g.drawEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f, 1.3f);
+
+        const float faceR = bodyR * 0.88f;
+        juce::ColourGradient face(hovered ? juce::Colour(0xffeeeae1)
+                                           : juce::Colour(0xffdfdcd3),
+                                   cx - faceR * 0.30f, cy - faceR * 0.36f,
+                                   juce::Colour(0xff6f6c65),
+                                   cx + faceR * 0.82f, cy + faceR * 0.86f, true);
+        face.addColour(0.58, juce::Colour(0xffb8b5ad));
+        face.addColour(0.82, juce::Colour(0xff928f87));
+        g.setGradientFill(face);
+        g.fillEllipse(cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
+
+        // Restrained machining: enough concentric texture to stop the pale
+        // cap reading as flat plastic, but faint enough to survive small DPI.
+        for (float f : { 0.36f, 0.55f, 0.73f })
+        {
+            const float r = faceR * f;
+            g.setColour(juce::Colours::black.withAlpha(0.035f));
+            g.drawEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f, 0.65f);
+        }
+
+        juce::Path topLight;
+        topLight.addCentredArc(cx, cy, faceR * 0.94f, faceR * 0.94f, 0.0f,
+                               -0.88f, 0.36f, true);
+        g.setColour(juce::Colours::white.withAlpha(hovered ? 0.34f : 0.24f));
+        g.strokePath(topLight, juce::PathStrokeType(1.0f,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
+
+        const auto p0 = polar(valueAngle, faceR * 0.42f);
+        const auto p1 = polar(valueAngle, faceR * 0.82f);
+        juce::Path pointer;
+        pointer.startNewSubPath(p0);
+        pointer.lineTo(p1);
+        g.setColour(juce::Colours::black.withAlpha(0.54f));
+        g.strokePath(pointer, juce::PathStrokeType(4.4f,
+                                                   juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+        g.setColour(hovered ? juce::Colour(0xff302e2a) : juce::Colour(0xff4b4842));
+        g.strokePath(pointer, juce::PathStrokeType(2.2f,
+                                                   juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+        g.setColour(juce::Colours::white.withAlpha(hovered ? 0.52f : 0.34f));
+        g.strokePath(pointer, juce::PathStrokeType(0.65f,
+                                                   juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+    }
+    else if (family == KnobFamily::ratio)
+    {
+        // A dark Bakelite-like selector with a rotating raised grip and red
+        // index tip. It is recognisably different from the round console caps
+        // while remaining an original VisualComp construction.
+        const float bezelR = bodyR * 1.07f;
+        juce::ColourGradient bezel(juce::Colour(0xff77736b), cx - bezelR, cy - bezelR,
+                                   juce::Colour(0xff080807), cx + bezelR, cy + bezelR, false);
+        bezel.addColour(0.42, juce::Colour(0xff262522));
+        g.setGradientFill(bezel);
+        g.fillEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.95f));
+        g.drawEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f, 1.5f);
+
+        const float faceR = bodyR * 0.89f;
+        juce::ColourGradient face(hovered ? juce::Colour(0xff45413b)
+                                           : juce::Colour(0xff393631),
+                                   cx - faceR * 0.35f, cy - faceR * 0.40f,
+                                   juce::Colour(0xff090908),
+                                   cx + faceR * 0.80f, cy + faceR * 0.90f, true);
+        face.addColour(0.62, juce::Colour(0xff211f1d));
+        g.setGradientFill(face);
+        g.fillEllipse(cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
+
+        for (float f : { 0.52f, 0.76f })
+        {
+            const float r = faceR * f;
+            g.setColour(juce::Colours::white.withAlpha(0.035f));
+            g.drawEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f, 0.7f);
+        }
+
+        const float gripW = bodyR * 0.43f;
+        juce::Path grip;
+        grip.addRoundedRectangle(cx - gripW * 0.5f, cy - bodyR * 0.76f,
+                                 gripW, bodyR * 1.06f, gripW * 0.44f);
+        grip.applyTransform(juce::AffineTransform::rotation(valueAngle, cx, cy));
+        g.setColour(juce::Colours::black.withAlpha(0.50f));
+        g.strokePath(grip, juce::PathStrokeType(2.6f,
+                                                juce::PathStrokeType::curved,
+                                                juce::PathStrokeType::rounded));
+        juce::ColourGradient gripFill(hovered ? juce::Colour(0xff403c37)
+                                               : juce::Colour(0xff34312d),
+                                        cx - gripW, cy - bodyR,
+                                        juce::Colour(0xff11100f),
+                                        cx + gripW, cy + bodyR, false);
+        gripFill.addColour(0.46, juce::Colour(0xff292622));
+        g.setGradientFill(gripFill);
+        g.fillPath(grip);
+        g.setColour(juce::Colours::white.withAlpha(hovered ? 0.10f : 0.065f));
+        g.strokePath(grip, juce::PathStrokeType(0.8f,
+                                                juce::PathStrokeType::curved,
+                                                juce::PathStrokeType::rounded));
+
+        const auto p0 = polar(valueAngle, faceR * 0.62f);
+        const auto p1 = polar(valueAngle, faceR * 0.94f);
+        juce::Path pointer;
+        pointer.startNewSubPath(p0);
+        pointer.lineTo(p1);
+        g.setColour(juce::Colours::black.withAlpha(0.82f));
+        g.strokePath(pointer, juce::PathStrokeType(4.2f,
+                                                   juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+        g.setColour(juce::Colour(0xffd94a45).brighter(hovered ? 0.16f : 0.04f));
+        g.strokePath(pointer, juce::PathStrokeType(2.1f,
+                                                   juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+
+        g.setColour(juce::Colours::black.withAlpha(0.62f));
+        g.fillEllipse(cx - bodyR * 0.08f, cy - bodyR * 0.08f,
+                      bodyR * 0.16f, bodyR * 0.16f);
+    }
+    else // KnobFamily::mix
+    {
+        // Compact charcoal body with a double bezel and uncluttered pointer,
+        // matching the header's smaller visual scale without shrinking its
+        // existing 48px interaction target.
+        const float bezelR = bodyR * 1.12f;
+        g.setColour(juce::Colour(0xff080808));
+        g.fillEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f);
+        g.setColour(juce::Colour(0xff676a6c));
+        g.drawEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f, 1.2f);
+
+        const float ringR = bodyR * 0.99f;
+        juce::ColourGradient ring(juce::Colour(0xff55575a), cx - ringR, cy - ringR,
+                                  juce::Colour(0xff151618), cx + ringR, cy + ringR, false);
+        g.setGradientFill(ring);
+        g.fillEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f);
+        g.setColour(juce::Colour(0xff050506));
+        g.drawEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f, 1.1f);
+
+        const float faceR = bodyR * 0.79f;
+        juce::ColourGradient face(hovered ? juce::Colour(0xff3f4244)
+                                           : juce::Colour(0xff343638),
+                                   cx - faceR * 0.32f, cy - faceR * 0.35f,
+                                   juce::Colour(0xff151618),
+                                   cx + faceR * 0.78f, cy + faceR * 0.86f, true);
+        face.addColour(0.68, juce::Colour(0xff26282a));
+        g.setGradientFill(face);
+        g.fillEllipse(cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
+
+        const auto p0 = polar(valueAngle, faceR * 0.22f);
+        const auto p1 = polar(valueAngle, faceR * 0.73f);
+        juce::Path pointer;
+        pointer.startNewSubPath(p0);
+        pointer.lineTo(p1);
+        g.setColour(juce::Colours::black.withAlpha(0.74f));
+        g.strokePath(pointer, juce::PathStrokeType(3.7f,
+                                                   juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+        g.setColour(Theme::textHi.withAlpha(hovered ? 1.0f : 0.86f));
+        g.strokePath(pointer, juce::PathStrokeType(1.65f,
+                                                   juce::PathStrokeType::curved,
+                                                   juce::PathStrokeType::rounded));
+
+        g.setColour(juce::Colours::black.withAlpha(0.48f));
+        g.fillEllipse(cx - bodyR * 0.085f, cy - bodyR * 0.085f,
+                      bodyR * 0.17f, bodyR * 0.17f);
+    }
+
+    if (focused)
+    {
+        const float focusR = maxR * 0.985f;
+        g.setColour(Theme::textHi.withAlpha(0.46f));
+        g.drawEllipse(cx - focusR, cy - focusR, focusR * 2.0f, focusR * 2.0f, 1.0f);
     }
 }
 
@@ -1277,7 +1585,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     mixKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
     mixKnob.setMouseDragSensitivity(600);
     mixKnob.setRange(0.0, 1.0);
-    mixKnob.getProperties().set("simpleTicks", true);
+    mixKnob.getProperties().set("paramId", "mix");
+    setKnobFamily(mixKnob, KnobFamily::mix);
     mixKnob.onValueChange = [this] { repaint(0, 0, getWidth(), kTitleH); };
     addAndMakeVisible(mixKnob);
 
@@ -1286,8 +1595,6 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     setupKnob(ratioKnob,     ratioLabel,     "RATIO",     ":1",  "ratio");
     setupKnob(attackKnob,    attackLabel,    "ATTACK",    " ms", "attack");
     setupKnob(releaseKnob,   releaseLabel,   "RELEASE",   " ms", "release");
-    attackKnob.getProperties().set("lightKnob", true);
-    releaseKnob.getProperties().set("lightKnob", true);
 
     // Band-selector row: clicking a button swaps Attack/Release below to
     // that EQ node's own state (see selectBand/refreshBandButtons). Hidden
@@ -1312,7 +1619,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // node's state rather than an APVTS parameter — a SliderAttachment can
     // only ever bind to one fixed parameter, so context-sensitive editing
     // needs a second, manually-wired slider shown/hidden via setVisible().
-    auto setupBandKnob = [this](DragSlider& knob, float lo, float hi, float skew, float defVal)
+    auto setupBandKnob = [this](DragSlider& knob, float lo, float hi, float skew,
+                                float defVal, KnobFamily family)
     {
         knob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
         knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, kKnobSlotW - 4, kKnobValueH);
@@ -1323,13 +1631,12 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         knob.setRange(lo, hi);
         knob.setSkewFactor(skew);
         knob.setDoubleClickReturnValue(true, defVal);
+        setKnobFamily(knob, family);
         knob.setVisible(false);
         addAndMakeVisible(knob);
     };
-    setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f);
-    setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f);
-    bandAttackKnob.getProperties().set("lightKnob", true);
-    bandReleaseKnob.getProperties().set("lightKnob", true);
+    setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f,  KnobFamily::console);
+    setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f, KnobFamily::console);
     // FabFilter Pro-MB style: Threshold is downward-only (0..-60dB). Direction
     // (downward/upward) and how far the band can swing now live on the Range
     // knob instead (see NodeIsland) — that's what used to make a positive
@@ -1337,10 +1644,13 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // crossover; Threshold no longer carries that dual role. Range/skew below
     // get overridden immediately after by setupThresholdKnobRange() — see
     // EqEngine.h.
-    setupBandKnob(bandThresholdKnob, -60.0f, 0.0f, 0.5f, -20.0f);
+    setupBandKnob(bandThresholdKnob, -60.0f, 0.0f, 0.5f, -20.0f,
+                  KnobFamily::console);
     setupThresholdKnobRange(bandThresholdKnob);
-    setupBandKnob(bandKneeKnob,        0.0f, 20.0f, 1.0f,   6.0f);
-    setupBandKnob(bandRatioKnob,       1.0f, 20.0f, 0.4f,   2.0f);
+    setupBandKnob(bandKneeKnob,        0.0f, 20.0f, 1.0f,   6.0f,
+                  KnobFamily::console);
+    setupBandKnob(bandRatioKnob,       1.0f, 20.0f, 0.4f,   2.0f,
+                  KnobFamily::ratio);
     bandAttackKnob.setTextValueSuffix(" ms");
     bandReleaseKnob.setTextValueSuffix(" ms");
     bandThresholdKnob.setTextValueSuffix(" dB");
@@ -1587,6 +1897,8 @@ void VisualCompEditor::setupKnob(DragSlider& knob, juce::Label& label,
     knob.setMouseDragSensitivity(1000);
     knob.getProperties().set("topInset", kKnobTopInset);
     knob.getProperties().set("paramId", paramId);
+    setKnobFamily(knob, paramId == "ratio" ? KnobFamily::ratio
+                                            : KnobFamily::console);
     knob.onValueChange = [this] { repaint(0, kCtrlY, kContentW, kCtrlH); };
 
     if (auto* par = audioProcessor.apvts.getParameter(paramId))

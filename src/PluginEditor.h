@@ -69,6 +69,33 @@ public:
             onUndoEditComplete(startValue, getValue());
     }
 
+    // The rotary renderer has restrained hover/focus accents. Slider does
+    // not guarantee a repaint for those purely visual state transitions, so
+    // request one explicitly without changing any interaction semantics.
+    void mouseEnter(const juce::MouseEvent& e) override
+    {
+        juce::Slider::mouseEnter(e);
+        repaint();
+    }
+
+    void mouseExit(const juce::MouseEvent& e) override
+    {
+        juce::Slider::mouseExit(e);
+        repaint();
+    }
+
+    void focusGained(FocusChangeType cause) override
+    {
+        juce::Slider::focusGained(cause);
+        repaint();
+    }
+
+    void focusLost(FocusChangeType cause) override
+    {
+        juce::Slider::focusLost(cause);
+        repaint();
+    }
+
 public:
     // Callback fired when mouse button is pressed, before any value changes
     std::function<void()> onMouseDownCallback;
