@@ -3,14 +3,12 @@
 #include "PluginProcessor.h"
 
 // Vertical, colour-coded dB meter (peak + RMS ballistics). Clicking it
-// reveals a second bar to its right showing an approximate LUFS reading
-// (momentary + short-term), animated in over ~150 ms. Bounds are fixed
-// width for both states — only the second bar's visibility/slide animates,
-// so the rest of the layout never has to reflow. Each bar's unit label sits
-// immediately to its right (rotated vertical text, not below the bar, to
-// keep the whole strip narrow); a numeric peak-hold readout — the highest dB
-// peak seen in the trailing 3 seconds — sits above the bars, and each bar's
-// own live numeric value sits directly below it.
+// reveals a second bar to its right showing an approximate LUFS reading,
+// animated in over ~150 ms. Bounds are fixed width for both states — only
+// the second bar's visibility/slide animates, so the rest of the layout
+// never has to reflow. The pair occupies two equal cells with identical
+// internal padding; unit labels overlay the tops of their bars, while live
+// values with units sit below and a three-second peak readout sits above.
 class LevelMeter : public juce::Component, private juce::Timer
 {
 public:
@@ -18,19 +16,15 @@ public:
     // Strip geometry. Published rather than kept private because the editor
     // has to reserve exactly this width for the component (kLevelMeterW in
     // PluginEditor.cpp is kPreferredWidth): paint() centres the dB+LUFS pair
-    // in whatever bounds it is given, and its guarantee of EQUAL left and
-    // right outer padding only lands on kSidePad if the strip is exactly
-    // this wide. The editor used to hard-code 77 against a meter that needs
-    // 86, which is why the revealed LUFS group overhung its right edge.
+    // in whatever bounds it is given. Equal cell widths plus equal outer
+    // padding keep both meters balanced against every edge when revealed.
     // ---------------------------------------------------------------------
-    static constexpr float kBarW     = 19.0f;   // the bargraph column itself
-    static constexpr float kLabelPad = 3.0f;    // column -> its vertical unit label
-    static constexpr float kLabelW   = 13.0f;   // rotated "dB" / "LUFS" label
-    static constexpr float kGroupW   = kBarW + kLabelPad + kLabelW;   // 35 — one bar + label
-    static constexpr float kMidGap   = 6.0f;    // between the dB and LUFS groups
-    static constexpr float kSidePad  = 5.0f;    // strip edge -> nearest group, both sides
+    static constexpr float kBarW     = 24.0f;   // the bargraph column itself
+    static constexpr float kCellW    = 42.0f;   // one equal meter division
+    static constexpr float kMidGap   = 6.0f;    // between the two divisions
+    static constexpr float kSidePad  = 5.0f;    // pair -> strip edge, both sides
     static constexpr int   kPreferredWidth =
-        int (2.0f * kGroupW + kMidGap + 2.0f * kSidePad);              // 86
+        int (2.0f * kCellW + kMidGap + 2.0f * kSidePad);                // 100
 
     explicit LevelMeter(VisualCompProcessor& proc);
     ~LevelMeter() override;
@@ -50,8 +44,10 @@ private:
     // opaque colours.
     void drawChannel(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb,
                      float floorDb, float ceilDb) const;
-    static void drawSideLabel(juce::Graphics& g, juce::Rectangle<float> bar, const juce::String& text);
-    static void drawBottomValue(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb);
+    static void drawOverlayLabel(juce::Graphics& g, juce::Rectangle<float> bar,
+                                 const juce::String& text);
+    static void drawBottomValue(juce::Graphics& g, juce::Rectangle<float> cell,
+                                float value, const juce::String& unit);
     // Prints a hardware-meter-style scale directly on the bar: a tick line
     // for each of `levels` that falls inside [floorDb, ceilDb], with the
     // 0 dB line singled out as a brighter, wider reference mark plus its

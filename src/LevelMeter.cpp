@@ -90,39 +90,34 @@ void LevelMeter::drawChannel(juce::Graphics& g, juce::Rectangle<float> bar, floa
     }
 }
 
-// Draws `text` rotated -90 degrees (reading bottom-to-top), hugging the
-// right edge of `bar` with minimal padding -- a narrow vertical label that
-// fits the meter strip's tight width instead of a horizontal one below.
-void LevelMeter::drawSideLabel(juce::Graphics& g, juce::Rectangle<float> bar, const juce::String& text)
+// The unit badge sits directly over the top of the meter rather than taking
+// a separate side column. Its dark backing preserves legibility over lit LEDs.
+void LevelMeter::drawOverlayLabel(juce::Graphics& g, juce::Rectangle<float> bar,
+                                  const juce::String& text)
 {
-    // Uses the class's own kLabelPad/kLabelW so the label occupies exactly
-    // the space the group width reserves for it -- these were a separate
-    // 2.0/11.0 pair, which quietly disagreed with the 3.0/13.0 the layout
-    // was budgeting.
-    const juce::Rectangle<float> area(bar.getRight() + kLabelPad, bar.getY(),
-                                      kLabelW, bar.getHeight());
-
-    juce::Graphics::ScopedSaveState save(g);
-    g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi,
-                                                    area.getCentreX(), area.getCentreY()));
-    const juce::Rectangle<float> rotated(area.getCentreX() - area.getHeight() * 0.5f,
-                                          area.getCentreY() - area.getWidth()  * 0.5f,
-                                          area.getHeight(), area.getWidth());
-    g.setColour(Theme::textFaint);
-    g.setFont(Theme::micro(8.0f));
-    Theme::drawTracked(g, text, rotated.toNearestInt(), juce::Justification::centred, 0.8f);
+    const auto badge = bar.withHeight(14.0f).reduced(1.5f, 1.5f);
+    g.setColour(juce::Colours::black.withAlpha(0.64f));
+    g.fillRoundedRectangle(badge, 1.5f);
+    g.setColour(Theme::textHi.withAlpha(0.92f));
+    g.setFont(Theme::micro(text == "LUFS" ? 7.4f : 8.2f));
+    g.drawFittedText(text, badge.toNearestInt(), juce::Justification::centred,
+                     1, 0.72f);
 }
 
 // Draws the bar's own current live value, centred directly beneath it --
 // distinct from the peak-hold readout above the bars (which shows the
 // trailing-3-second max instead of the instantaneous reading).
-void LevelMeter::drawBottomValue(juce::Graphics& g, juce::Rectangle<float> bar, float valueDb)
+void LevelMeter::drawBottomValue(juce::Graphics& g, juce::Rectangle<float> cell,
+                                 float value, const juce::String& unit)
 {
-    const juce::String text = (valueDb <= -99.5f) ? juce::String("--") : juce::String(valueDb, 1);
-    g.setColour(Theme::textMid);
-    g.setFont(Theme::mono(7.5f, juce::Font::bold));
-    g.drawText(text, bar.getX() - 4.0f, bar.getBottom() + 1.0f, bar.getWidth() + 8.0f, 10.0f,
-               juce::Justification::centred, false);
+    const juce::String text = (value <= -99.5f) ? juce::String("-- ") + unit
+                                                : juce::String(value, 1) + " " + unit;
+    g.setColour(Theme::textHi.withAlpha(0.86f));
+    g.setFont(Theme::value(10.5f));
+    g.drawFittedText(text,
+                     juce::Rectangle<int>(int(cell.getX()), int(cell.getBottom() + 1.0f),
+                                          int(cell.getWidth()), 15),
+                     juce::Justification::centred, 1, 0.70f);
 }
 
 // Draws a scale tick for each reference level that falls within the bar's
@@ -150,7 +145,8 @@ void LevelMeter::drawNotches(juce::Graphics& g, juce::Rectangle<float> bar,
             g.drawLine(bar.getX() - 2.0f, y, bar.getRight() + 2.0f, y, 1.2f);
             g.setColour(Theme::textHi);
             g.setFont(Theme::micro(6.5f));
-            g.drawText("0", bar.getX() - 1.0f, y - 4.5f, bar.getWidth() + 2.0f, 9.0f,
+            g.drawText("0", juce::Rectangle<float>(bar.getX() - 1.0f, y - 4.5f,
+                                                    bar.getWidth() + 2.0f, 9.0f),
                        juce::Justification::centred, false);
         }
         else
@@ -165,28 +161,32 @@ void LevelMeter::paint(juce::Graphics& g)
 {
     const auto full = getLocalBounds().toFloat();
 
-    // Both states are centred groups derived from the parent bounds -- there
+    // Both states are centred cells derived from the parent bounds -- there
     // is no tuned X offset anywhere here. Revealed, the pair is centred as
     // ONE unit, so its left and right outer padding are equal by
-    // construction (each (width - pairW)/2, == kSidePad at kPreferredWidth)
-    // rather than by one side being pinned and the other taking the
-    // remainder. Collapsed, the lone dB group is centred on its own.
-    const float pairW = 2.0f * kGroupW + kMidGap;
+    // construction (each (width - pairW)/2, == kSidePad at kPreferredWidth).
+    // Each bar is centred inside an identical kCellW division, so its
+    // padding against all four cell borders cannot drift from its peer.
+    const float pairW = 2.0f * kCellW + kMidGap;
     const float pairX = full.getX() + (full.getWidth() - pairW)   * 0.5f;
-    const float soloX = full.getX() + (full.getWidth() - kGroupW) * 0.5f;
+    const float soloX = full.getX() + (full.getWidth() - kCellW) * 0.5f;
     const float dbX   = soloX + (pairX - soloX) * revealAmount;
-    const float lufsX = pairX + kGroupW + kMidGap;
+    const float lufsX = pairX + kCellW + kMidGap;
 
     // Top strip reserved for the peak-hold readout, bottom strip for each
     // bar's own live-value readout; the bars fill whatever's left. Both are
     // capped at a share of the strip's height so a short meter loses bar
     // rather than inverting into a negative-height rectangle.
-    const float kTopPad    = juce::jmin(15.0f, full.getHeight() * 0.10f);
-    const float kBottomPad = juce::jmin(14.0f, full.getHeight() * 0.09f);
+    const float kTopPad    = juce::jmin(17.0f, full.getHeight() * 0.11f);
+    const float kBottomPad = juce::jmin(18.0f, full.getHeight() * 0.11f);
     const float barH       = juce::jmax(8.0f, full.getHeight() - kTopPad - kBottomPad);
 
-    const auto dbBar   = juce::Rectangle<float>(dbX,   full.getY() + kTopPad, kBarW, barH);
-    const auto lufsBar = juce::Rectangle<float>(lufsX, full.getY() + kTopPad, kBarW, barH);
+    const auto dbCell   = juce::Rectangle<float>(dbX,   full.getY() + kTopPad, kCellW, barH);
+    const auto lufsCell = juce::Rectangle<float>(lufsX, full.getY() + kTopPad, kCellW, barH);
+    const auto dbBar    = juce::Rectangle<float>(dbCell.getCentreX() - kBarW * 0.5f,
+                                                 dbCell.getY(), kBarW, barH);
+    const auto lufsBar  = juce::Rectangle<float>(lufsCell.getCentreX() - kBarW * 0.5f,
+                                                 lufsCell.getY(), kBarW, barH);
 
     // dB (peak) bar gets a little headroom above 0 dBFS so the 0 dB
     // reference notch sits clearly mid-scale rather than glued to the top
@@ -195,8 +195,8 @@ void LevelMeter::paint(juce::Graphics& g)
     const float peakDb = processor.smoothMeterPeak.getDisplayValue();
     drawChannel(g, dbBar, peakDb, kDbFloor, kDbCeil);
     drawNotches(g, dbBar, kDbFloor, kDbCeil, kDbNotches, int(sizeof(kDbNotches) / sizeof(kDbNotches[0])));
-    drawSideLabel(g, dbBar, "dB");
-    drawBottomValue(g, dbBar, peakDb);
+    drawOverlayLabel(g, dbBar, "dB");
+    drawBottomValue(g, dbCell, peakDb, "dB");
 
     if (revealAmount > 0.01f)
     {
@@ -209,8 +209,8 @@ void LevelMeter::paint(juce::Graphics& g)
         const float stLufs = processor.smoothMeterLufs.getDisplayValue();
         drawChannel(g, lufsBar, stLufs, kLufsFloor, kLufsCeil);
         drawNotches(g, lufsBar, kLufsFloor, kLufsCeil, kLufsNotches, int(sizeof(kLufsNotches) / sizeof(kLufsNotches[0])));
-        drawSideLabel(g, lufsBar, "LUFS");
-        drawBottomValue(g, lufsBar, stLufs);
+        drawOverlayLabel(g, lufsBar, "LUFS");
+        drawBottomValue(g, lufsCell, stLufs, "LUFS");
 
         g.endTransparencyLayer();
         g.restoreState();
@@ -236,12 +236,14 @@ void LevelMeter::paint(juce::Graphics& g)
     // strip minus that corner. Derived from kChevronW rather than the bare
     // 13 this used to subtract, which was the same number by coincidence.
     constexpr float kChevronW = 12.0f;
-    const juce::String peakText = (peak3s <= -99.5f) ? juce::String("--") : juce::String(peak3s, 1);
+    const juce::String peakText = (peak3s <= -99.5f) ? juce::String("PEAK -- dB")
+                                                     : juce::String("PEAK ") + juce::String(peak3s, 1) + " dB";
     g.setColour(Theme::textHi);
-    g.setFont(Theme::mono(9.5f, juce::Font::bold));
-    g.drawText(peakText, int(full.getX()), int(full.getY()),
-               int(full.getWidth() - kChevronW), 11,
-               juce::Justification::centred, false);
+    g.setFont(Theme::value(11.0f));
+    g.drawFittedText(peakText,
+                     juce::Rectangle<int>(int(full.getX()), int(full.getY()),
+                                          int(full.getWidth() - kChevronW), 14),
+                     juce::Justification::centred, 1, 0.72f);
 
     // Hint chevron showing there is more to reveal -- top-right, clear of
     // both the peak-hold readout beside it and the per-bar value readouts

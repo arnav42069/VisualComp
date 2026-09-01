@@ -23,7 +23,7 @@ namespace
     // figure and its equal-outer-padding guarantee only holds if the strip is
     // exactly this wide. It was a hand-written 77 against a meter that needed
     // 86, which is why the revealed LUFS bar used to overhang its right edge.
-    constexpr int kLevelMeterW = LevelMeter::kPreferredWidth;   // 86
+    constexpr int kLevelMeterW = LevelMeter::kPreferredWidth;   // 100
     constexpr int kContentW    = kWidth - kRightColW; // 712
 
     // Curve/GR (transfer curve + gain-reduction meter) column width when
@@ -32,7 +32,7 @@ namespace
     // this width is subtracted from the total window in VisualCompEditor's
     // constructor/resized()/toggleCurveGrPanel(), the same setSize()-delta
     // mechanism the docked EQ panel already uses via kEqPanelW below.
-    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 188
+    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 174
 
     // Smart Master+ trimmed to ~half its original ~43px total side padding
     // around the button text (was 130), and a matching 5px is added past
@@ -146,18 +146,6 @@ namespace
         return static_cast<KnobFamily>(juce::jlimit(
             static_cast<int>(KnobFamily::azazel),
             static_cast<int>(KnobFamily::mix), raw));
-    }
-
-    // VisualComp's semantic value ramp. Arc length and pointer position
-    // still carry the value when colour perception is limited.
-    juce::Colour knobValueColour(float amount)
-    {
-        const auto low  = juce::Colour(0xffd94a45);  // red
-        const auto mid  = juce::Colour(0xfff1a33c);  // amber
-        const auto high = juce::Colour(0xff62e68a);  // green
-        const float t = juce::jlimit(0.0f, 1.0f, amount);
-        return t < 0.5f ? low.interpolatedWith(mid, t * 2.0f)
-                        : mid.interpolatedWith(high, (t - 0.5f) * 2.0f);
     }
 
     constexpr int kEqPanelW = 520;   // docked EQ panel width when open (2x its base 260)
@@ -570,10 +558,7 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
                 const float a0 = juce::jmin(zeroAngle, valueAngle);
                 const float a1 = juce::jmax(zeroAngle, valueAngle);
                 active.addCentredArc(cx, cy, arcR, arcR, 0.0f, a0, a1, true);
-                const bool threshold = slider.getProperties()
-                    .getWithDefault("paramId", "").toString() == "threshold";
-                const float heat = threshold ? 1.0f - sliderPos : sliderPos;
-                const auto glow = Theme::meterLow.interpolatedWith(Theme::meterHot, heat);
+                const auto glow = juce::Colour(0xffd94a45);
                 g.setColour(glow.withAlpha(0.28f));
                 g.strokePath(active, juce::PathStrokeType(5.0f));
                 g.setColour(glow);
@@ -641,10 +626,9 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         }
     }
 
-    // Semantic three-stop value arc. Ratio reverses the ramp because a high
-    // ratio means more aggressive dynamics; Mix and the remaining Dynamics
-    // controls progress red -> amber -> green from minimum to maximum.
-    const auto valueColour = knobValueColour(isRatio ? 1.0f - sliderPos : sliderPos);
+    // One fixed red illumination ring keeps value meaning in arc length and
+    // pointer position instead of changing colour as the control moves.
+    const auto valueColour = juce::Colour(0xffd94a45);
     {
         juce::Path track, active;
         track.addCentredArc(cx, cy, arcR, arcR, 0.0f, startAngle, endAngle, true);
@@ -1067,8 +1051,13 @@ void AzazelLookAndFeel::drawToggleButton(juce::Graphics& g,
 
     if (on)
     {
-        g.setColour(lit.withAlpha(0.20f));
-        g.fillRoundedRectangle(rect.expanded(2.5f), rad + 2.0f);
+        // Layered low-alpha fills read as illumination without a hard halo.
+        for (int pass = 3; pass >= 1; --pass)
+        {
+            const float spread = 0.8f * float(pass);
+            g.setColour(lit.withAlpha(0.032f * float(4 - pass)));
+            g.fillRoundedRectangle(rect.expanded(spread), rad + spread);
+        }
         juce::ColourGradient bd(lit.brighter(0.18f), rect.getX(), rect.getY(),
                                 lit.darker(0.32f),   rect.getX(), rect.getBottom(), false);
         g.setGradientFill(bd);
@@ -1091,8 +1080,9 @@ void AzazelLookAndFeel::drawToggleButton(juce::Graphics& g,
     g.setColour(juce::Colours::white.withAlpha(on ? 0.16f : 0.09f));
     g.drawLine(rect.getX() + 2.0f, rect.getY() + 1.0f,
                rect.getRight() - 2.0f, rect.getY() + 1.0f, 1.0f);
-    g.setColour(on ? lit.darker(0.6f) : juce::Colour(0xff000000).withAlpha(0.8f));
-    g.drawRoundedRectangle(rect, rad, 1.0f);
+    g.setColour(juce::Colours::black.withAlpha(on ? 0.24f : 0.55f));
+    g.drawLine(rect.getX() + 2.0f, rect.getBottom() - 1.0f,
+               rect.getRight() - 2.0f, rect.getBottom() - 1.0f, 1.0f);
 
     g.setColour(on ? juce::Colours::black.withAlpha(0.88f) : Theme::text.withAlpha(0.85f));
 
@@ -1138,6 +1128,12 @@ void AzazelLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     // unambiguously against the other seven.
     if (button.getToggleState() && button.getProperties().contains("nodeSelect"))
     {
+        for (int pass = 2; pass >= 1; --pass)
+        {
+            const float spread = 0.8f * float(pass);
+            g.setColour(Theme::accent.withAlpha(0.045f * float(3 - pass)));
+            g.fillRoundedRectangle(rect.expanded(spread), rad + spread);
+        }
         for (int i = 2; i >= 1; --i)
         {
             g.setColour(juce::Colour(0xff000000).withAlpha(0.13f * float(3 - i)));
@@ -1151,8 +1147,9 @@ void AzazelLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
         g.setColour(juce::Colours::white.withAlpha(0.18f));
         g.drawLine(rect.getX() + 2.0f, rect.getY() + 1.0f,
                    rect.getRight() - 2.0f, rect.getY() + 1.0f, 1.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.drawRoundedRectangle(rect, rad, 1.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.24f));
+        g.drawLine(rect.getX() + 2.0f, rect.getBottom() - 1.0f,
+                   rect.getRight() - 2.0f, rect.getBottom() - 1.0f, 1.0f);
         return;
     }
 
@@ -3176,14 +3173,14 @@ void VisualCompEditor::paint(juce::Graphics& g)
     // aligned with it when Curve/GR is collapsed.
     const int cshift = curveGrVisible ? 0 : kCurveGrColW;
     {
-        const int   labelX = kWidth - cshift - kMixSz - 70;
+        const int   labelX = kWidth - cshift - kMixSz - 64;
         const float mixVal = audioProcessor.apvts.getRawParameterValue("mix")->load() * 100.0f;
         g.setFont(Theme::label(15.0f));
         g.setColour(Theme::text.withAlpha(0.85f));
         g.drawText("MIX", labelX, 8, 62, 19, juce::Justification::centred, false);
         g.setFont(Theme::value(13.0f));
         g.setColour(Theme::accent);
-        g.drawText(juce::String(int(mixVal)) + "%", labelX, 29, 62, 21,
+        g.drawText(juce::String(int(mixVal)) + "%", labelX, 26, 62, 21,
                    juce::Justification::centred, false);
     }
 
