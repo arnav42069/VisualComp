@@ -35,6 +35,7 @@ Builds VisualComp 2.27 and assembles the Windows+Mac distributable zip in `Build
    ```
    - Assembles `Build Final\VisualComp <version> - Windows and Mac.zip` from whichever of `build\` / `build-pkg\` holds the newer `VisualComp <version>.vst3` (the script checks both — see AGENTS.md).
    - Bundles: Windows install/uninstall scripts + VST3 + standalone exe, the user manual PDF, and Mac source + build steps (which now build AU in addition to VST3 — see below).
+   - The built standalone binary must be present in the zip at `Windows\VisualComp <version>.exe` (copied from the selected build artefacts tree) in addition to the loose test exe copied to `Build Final\VisualComp <version>.exe`.
    - Also drops a loose, unzipped `Build Final\VisualComp <version>.exe` (same binary as inside the zip) so the user can launch and test it directly without unzipping — this happens on every packaging run, not just on request.
    - Signs the Windows `.exe` and the VST3's inner binary with `signtool` if a certificate is configured (see "Code signing" below); otherwise packages unsigned and prints a yellow warning — that warning is expected and not a failure.
    - The script `throw`s if any expected artifact (vst3 / exe / manual) is missing — surface that error to the user rather than retrying blindly. It also `throw`s if signing env vars are set but `signtool.exe` can't be found (Windows SDK not installed).

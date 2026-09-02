@@ -3066,7 +3066,7 @@ void VisualCompEditor::showLogoMenu()
                     zoomMenu);
 
     menu.addSeparator();
-    menu.addSectionHeader("AZAZEL AUDIO");
+    menu.addSectionHeader("AZAZEL AUDIO   v" + juce::String(JucePlugin_VersionString));
     menu.addItem(1, "Show Help");
     menu.addItem(2, "Visit azazelaudio.com");
 
