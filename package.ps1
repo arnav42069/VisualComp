@@ -1,9 +1,9 @@
-# Assembles the VisualComp 2.58 release bundle and zips it into "Build Final".
+# Assembles the VisualComp 2.44 release bundle and zips it into "Build Final".
 # Run after a Release build of VisualComp_VST3 and VisualComp_Standalone.
 
 $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $MyInvocation.MyCommand.Path
-$version = '2.58'
+$version = '2.44'
 
 # ── Code signing (optional) ──────────────────────────────────────────────────
 # Configure via environment variables before running this script:
@@ -71,7 +71,8 @@ function Sign-WindowsBinary {
 # -DVC2_INSTALL_PLUGIN=OFF so it never touches files a running DAW has locked.
 $candidates = @(
     (Join-Path $root 'build\VisualComp_artefacts\Release'),
-    (Join-Path $root 'build-pkg\VisualComp_artefacts\Release')
+    (Join-Path $root 'build-pkg\VisualComp_artefacts\Release'),
+    (Join-Path $root 'build-vs\VisualComp_artefacts\Release')
 ) | Where-Object { Test-Path -LiteralPath (Join-Path $_ "VST3\VisualComp $version.vst3") }
 
 if (-not $candidates) { throw "No build output found for VisualComp $version" }

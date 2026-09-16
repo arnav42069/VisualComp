@@ -46,18 +46,14 @@ void GrCurveDisplay::paint(juce::Graphics& g)
 
     constexpr float kDbMin = -60.0f, kDbMax = 0.0f;
     constexpr float kDbRange = kDbMax - kDbMin;
-    constexpr float kZeroDbHeight = 0.70f;
 
     auto dbToX = [&](float db) { return plotX + plotW * (db - kDbMin) / kDbRange; };
     auto dbToY = [&](float db)
     {
         const float norm = juce::jlimit(0.0f, 1.0f, (db - kDbMin) / kDbRange);
-        const float yNorm = norm <= 0.0f ? 1.0f
-                          : norm >= 1.0f ? 0.0f
-                          : (norm <= 0.5f
-                             ? 1.0f - (0.30f * (norm / 0.5f))
-                             : 0.70f - (0.70f * ((norm - 0.5f) / 0.5f)));
-        return plotY + plotH * yNorm;
+        // Both axes must use uniform dB spacing: a split vertical scale
+        // introduces an artificial knee even with a unity ratio.
+        return plotY + plotH * (1.0f - norm);
     };
 
     // Recessed screen -- sunk into the chassis, no outline; depth alone
@@ -76,7 +72,7 @@ void GrCurveDisplay::paint(juce::Graphics& g)
         g.drawVerticalLine(gx, float(plotY), float(plotB));
         g.drawHorizontalLine(gy, float(plotX), float(plotR));
 
-        g.setColour(Theme::textFaint);
+        g.setColour(Theme::plateTextDim);
         const juce::String lbl = db == 0.0f ? "0" : juce::String(int(db));
         g.drawText(lbl, gx - 20, plotB + 5, 40, 17, juce::Justification::centred, false);
         g.drawText(lbl, bounds.getX(), gy - 9, kLeftM - 6, 18,
@@ -127,7 +123,7 @@ void GrCurveDisplay::paint(juce::Graphics& g)
             const float inDb  = kDbMin + kDbRange * float(px) / float(plotW - 1);
             const float outDb = computeOutputDb(inDb, thresh, ratio, knee);
             const float cy    = juce::jlimit(float(plotY), float(plotB), dbToY(outDb));
-            const float cx    = float(plotX + px);
+            const float cx    = dbToX(inDb);
             if (!started) { curve.startNewSubPath(cx, cy); started = true; }
             else            curve.lineTo(cx, cy);
         }
@@ -144,7 +140,7 @@ void GrCurveDisplay::paint(juce::Graphics& g)
         const float inDb = juce::jlimit(kDbMin, kDbMax,
                                         inputLevelDb.load(std::memory_order_relaxed));
         const float dx = dbToX(inDb);
-        const float dy = juce::jlimit(float(plotY), float(plotB), dbToY(inDb));
+        const float dy = dbToY(computeOutputDb(inDb, thresh, ratio, knee));
 
         g.setColour(Theme::textHi.withAlpha(0.18f));
         g.fillEllipse(dx - 6.0f, dy - 6.0f, 12.0f, 12.0f);
@@ -154,7 +150,7 @@ void GrCurveDisplay::paint(juce::Graphics& g)
 
     // === Axis captions ===
     g.setFont(Theme::label(9.5f));
-    g.setColour(Theme::textFaint);
+    g.setColour(Theme::plateTextDim);
     g.drawText("IN dBFS", plotX, plotB + 20, plotW, 17, juce::Justification::centred, false);
 
     // === Header label -- letterspaced micro-label sitting directly on the
@@ -162,14 +158,14 @@ void GrCurveDisplay::paint(juce::Graphics& g)
     // plot from the chassis, so a bordered box on top of it is redundant). ===
     {
         const juce::Rectangle<int> capArea(plotX + 6, plotY + 5, 160, 12);
-        g.setColour(Theme::textMid);
+        g.setColour(Theme::screenTextDim);
         g.setFont(Theme::micro(9.5f));
         Theme::drawTracked(g, "Transfer Curve", capArea, juce::Justification::left);
     }
 
     // === Timing read-out — sits under the label, left of the rising curve ===
     g.setFont(Theme::mono(9.5f));
-    g.setColour(Theme::textFaint);
+    g.setColour(Theme::plateTextDim);
     g.drawText("ATK " + juce::String(attackMs, 1) + "  REL " + juce::String(releaseMs, 0),
                plotX + 6, plotY + 20, plotW - 12, 16,
                juce::Justification::centredLeft, false);

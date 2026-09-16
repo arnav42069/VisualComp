@@ -23,7 +23,7 @@ namespace
     // figure and its equal-outer-padding guarantee only holds if the strip is
     // exactly this wide. It was a hand-written 77 against a meter that needed
     // 86, which is why the revealed LUFS bar used to overhang its right edge.
-    constexpr int kLevelMeterW = LevelMeter::kPreferredWidth;   // 100
+    constexpr int kLevelMeterW = LevelMeter::kPreferredWidth;   // 86
     constexpr int kContentW    = kWidth - kRightColW; // 712
 
     // Curve/GR (transfer curve + gain-reduction meter) column width when
@@ -32,7 +32,7 @@ namespace
     // this width is subtracted from the total window in VisualCompEditor's
     // constructor/resized()/toggleCurveGrPanel(), the same setSize()-delta
     // mechanism the docked EQ panel already uses via kEqPanelW below.
-    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 174
+    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 188
 
     // Smart Master+ trimmed to ~half its original ~43px total side padding
     // around the button text (was 130), and a matching 5px is added past
@@ -81,7 +81,7 @@ namespace
     constexpr int kKnobRowY      = kCtrlTopStripH + 4;      // 32 — module top
     constexpr int kBarRowY       = kKnobRowY + kModuleH;    // 170 — parameter position bars
     constexpr int kBarRowH       = 12;
-    constexpr int kUtilRowY      = kBarRowY + kBarRowH;     // 182 — AUTO GAIN / CLIP / LIM / SC
+    constexpr int kUtilRowY      = kBarRowY + kBarRowH;     // 182 — AUTO GAIN / LIM / SC
     constexpr int kUtilRowH      = 26;
     constexpr int kCtrlBotPad    = 6;
     constexpr int kCtrlH  = kUtilRowY + kUtilRowH + kCtrlBotPad;   // 214 (was 340)
@@ -120,33 +120,6 @@ namespace
     constexpr int kSlotReleaseX   = kSlotAttackX + kSlotAttackW;
 
     constexpr int kMixSz    = 48;
-
-    // Rotary construction families. Stored as a small integer property on
-    // each Slider so every family still shares one LookAndFeel, one layout
-    // path and the same parameter/attachment behaviour.
-    enum class KnobFamily : int
-    {
-        azazel = 0,   // existing baked gunmetal filmstrip (EQ/Island controls)
-        console,      // pale matte console cap (Dynamics)
-        ratio,        // dark indexed selector (Ratio)
-        mix            // compact charcoal ring (header Mix)
-    };
-
-    constexpr const char* kKnobFamilyProperty = "knobFamily";
-
-    void setKnobFamily(juce::Slider& slider, KnobFamily family)
-    {
-        slider.getProperties().set(kKnobFamilyProperty, static_cast<int>(family));
-    }
-
-    KnobFamily getKnobFamily(juce::Slider& slider)
-    {
-        const int raw = int(slider.getProperties().getWithDefault(
-            kKnobFamilyProperty, static_cast<int>(KnobFamily::azazel)));
-        return static_cast<KnobFamily>(juce::jlimit(
-            static_cast<int>(KnobFamily::azazel),
-            static_cast<int>(KnobFamily::mix), raw));
-    }
 
     constexpr int kEqPanelW = 520;   // docked EQ panel width when open (2x its base 260)
 
@@ -457,8 +430,6 @@ bool WaveEnlargeOverlay::keyPressed(const juce::KeyPress& key)
 
 AzazelLookAndFeel::AzazelLookAndFeel()
 {
-    setUsingNativeAlertWindows(false);
-
     setColour(juce::Slider::textBoxTextColourId,       Theme::accent);
     setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
     setColour(juce::Slider::textBoxOutlineColourId,    juce::Colours::transparentBlack);
@@ -469,132 +440,6 @@ AzazelLookAndFeel::AzazelLookAndFeel()
     setColour(juce::PopupMenu::highlightedBackgroundColourId, Theme::accentDim);
     setColour(juce::PopupMenu::highlightedTextColourId,       juce::Colours::white);
     setColour(juce::PopupMenu::headerTextColourId,            Theme::accent);
-
-    // Dialogs and their child controls use the same recessed, warm-neutral
-    // palette as the plugin instead of JUCE's stock grey/cyan treatment.
-    setColour(juce::AlertWindow::backgroundColourId, Theme::bgDeep);
-    setColour(juce::AlertWindow::textColourId,       Theme::text);
-    setColour(juce::AlertWindow::outlineColourId,    Theme::line);
-    setColour(juce::TextButton::buttonColourId,      Theme::surfRaised);
-    setColour(juce::TextButton::buttonOnColourId,    Theme::accentDim);
-    setColour(juce::TextButton::textColourOffId,     Theme::textHi);
-    setColour(juce::TextButton::textColourOnId,      juce::Colours::white);
-    setColour(juce::TextEditor::backgroundColourId,      Theme::surfSunk);
-    setColour(juce::TextEditor::textColourId,            Theme::textHi);
-    setColour(juce::TextEditor::highlightColourId,       Theme::accentDim);
-    setColour(juce::TextEditor::highlightedTextColourId, juce::Colours::white);
-    setColour(juce::TextEditor::outlineColourId,         Theme::line);
-    setColour(juce::TextEditor::focusedOutlineColourId,  Theme::accent);
-    setColour(juce::TextEditor::shadowColourId,          juce::Colours::black.withAlpha(0.45f));
-    setColour(juce::CaretComponent::caretColourId,       Theme::accent);
-    setColour(juce::ComboBox::backgroundColourId,     Theme::surfSunk);
-    setColour(juce::ComboBox::textColourId,           Theme::textHi);
-    setColour(juce::ComboBox::outlineColourId,        Theme::line);
-    setColour(juce::ComboBox::buttonColourId,         Theme::surfRaised);
-    setColour(juce::ComboBox::arrowColourId,          Theme::textMid);
-    setColour(juce::ComboBox::focusedOutlineColourId, Theme::accent);
-    setColour(juce::ProgressBar::backgroundColourId, Theme::surfSunk);
-    setColour(juce::ProgressBar::foregroundColourId, Theme::accent);
-    setColour(juce::ListBox::backgroundColourId, Theme::surfSunk);
-    setColour(juce::ListBox::outlineColourId,    Theme::line);
-    setColour(juce::ListBox::textColourId,       Theme::text);
-    setColour(juce::DirectoryContentsDisplayComponent::highlightColourId,       Theme::accentDim);
-    setColour(juce::DirectoryContentsDisplayComponent::textColourId,            Theme::text);
-    setColour(juce::DirectoryContentsDisplayComponent::highlightedTextColourId, juce::Colours::white);
-    setColour(juce::FileBrowserComponent::currentPathBoxBackgroundColourId, Theme::surfSunk);
-    setColour(juce::FileBrowserComponent::currentPathBoxTextColourId,       Theme::textHi);
-    setColour(juce::FileBrowserComponent::currentPathBoxArrowColourId,      Theme::accent);
-    setColour(juce::FileBrowserComponent::filenameBoxBackgroundColourId,    Theme::surfSunk);
-    setColour(juce::FileBrowserComponent::filenameBoxTextColourId,          Theme::textHi);
-    setColour(juce::ScrollBar::backgroundColourId, juce::Colours::transparentBlack);
-    setColour(juce::ScrollBar::trackColourId,      Theme::bgDeep);
-    setColour(juce::ScrollBar::thumbColourId,      Theme::textFaint);
-    setColour(juce::TooltipWindow::backgroundColourId, Theme::bgDeep);
-    setColour(juce::TooltipWindow::textColourId,       Theme::text);
-    setColour(juce::TooltipWindow::outlineColourId,    Theme::line);
-    setColour(juce::ResizableWindow::backgroundColourId, Theme::bgDeep);
-    setColour(juce::TreeView::backgroundColourId,             Theme::surfSunk);
-    setColour(juce::TreeView::linesColourId,                  Theme::line);
-    setColour(juce::TreeView::selectedItemBackgroundColourId, Theme::accentDim);
-    setColour(juce::TreeView::oddItemsColourId,               Theme::surfSunk);
-    setColour(juce::TreeView::evenItemsColourId,              Theme::bgDeep);
-}
-
-void AzazelLookAndFeel::drawAlertBox(juce::Graphics& g,
-                                     juce::AlertWindow& alert,
-                                     const juce::Rectangle<int>& textArea,
-                                     juce::TextLayout& textLayout)
-{
-    juce::ignoreUnused(textArea);
-
-    const auto outer = alert.getLocalBounds().toFloat().reduced(0.5f);
-    constexpr float corner = 6.0f;
-
-    g.setColour(juce::Colours::black.withAlpha(0.42f));
-    g.fillRoundedRectangle(outer.translated(0.0f, 1.5f), corner);
-
-    juce::ColourGradient panel(Theme::bgRaised, outer.getX(), outer.getY(),
-                               Theme::bgDeep, outer.getX(), outer.getBottom(), false);
-    panel.addColour(0.32, Theme::bg);
-    g.setGradientFill(panel);
-    g.fillRoundedRectangle(outer, corner);
-
-    g.setColour(alert.findColour(juce::AlertWindow::outlineColourId));
-    g.drawRoundedRectangle(outer, corner, 1.0f);
-
-    // The narrow signal-orange cap is the same detail accent used by the
-    // hardware UI and replaces JUCE's generic cyan alert treatment.
-    g.setColour(Theme::accent.withAlpha(0.92f));
-    g.fillRoundedRectangle(outer.withHeight(3.0f).reduced(1.0f, 0.0f), 1.5f);
-
-    int iconSpace = 0;
-    if (alert.getAlertType() != juce::MessageBoxIconType::NoIcon)
-    {
-        constexpr int iconWidth = 54;
-        const juce::Rectangle<float> iconRect(12.0f, 28.0f, 30.0f, 30.0f);
-        const bool warning = alert.getAlertType() == juce::MessageBoxIconType::WarningIcon;
-
-        juce::Path icon;
-        if (warning)
-            icon.addTriangle(iconRect.getCentreX(), iconRect.getY(),
-                             iconRect.getRight(), iconRect.getBottom(),
-                             iconRect.getX(), iconRect.getBottom());
-        else
-            icon.addEllipse(iconRect);
-
-        g.setColour((warning ? Theme::warn : Theme::accent).withAlpha(0.24f));
-        g.fillPath(icon);
-        g.setColour((warning ? Theme::warn : Theme::accent).withAlpha(0.78f));
-        g.strokePath(icon, juce::PathStrokeType(1.2f));
-
-        const juce::String mark = warning ? "!"
-            : (alert.getAlertType() == juce::MessageBoxIconType::InfoIcon ? "i" : "?");
-        g.setFont(Theme::label(18.0f));
-        g.setColour(Theme::textHi);
-        g.drawText(mark, iconRect, juce::Justification::centred, false);
-        iconSpace = iconWidth;
-    }
-
-    g.setColour(alert.findColour(juce::AlertWindow::textColourId));
-    const juce::Rectangle<int> alertBounds(iconSpace, 24,
-                                            alert.getWidth() - iconSpace,
-                                            alert.getHeight() - getAlertWindowButtonHeight() - 18);
-    textLayout.draw(g, alertBounds.toFloat());
-}
-
-juce::Font AzazelLookAndFeel::getAlertWindowTitleFont()
-{
-    return Theme::label(18.0f);
-}
-
-juce::Font AzazelLookAndFeel::getAlertWindowMessageFont()
-{
-    return Theme::label(14.0f, juce::Font::plain);
-}
-
-juce::Font AzazelLookAndFeel::getAlertWindowFont()
-{
-    return Theme::label(12.5f, juce::Font::plain);
 }
 
 void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
@@ -615,156 +460,40 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     if (maxR <= 4.0f) return;
 
     const float valueAngle = startAngle + (endAngle - startAngle) * sliderPos;
-    const auto  family     = getKnobFamily(slider);
-    const bool  hovered    = slider.isMouseOver(true);
-    const bool  focused    = slider.hasKeyboardFocus(true);
-    const bool  simpleTicks = slider.getProperties().contains("simpleTicks");
 
-    auto polar = [cx, cy](float angle, float radius)
-    {
-        return juce::Point<float>(cx + radius * std::sin(angle),
-                                  cy - radius * std::cos(angle));
-    };
-
-    // The legacy Azazel family remains the baked filmstrip used by the small
-    // Dynamic-Island controls. Main Dynamics, Ratio and Mix opt into original
-    // procedural constructions below; all families use the same normalized
-    // Slider value and JUCE rotary angles.
+    // The dial itself is the pre-rendered filmstrip (src/KnobStrip.h) rather
+    // than the vector bezel/body/glare stack this used to draw: a ray-traced
+    // raised solid with rotating grips under a fixed upper-left light.
+    // The baked geometry turns, never the image or light source. The strip is baked
+    // for a 270-degree sweep — JUCE's rotary default, and what every knob here
+    // uses. One that called setRotaryParameters would get an etched pointer
+    // aiming somewhere its own graduation ticks don't.
     jassert(std::abs((endAngle - startAngle) - KnobStrip::kSweepRadians) < 0.01f);
 
-    if (family == KnobFamily::azazel)
+    // A filmstrip frame is wider than the dial it depicts: it also carries the
+    // ambient shadow and a clear margin past it. `knobR` is the frame's half
+    // width, so the bezel's real outer edge lands at knobR * kBezelOuterFrac
+    // (~0.73 maxR, near enough the 0.75 the vector bezel used) and the shadow
+    // fades out by knobR * kShadowOuterFrac.
+    const float knobR   = maxR * 0.86f;
+
+    // The live value ring sits on the faceplate beyond the outer silver rim.
+    // Draw it before the knob so the rendered hardware and its shadow mask any
+    // inward glow instead of letting colour spill across the metal surface.
     {
-        // A filmstrip frame is wider than the metal it depicts: it also
-        // carries the ambient shadow and a clear margin past it.
-        const float knobR   = maxR * 0.86f;
-        const float shadowR = knobR * KnobStrip::kShadowOuterFrac;
-
-        // Graduation ticks live on the faceplate and are drawn before the
-        // filmstrip so the baked contact shadow falls over their inner ends.
-        {
-            const float tickIn  = shadowR * 1.005f;
-            const float tickOut = maxR * 0.865f;
-            const float arcLen = (endAngle - startAngle) * tickOut;
-            int divisions = 12;
-            for (int cand : { 40, 20, 12 })
-                if (arcLen / float(cand) >= 3.2f) { divisions = cand; break; }
-
-            for (int i = 0; i <= divisions; ++i)
-            {
-                const float frac  = float(i) / float(divisions);
-                const float angle = startAngle + frac * (endAngle - startAngle);
-                const bool  isMaj = (i * 8) % divisions == 0;
-                if (simpleTicks && !isMaj) continue;
-
-                const float from = isMaj ? tickIn : tickIn + (tickOut - tickIn) * 0.45f;
-                const auto p0 = polar(angle, from);
-                const auto p1 = polar(angle, tickOut);
-                g.setColour(isMaj ? Theme::textDim.withAlpha(0.50f)
-                                  : Theme::textFaint.withAlpha(0.22f));
-                g.drawLine(p0.x, p0.y, p1.x, p1.y, isMaj ? 1.1f : 0.6f);
-            }
-        }
-
-        // Existing procedural value arc, including centre-out fill for
-        // bipolar Island controls.
-        {
-            const float arcR = maxR * 0.93f;
-            juce::Path track, active;
-            track.addCentredArc(cx, cy, arcR, arcR, 0.0f, startAngle, endAngle, true);
-            g.setColour(Theme::accentDeep);
-            g.strokePath(track, juce::PathStrokeType(2.2f));
-
-            const bool centerFill = slider.getProperties().contains("centerFill");
-            const float zeroAngle = centerFill
-                ? startAngle + (endAngle - startAngle)
-                    * float(slider.valueToProportionOfLength(0.0))
-                : startAngle;
-
-            if (centerFill ? (std::abs(valueAngle - zeroAngle) > 0.001f)
-                           : (valueAngle > startAngle + 0.001f))
-            {
-                const float a0 = juce::jmin(zeroAngle, valueAngle);
-                const float a1 = juce::jmax(zeroAngle, valueAngle);
-                active.addCentredArc(cx, cy, arcR, arcR, 0.0f, a0, a1, true);
-                const auto glow = juce::Colour(0xffd94a45);
-                g.setColour(glow.withAlpha(0.28f));
-                g.strokePath(active, juce::PathStrokeType(5.0f));
-                g.setColour(glow);
-                g.strokePath(active, juce::PathStrokeType(2.2f));
-            }
-        }
-
-        if (! KnobStrip::draw(g, { cx - knobR, cy - knobR, knobR * 2.0f, knobR * 2.0f },
-                              sliderPos))
-        {
-            // The asset is compiled in, but retain a readable fallback if a
-            // host ever fails to decode it.
-            const float bodyR = knobR * KnobStrip::kBezelOuterFrac;
-            const auto p0 = polar(valueAngle, bodyR * 0.32f);
-            const auto p1 = polar(valueAngle, bodyR * 0.88f);
-            g.setColour(Theme::surfRaised);
-            g.fillEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f);
-            g.setColour(juce::Colour(0xff0a0a09));
-            g.drawEllipse(cx - bodyR, cy - bodyR, bodyR * 2.0f, bodyR * 2.0f, 1.0f);
-            g.setColour(Theme::accent);
-            g.drawLine(p0.x, p0.y, p1.x, p1.y, 2.0f);
-        }
-
-        if (focused)
-        {
-            const float focusR = maxR * 0.985f;
-            g.setColour(Theme::textHi.withAlpha(0.42f));
-            g.drawEllipse(cx - focusR, cy - focusR, focusR * 2.0f, focusR * 2.0f, 1.0f);
-        }
-        return;
-    }
-
-    // ------------------------------------------------------------------
-    // Original VisualComp procedural families
-    // ------------------------------------------------------------------
-    const bool isMix   = family == KnobFamily::mix;
-    const bool isRatio = family == KnobFamily::ratio;
-    const float bodyR  = maxR * (isMix ? 0.68f : 0.67f);
-    const float arcR   = maxR * (isMix ? 0.91f : 0.93f);
-
-    // Faceplate graduations: dense, warm marks for Dynamics/Ratio; only
-    // minimum, midpoint and maximum landmarks on the compact Mix dial.
-    {
-        const int divisions = isMix ? 8 : 40;
-        const float tickIn  = maxR * (isMix ? 0.78f : 0.75f);
-        const float tickOut = maxR * (isMix ? 0.84f : 0.85f);
-
-        for (int i = 0; i <= divisions; ++i)
-        {
-            if (isMix && i != 0 && i != divisions / 2 && i != divisions)
-                continue;
-
-            const float frac  = float(i) / float(divisions);
-            const float angle = startAngle + frac * (endAngle - startAngle);
-            const bool isMajor = isMix || i % 5 == 0;
-            const float from = isMajor ? tickIn
-                                       : tickIn + (tickOut - tickIn) * 0.48f;
-            const auto p0 = polar(angle, from);
-            const auto p1 = polar(angle, tickOut);
-            const auto tickColour = isRatio ? juce::Colour(0xffc8baa0) : Theme::textMid;
-            g.setColour(tickColour.withAlpha(isMajor ? (hovered ? 0.62f : 0.48f)
-                                                       : (hovered ? 0.30f : 0.20f)));
-            g.drawLine(p0.x, p0.y, p1.x, p1.y,
-                       isMajor ? (isMix ? 1.0f : 1.15f) : 0.65f);
-        }
-    }
-
-    // One fixed red illumination ring keeps value meaning in arc length and
-    // pointer position instead of changing colour as the control moves.
-    const auto valueColour = juce::Colour(0xffd94a45);
-    {
+        const float arcR = knobR * KnobStrip::kOuterArcRadiusFrac;
+        const float arcY = cy + knobR * KnobStrip::kOuterArcOffsetYFrac;
+        const float arcRy = arcR * KnobStrip::kTopYScale;
+        const float stroke = juce::jlimit(0.7f, 1.4f, knobR * 0.035f);
         juce::Path track, active;
-        track.addCentredArc(cx, cy, arcR, arcR, 0.0f, startAngle, endAngle, true);
-        g.setColour(juce::Colour(0xff37342f).withAlpha(0.88f));
-        g.strokePath(track, juce::PathStrokeType(isMix ? 1.8f : 2.1f,
-                                                  juce::PathStrokeType::curved,
-                                                  juce::PathStrokeType::rounded));
+        track.addCentredArc(cx, arcY, arcR, arcRy, 0.0f, startAngle, endAngle, true);
+        g.setColour(juce::Colours::black.withAlpha(0.42f));
+        g.strokePath(track, juce::PathStrokeType(stroke));
 
+        // Bipolar knobs (e.g. Range) fill from their centre value outward to
+        // whichever side they're currently on, never from the dial's start —
+        // a plain start-to-value fill would misleadingly always show "some"
+        // glow even sitting at the neutral centre value.
         const bool centerFill = slider.getProperties().contains("centerFill");
         const float zeroAngle = centerFill
             ? startAngle + (endAngle - startAngle) * float(slider.valueToProportionOfLength(0.0))
@@ -775,229 +504,22 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
         {
             const float a0 = juce::jmin(zeroAngle, valueAngle);
             const float a1 = juce::jmax(zeroAngle, valueAngle);
-            active.addCentredArc(cx, cy, arcR, arcR, 0.0f, a0, a1, true);
-            g.setColour(valueColour.withAlpha(hovered ? 0.30f : 0.20f));
-            g.strokePath(active, juce::PathStrokeType(isMix ? 4.0f : 4.8f,
-                                                       juce::PathStrokeType::curved,
-                                                       juce::PathStrokeType::rounded));
-            g.setColour(valueColour.brighter(hovered ? 0.10f : 0.0f));
-            g.strokePath(active, juce::PathStrokeType(isMix ? 1.9f : 2.2f,
-                                                       juce::PathStrokeType::curved,
-                                                       juce::PathStrokeType::rounded));
+            active.addCentredArc(cx, arcY, arcR, arcRy, 0.0f, a0, a1, true);
+            const bool threshold = slider.getProperties().getWithDefault("paramId", "").toString() == "threshold";
+            const float heat = threshold ? 1.0f - sliderPos : sliderPos;
+            const auto glow = Theme::meterLow.interpolatedWith(Theme::meterHot, heat);
+            g.setColour(glow.withAlpha(0.24f));
+            g.strokePath(active, juce::PathStrokeType(stroke * 3.0f));
+            g.setColour(glow);
+            g.strokePath(active, juce::PathStrokeType(stroke));
         }
-
-        // A coloured endpoint remains visible at the minimum, where the arc
-        // has zero length (especially important for Mix: 0% must still read
-        // red rather than merely "off").
-        const auto endPoint = polar(valueAngle, arcR);
-        const float dotR = isMix ? 1.45f : 1.65f;
-        g.setColour(valueColour.withAlpha(hovered ? 0.42f : 0.26f));
-        g.fillEllipse(endPoint.x - dotR * 1.9f, endPoint.y - dotR * 1.9f,
-                      dotR * 3.8f, dotR * 3.8f);
-        g.setColour(valueColour.brighter(hovered ? 0.14f : 0.04f));
-        g.fillEllipse(endPoint.x - dotR, endPoint.y - dotR, dotR * 2.0f, dotR * 2.0f);
     }
 
-    // Soft contact shadow shared by all three procedural constructions.
-    for (int pass = 3; pass >= 1; --pass)
-    {
-        const float spread = float(pass) * 0.8f;
-        g.setColour(juce::Colours::black.withAlpha(0.075f * float(4 - pass)));
-        g.fillEllipse(cx - bodyR - spread, cy - bodyR + 1.8f,
-                      (bodyR + spread) * 2.0f, (bodyR + spread) * 2.0f);
-    }
+    const juce::Rectangle<float> knobBounds { cx - knobR, cy - knobR,
+                                              knobR * 2.0f, knobR * 2.0f };
+    if (! KnobStrip::draw(g, knobBounds, sliderPos))
+        KnobStrip::drawMetallicFallback(g, knobBounds, sliderPos);
 
-    if (family == KnobFamily::console)
-    {
-        // Pale matte console construction inspired by large-format hardware,
-        // adapted to the dark VisualComp chassis: twin dark mounting rings,
-        // a warm metal face and a recessed index slot.
-        const float bezelR = bodyR * 1.06f;
-        juce::ColourGradient bezel(juce::Colour(0xff5d5b56), cx - bezelR, cy - bezelR,
-                                   juce::Colour(0xff111110), cx + bezelR, cy + bezelR, false);
-        bezel.addColour(0.48, juce::Colour(0xff302f2c));
-        g.setGradientFill(bezel);
-        g.fillEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.92f));
-        g.drawEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f, 1.4f);
-
-        const float ringR = bodyR * 0.96f;
-        g.setColour(juce::Colour(0xff9a9790));
-        g.fillEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f);
-        g.setColour(juce::Colour(0xff292824));
-        g.drawEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f, 1.3f);
-
-        const float faceR = bodyR * 0.88f;
-        juce::ColourGradient face(hovered ? juce::Colour(0xffeeeae1)
-                                           : juce::Colour(0xffdfdcd3),
-                                   cx - faceR * 0.30f, cy - faceR * 0.36f,
-                                   juce::Colour(0xff6f6c65),
-                                   cx + faceR * 0.82f, cy + faceR * 0.86f, true);
-        face.addColour(0.58, juce::Colour(0xffb8b5ad));
-        face.addColour(0.82, juce::Colour(0xff928f87));
-        g.setGradientFill(face);
-        g.fillEllipse(cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
-
-        // Restrained machining: enough concentric texture to stop the pale
-        // cap reading as flat plastic, but faint enough to survive small DPI.
-        for (float f : { 0.36f, 0.55f, 0.73f })
-        {
-            const float r = faceR * f;
-            g.setColour(juce::Colours::black.withAlpha(0.035f));
-            g.drawEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f, 0.65f);
-        }
-
-        juce::Path topLight;
-        topLight.addCentredArc(cx, cy, faceR * 0.94f, faceR * 0.94f, 0.0f,
-                               -0.88f, 0.36f, true);
-        g.setColour(juce::Colours::white.withAlpha(hovered ? 0.34f : 0.24f));
-        g.strokePath(topLight, juce::PathStrokeType(1.0f,
-                                                    juce::PathStrokeType::curved,
-                                                    juce::PathStrokeType::rounded));
-
-        const auto p0 = polar(valueAngle, faceR * 0.42f);
-        const auto p1 = polar(valueAngle, faceR * 0.82f);
-        juce::Path pointer;
-        pointer.startNewSubPath(p0);
-        pointer.lineTo(p1);
-        g.setColour(juce::Colours::black.withAlpha(0.54f));
-        g.strokePath(pointer, juce::PathStrokeType(4.4f,
-                                                   juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
-        g.setColour(hovered ? juce::Colour(0xff302e2a) : juce::Colour(0xff4b4842));
-        g.strokePath(pointer, juce::PathStrokeType(2.2f,
-                                                   juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
-        g.setColour(juce::Colours::white.withAlpha(hovered ? 0.52f : 0.34f));
-        g.strokePath(pointer, juce::PathStrokeType(0.65f,
-                                                   juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
-    }
-    else if (family == KnobFamily::ratio)
-    {
-        // A dark Bakelite-like selector with a rotating raised grip and red
-        // index tip. It is recognisably different from the round console caps
-        // while remaining an original VisualComp construction.
-        const float bezelR = bodyR * 1.07f;
-        juce::ColourGradient bezel(juce::Colour(0xff7a7771), cx - bezelR, cy - bezelR,
-                                   juce::Colour(0xff080807), cx + bezelR, cy + bezelR, false);
-        bezel.addColour(0.42, juce::Colour(0xff302f2d));
-        g.setGradientFill(bezel);
-        g.fillEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.95f));
-        g.drawEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f, 1.5f);
-
-        const float faceR = bodyR * 0.89f;
-        juce::ColourGradient face(hovered ? juce::Colour(0xff454545)
-                                           : juce::Colour(0xff3a3a3a),
-                                   cx - faceR * 0.35f, cy - faceR * 0.40f,
-                                   juce::Colour(0xff151515),
-                                   cx + faceR * 0.80f, cy + faceR * 0.90f, true);
-        face.addColour(0.62, juce::Colour(0xff2e2e2e));
-        g.setGradientFill(face);
-        g.fillEllipse(cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
-
-        for (float f : { 0.52f, 0.76f })
-        {
-            const float r = faceR * f;
-            g.setColour(juce::Colours::white.withAlpha(0.035f));
-            g.drawEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f, 0.7f);
-        }
-
-        const float gripW = bodyR * 0.43f;
-        juce::Path grip;
-        grip.addRoundedRectangle(cx - gripW * 0.5f, cy - bodyR * 0.76f,
-                                 gripW, bodyR * 1.06f, gripW * 0.44f);
-        grip.applyTransform(juce::AffineTransform::rotation(valueAngle, cx, cy));
-        g.setColour(juce::Colours::black.withAlpha(0.50f));
-        g.strokePath(grip, juce::PathStrokeType(2.6f,
-                                                juce::PathStrokeType::curved,
-                                                juce::PathStrokeType::rounded));
-        juce::ColourGradient gripFill(hovered ? juce::Colour(0xff444444)
-                                               : juce::Colour(0xff393939),
-                                        cx - gripW, cy - bodyR,
-                                        juce::Colour(0xff171717),
-                                        cx + gripW, cy + bodyR, false);
-        gripFill.addColour(0.46, juce::Colour(0xff2e2e2e));
-        g.setGradientFill(gripFill);
-        g.fillPath(grip);
-        g.setColour(juce::Colours::white.withAlpha(hovered ? 0.10f : 0.065f));
-        g.strokePath(grip, juce::PathStrokeType(0.8f,
-                                                juce::PathStrokeType::curved,
-                                                juce::PathStrokeType::rounded));
-
-        const auto p0 = polar(valueAngle, faceR * 0.62f);
-        const auto p1 = polar(valueAngle, faceR * 0.94f);
-        juce::Path pointer;
-        pointer.startNewSubPath(p0);
-        pointer.lineTo(p1);
-        g.setColour(juce::Colours::black.withAlpha(0.82f));
-        g.strokePath(pointer, juce::PathStrokeType(4.2f,
-                                                   juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
-        g.setColour(juce::Colour(0xffd94a45).brighter(hovered ? 0.16f : 0.04f));
-        g.strokePath(pointer, juce::PathStrokeType(2.1f,
-                                                   juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
-
-        g.setColour(juce::Colours::black.withAlpha(0.62f));
-        g.fillEllipse(cx - bodyR * 0.08f, cy - bodyR * 0.08f,
-                      bodyR * 0.16f, bodyR * 0.16f);
-    }
-    else // KnobFamily::mix
-    {
-        // Compact charcoal body with a double bezel and uncluttered pointer,
-        // matching the header's smaller visual scale without shrinking its
-        // existing 48px interaction target.
-        const float bezelR = bodyR * 1.12f;
-        g.setColour(juce::Colour(0xff080808));
-        g.fillEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f);
-        g.setColour(juce::Colour(0xff676a6c));
-        g.drawEllipse(cx - bezelR, cy - bezelR, bezelR * 2.0f, bezelR * 2.0f, 1.2f);
-
-        const float ringR = bodyR * 0.99f;
-        juce::ColourGradient ring(juce::Colour(0xff55575a), cx - ringR, cy - ringR,
-                                  juce::Colour(0xff151618), cx + ringR, cy + ringR, false);
-        g.setGradientFill(ring);
-        g.fillEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f);
-        g.setColour(juce::Colour(0xff050506));
-        g.drawEllipse(cx - ringR, cy - ringR, ringR * 2.0f, ringR * 2.0f, 1.1f);
-
-        const float faceR = bodyR * 0.79f;
-        juce::ColourGradient face(hovered ? juce::Colour(0xff3f4244)
-                                           : juce::Colour(0xff343638),
-                                   cx - faceR * 0.32f, cy - faceR * 0.35f,
-                                   juce::Colour(0xff151618),
-                                   cx + faceR * 0.78f, cy + faceR * 0.86f, true);
-        face.addColour(0.68, juce::Colour(0xff26282a));
-        g.setGradientFill(face);
-        g.fillEllipse(cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
-
-        const auto p0 = polar(valueAngle, faceR * 0.22f);
-        const auto p1 = polar(valueAngle, faceR * 0.73f);
-        juce::Path pointer;
-        pointer.startNewSubPath(p0);
-        pointer.lineTo(p1);
-        g.setColour(juce::Colours::black.withAlpha(0.74f));
-        g.strokePath(pointer, juce::PathStrokeType(3.7f,
-                                                   juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
-        g.setColour(Theme::textHi.withAlpha(hovered ? 1.0f : 0.86f));
-        g.strokePath(pointer, juce::PathStrokeType(1.65f,
-                                                   juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
-
-        g.setColour(juce::Colours::black.withAlpha(0.48f));
-        g.fillEllipse(cx - bodyR * 0.085f, cy - bodyR * 0.085f,
-                      bodyR * 0.17f, bodyR * 0.17f);
-    }
-
-    if (focused)
-    {
-        const float focusR = maxR * 0.985f;
-        g.setColour(Theme::textHi.withAlpha(0.46f));
-        g.drawEllipse(cx - focusR, cy - focusR, focusR * 2.0f, focusR * 2.0f, 1.0f);
-    }
 }
 
 void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
@@ -1051,7 +573,7 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
         g.setGradientFill(walls);
         g.fillRoundedRectangle(slot, slotR);
     }
-    g.setColour(Theme::text.withAlpha(0.06f));
+    g.setColour(Theme::plateText.withAlpha(0.20f));
     g.drawLine(slot.getRight() - 0.5f, slot.getY() + slotR,
                slot.getRight() - 0.5f, slot.getBottom() - slotR, 1.0f);
     g.setColour(juce::Colours::black.withAlpha(0.55f));
@@ -1091,14 +613,14 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
         const bool  major = (int(db) % 12 == 0) || db == 0.0f;
         const float len   = major ? 8.0f : 5.0f;
         const float th    = major ? 1.6f : 1.0f;
-        g.setColour(Theme::textDim.withAlpha(major ? 0.55f : 0.25f));
+        g.setColour(Theme::plateTextDim.withAlpha(major ? 0.72f : 0.42f));
         g.fillRect(flankL - len, ty - th * 0.5f, len, th);
         g.fillRect(flankR,       ty - th * 0.5f, len, th);
     }
     // Unity gets a brighter mark on each flank — the one position on a gain
     // fader anyone actually aims for. It stops at the cap rather than running
     // under it, so it never competes with the cap's own index line.
-    g.setColour(Theme::textHi.withAlpha(0.50f));
+    g.setColour(Theme::plateText.withAlpha(0.76f));
     g.fillRect(flankL - 10.0f, zeroY - 0.5f, 10.0f, 1.0f);
     g.fillRect(flankR,         zeroY - 0.5f, 10.0f, 1.0f);
 
@@ -1171,48 +693,29 @@ void AzazelLookAndFeel::drawToggleButton(juce::Graphics& g,
     const bool isAutoGain = txt.startsWithIgnoreCase("AUTO");
     const juce::Colour lit = isBypass ? Theme::warn : Theme::accent;
 
-    for (int i = 3; i >= 1; --i)
+    const auto face = rect.translated(0.0f, isDown ? 1.0f : 0.0f);
+    Theme::drawRaised(g, face, rad, on && ! isBypass);
+    if (isBypass && on)
     {
-        g.setColour(juce::Colour(0xff000000).withAlpha(0.11f * float(4 - i)));
-        g.fillRoundedRectangle(rect.translated(0.0f, float(i) * 0.8f), rad);
-    }
-
-    if (on)
-    {
-        // Layered low-alpha fills read as illumination without a hard halo.
-        for (int pass = 3; pass >= 1; --pass)
-        {
-            const float spread = 0.8f * float(pass);
-            g.setColour(lit.withAlpha(0.032f * float(4 - pass)));
-            g.fillRoundedRectangle(rect.expanded(spread), rad + spread);
-        }
-        juce::ColourGradient bd(lit.brighter(0.18f), rect.getX(), rect.getY(),
-                                lit.darker(0.32f),   rect.getX(), rect.getBottom(), false);
-        g.setGradientFill(bd);
-        g.fillRoundedRectangle(rect, rad);
-    }
-    else
-    {
-        juce::ColourGradient bd(juce::Colour(0xff33312d), rect.getX(), rect.getY(),
-                                juce::Colour(0xff161514), rect.getX(), rect.getBottom(), false);
-        g.setGradientFill(bd);
-        g.fillRoundedRectangle(rect, rad);
+        juce::ColourGradient warning(Theme::warn.darker(0.58f), face.getX(), face.getY(),
+                                     Theme::warn.darker(0.76f), face.getX(), face.getBottom(), false);
+        g.setGradientFill(warning);
+        g.fillRoundedRectangle(face, rad);
     }
 
     if (isHighlighted || isDown)
     {
         g.setColour(juce::Colours::white.withAlpha(isDown ? 0.03f : 0.06f));
-        g.fillRoundedRectangle(rect, rad);
+        g.fillRoundedRectangle(face, rad);
     }
 
-    g.setColour(juce::Colours::white.withAlpha(on ? 0.16f : 0.09f));
-    g.drawLine(rect.getX() + 2.0f, rect.getY() + 1.0f,
-               rect.getRight() - 2.0f, rect.getY() + 1.0f, 1.0f);
-    g.setColour(juce::Colours::black.withAlpha(on ? 0.24f : 0.55f));
-    g.drawLine(rect.getX() + 2.0f, rect.getBottom() - 1.0f,
-               rect.getRight() - 2.0f, rect.getBottom() - 1.0f, 1.0f);
+    if (button.hasKeyboardFocus(false))
+    {
+        g.setColour((on ? lit : Theme::buttonText).withAlpha(0.82f));
+        g.fillRoundedRectangle(face.getCentreX() - 5.0f, face.getBottom() - 3.0f, 10.0f, 1.0f, 0.5f);
+    }
 
-    g.setColour(on ? juce::Colours::black.withAlpha(0.88f) : Theme::text.withAlpha(0.85f));
+    g.setColour(isBypass && on ? Theme::buttonText : (on ? lit : Theme::buttonText.withAlpha(0.90f)));
 
     if (isAutoGain)
     {
@@ -1250,34 +753,15 @@ void AzazelLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     const auto  rect = button.getLocalBounds().toFloat().reduced(0.5f);
     const float rad  = 2.0f;
 
-    // Selected EQ-node button (see PluginEditor's bandButtons/"nodeSelect"
-    // property): solid orange fill instead of the standard dark gradient,
-    // so the single node currently bound to the Dynamics knobs reads
-    // unambiguously against the other seven.
+    // Selected EQ-node button keeps its node identity as a narrow indicator,
+    // while retaining the B-reference's dark inset hardware cap.
     if (button.getToggleState() && button.getProperties().contains("nodeSelect"))
     {
-        for (int pass = 2; pass >= 1; --pass)
-        {
-            const float spread = 0.8f * float(pass);
-            g.setColour(Theme::accent.withAlpha(0.045f * float(3 - pass)));
-            g.fillRoundedRectangle(rect.expanded(spread), rad + spread);
-        }
-        for (int i = 2; i >= 1; --i)
-        {
-            g.setColour(juce::Colour(0xff000000).withAlpha(0.13f * float(3 - i)));
-            g.fillRoundedRectangle(rect.translated(0.0f, float(i) * 0.9f), rad);
-        }
-        juce::Colour fill = Theme::accent;
-        if (isDown)            fill = fill.darker(0.25f);
-        else if (isHighlighted) fill = fill.brighter(0.12f);
-        g.setColour(fill);
-        g.fillRoundedRectangle(rect, rad);
-        g.setColour(juce::Colours::white.withAlpha(0.18f));
-        g.drawLine(rect.getX() + 2.0f, rect.getY() + 1.0f,
-                   rect.getRight() - 2.0f, rect.getY() + 1.0f, 1.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.24f));
-        g.drawLine(rect.getX() + 2.0f, rect.getBottom() - 1.0f,
-                   rect.getRight() - 2.0f, rect.getBottom() - 1.0f, 1.0f);
+        Theme::drawRaised(g, rect, rad, false);
+        const auto nodeColour = juce::Colour((juce::uint32) int(button.getProperties().getWithDefault("nodeColour", int(Theme::accent.getARGB()))));
+        g.setColour(nodeColour);
+        g.fillRoundedRectangle(rect.getX() + 4.0f, rect.getBottom() - 3.0f,
+                               juce::jmax(2.0f, rect.getWidth() - 8.0f), 1.5f, 0.7f);
         return;
     }
 
@@ -1298,6 +782,12 @@ void AzazelLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     {
         g.setColour(juce::Colours::white.withAlpha(on ? 0.06f : 0.05f));
         g.fillRoundedRectangle(rect, rad);
+    }
+
+    if (button.hasKeyboardFocus(false))
+    {
+        g.setColour((on ? Theme::accent : Theme::buttonText).withAlpha(0.82f));
+        g.fillRoundedRectangle(rect.getCentreX() - 5.0f, rect.getBottom() - 3.0f, 10.0f, 1.0f, 0.5f);
     }
 }
 
@@ -1519,10 +1009,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
                                              std::memory_order_relaxed);
     };
 
-    // Bypass uses the same renderer and interaction model as the clipping
-    // selector; the only behavioural difference is that it toggles state.
-    setupTextButton(bypassButton, "BYPASS");
-    bypassButton.setClickingTogglesState(true);
+    setupToggle(bypassButton, "BYPASS");
     if (juce::SystemStats::getEnvironmentVariable("VC2_FORCE_BYPASS", {}).isNotEmpty())
     {
         bypassButton.setToggleState(true, juce::dontSendNotification);
@@ -1584,8 +1071,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     eqButton.setClickingTogglesState(true);
     eqButton.onClick = [this] { toggleEqPanel(); };
 
-    // Clip mode (Soft / Brickwall / Off) + the hidden oversampling factor.
-    // resized() places it beside LIM with the output-stage controls.
+    // Clip mode (Soft / Brickwall / Off) + the hidden oversampling factor
     setupTextButton(clipModeButton,
         OutputClipper::modeName(static_cast<ClipMode>(audioProcessor.clipMode.load())));
     clipModeButton.onClick = [this] { showClipModeMenu(); };
@@ -1686,7 +1172,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     {
         logoDrawable = juce::Drawable::createFromSVG(*xml);
         if (logoDrawable != nullptr)
-            logoDrawable->replaceColour(juce::Colours::white, Theme::text);
+            logoDrawable->replaceColour(juce::Colours::white, Theme::plateText);
     }
     logoZone.onClick = [this] { showLogoMenu(); };
     addAndMakeVisible(logoZone);
@@ -1714,8 +1200,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     mixKnob.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
     mixKnob.setMouseDragSensitivity(600);
     mixKnob.setRange(0.0, 1.0);
-    mixKnob.getProperties().set("paramId", "mix");
-    setKnobFamily(mixKnob, KnobFamily::ratio);
+    mixKnob.getProperties().set("simpleTicks", true);
     mixKnob.onValueChange = [this] { repaint(0, 0, getWidth(), kTitleH); };
     addAndMakeVisible(mixKnob);
 
@@ -1724,6 +1209,8 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     setupKnob(ratioKnob,     ratioLabel,     "RATIO",     ":1",  "ratio");
     setupKnob(attackKnob,    attackLabel,    "ATTACK",    " ms", "attack");
     setupKnob(releaseKnob,   releaseLabel,   "RELEASE",   " ms", "release");
+    attackKnob.getProperties().set("lightKnob", true);
+    releaseKnob.getProperties().set("lightKnob", true);
 
     // Band-selector row: clicking a button swaps Attack/Release below to
     // that EQ node's own state (see selectBand/refreshBandButtons). Hidden
@@ -1732,8 +1219,9 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     {
         auto& b = bandButtons[size_t(i)];
         b.setButtonText(juce::String("N") + juce::String(i + 1));
-        b.setColour(juce::TextButton::textColourOffId, Theme::textDim);
-        b.setColour(juce::TextButton::textColourOnId,  juce::Colours::white);
+        b.setColour(juce::TextButton::textColourOffId, Theme::buttonText);
+        b.setColour(juce::TextButton::textColourOnId,  Theme::buttonText);
+        b.getProperties().set("nodeColour", int(EqPanel::kNodeColours[i].getARGB()));
         // Opts this button into AzazelLookAndFeel's solid-orange selected
         // style (see drawButtonBackground) instead of the standard dark
         // gradient every other TextButton gets.
@@ -1748,8 +1236,7 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // node's state rather than an APVTS parameter — a SliderAttachment can
     // only ever bind to one fixed parameter, so context-sensitive editing
     // needs a second, manually-wired slider shown/hidden via setVisible().
-    auto setupBandKnob = [this](DragSlider& knob, float lo, float hi, float skew,
-                                float defVal, KnobFamily family)
+    auto setupBandKnob = [this](DragSlider& knob, float lo, float hi, float skew, float defVal)
     {
         knob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
         knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, kKnobSlotW - 4, kKnobValueH);
@@ -1760,12 +1247,13 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         knob.setRange(lo, hi);
         knob.setSkewFactor(skew);
         knob.setDoubleClickReturnValue(true, defVal);
-        setKnobFamily(knob, family);
         knob.setVisible(false);
         addAndMakeVisible(knob);
     };
-    setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f,  KnobFamily::ratio);
-    setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f, KnobFamily::ratio);
+    setupBandKnob(bandAttackKnob,  0.1f,  200.0f,  0.3f, 0.2f);
+    setupBandKnob(bandReleaseKnob, 1.0f,  2000.0f, 0.3f, 45.0f);
+    bandAttackKnob.getProperties().set("lightKnob", true);
+    bandReleaseKnob.getProperties().set("lightKnob", true);
     // FabFilter Pro-MB style: Threshold is downward-only (0..-60dB). Direction
     // (downward/upward) and how far the band can swing now live on the Range
     // knob instead (see NodeIsland) — that's what used to make a positive
@@ -1773,13 +1261,10 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     // crossover; Threshold no longer carries that dual role. Range/skew below
     // get overridden immediately after by setupThresholdKnobRange() — see
     // EqEngine.h.
-    setupBandKnob(bandThresholdKnob, -60.0f, 0.0f, 0.5f, -20.0f,
-                  KnobFamily::ratio);
+    setupBandKnob(bandThresholdKnob, -60.0f, 0.0f, 0.5f, -20.0f);
     setupThresholdKnobRange(bandThresholdKnob);
-    setupBandKnob(bandKneeKnob,        0.0f, 20.0f, 1.0f,   6.0f,
-                  KnobFamily::ratio);
-    setupBandKnob(bandRatioKnob,       1.0f, 20.0f, 0.4f,   2.0f,
-                  KnobFamily::ratio);
+    setupBandKnob(bandKneeKnob,        0.0f, 20.0f, 1.0f,   6.0f);
+    setupBandKnob(bandRatioKnob,       1.0f, 20.0f, 0.4f,   2.0f);
     bandAttackKnob.setTextValueSuffix(" ms");
     bandReleaseKnob.setTextValueSuffix(" ms");
     bandThresholdKnob.setTextValueSuffix(" dB");
@@ -1985,6 +1470,16 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
         });
     }
 
+    // Screenshot-only hook for checking the version header in the logo menu.
+    if (juce::SystemStats::getEnvironmentVariable("VC2_FORCE_LOGO_MENU", {}).isNotEmpty())
+    {
+        juce::Component::SafePointer<VisualCompEditor> safe(this);
+        juce::Timer::callAfterDelay(1500, [safe]
+        {
+            if (safe != nullptr) safe->showLogoMenu();
+        });
+    }
+
     // Documentation aid, same pattern as VC2_FORCE_SAVE_PRESET_DIALOG: marks
     // the EQ dirty and pops the "Replace your EQ?" confirm dialog on launch
     // so it can be screenshotted reproducibly. Inert unless set.
@@ -2026,7 +1521,6 @@ void VisualCompEditor::setupKnob(DragSlider& knob, juce::Label& label,
     knob.setMouseDragSensitivity(1000);
     knob.getProperties().set("topInset", kKnobTopInset);
     knob.getProperties().set("paramId", paramId);
-    setKnobFamily(knob, KnobFamily::ratio);
     knob.onValueChange = [this] { repaint(0, kCtrlY, kContentW, kCtrlH); };
 
     if (auto* par = audioProcessor.apvts.getParameter(paramId))
@@ -2037,7 +1531,7 @@ void VisualCompEditor::setupKnob(DragSlider& knob, juce::Label& label,
     label.setText(text, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
     label.setFont(Theme::label(17.0f));
-    label.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    label.setColour(juce::Label::textColourId, Theme::plateText.withAlpha(0.88f));
     label.setInterceptsMouseClicks(false, false);   // clicks fall through to the knob
     addAndMakeVisible(label);
 }
@@ -2061,7 +1555,7 @@ void VisualCompEditor::setupFader(DragSlider& fader, juce::Label& label,
     label.setText(text, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
     label.setFont(Theme::label(16.0f));
-    label.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    label.setColour(juce::Label::textColourId, Theme::plateText.withAlpha(0.88f));
     label.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(label);
 }
@@ -2069,11 +1563,9 @@ void VisualCompEditor::setupFader(DragSlider& fader, juce::Label& label,
 void VisualCompEditor::setupTextButton(juce::TextButton& b, const juce::String& text, bool microCaps)
 {
     b.setButtonText(text);
-    // Neutral when off, accent only when on/lit — accent marks state, not
-    // "this is a button". The preset-name button passes microCaps=false and
-    // is the one case where the button shows a VALUE rather than a control
-    // name, but it still follows the same off/on colour rule.
-    b.setColour(juce::TextButton::textColourOffId, Theme::textHi);
+    // Direction B uses orange legends across the dark hardware controls.
+    // The cap depth, rather than a bright fill, communicates pressed state.
+    b.setColour(juce::TextButton::textColourOffId, Theme::accent);
     b.setColour(juce::TextButton::textColourOnId,  Theme::accent);
     if (microCaps)
         b.getProperties().set("microCaps", true);
@@ -2305,9 +1797,8 @@ void VisualCompEditor::refreshBandButtons()
     if (bandCtx && !bandRatioKnob.isMouseButtonDown())
         bandRatioKnob.setValue(audioProcessor.eq.getNode(selectedBand).ratio, juce::dontSendNotification);
 
-    // Selected-node styling: solid orange fill (AzazelLookAndFeel, gated on
-    // the "nodeSelect" property set at construction) with crisp white text
-    // for the one button currently bound to the Dynamics knobs.
+    // The selected button keeps its dark face and displays its node identity
+    // as a compact colour marker (see drawButtonBackground).
     for (int i = 0; i < kMaxEqNodes; ++i)
         bandButtons[size_t(i)].setToggleState(i == selectedBand, juce::dontSendNotification);
 
@@ -2501,16 +1992,8 @@ void VisualCompEditor::saveUserPreset()
 void VisualCompEditor::launchSavePresetFileChooser(const juce::String& author)
 {
     fileChooser = std::make_unique<juce::FileChooser>(
-        "Save preset", getUserPresetDir().getChildFile("My Preset.vcpreset"), "*.vcpreset",
-        false, false, this);
+        "Save preset", getUserPresetDir().getChildFile("My Preset.vcpreset"), "*.vcpreset");
 
-    // JUCE constructs the non-native browser before attaching it to `this`,
-    // so it samples the process-default LAF for its one-time window colour.
-    // Briefly expose our LAF during that synchronous construction, then put
-    // the previous global default straight back; the dialog subsequently
-    // inherits `laf` from this editor as normal.
-    auto* previousDefaultLaf = &juce::LookAndFeel::getDefaultLookAndFeel();
-    juce::LookAndFeel::setDefaultLookAndFeel(&laf);
     fileChooser->launchAsync(
         juce::FileBrowserComponent::saveMode
             | juce::FileBrowserComponent::canSelectFiles
@@ -2559,7 +2042,6 @@ void VisualCompEditor::launchSavePresetFileChooser(const juce::String& author)
                     setPresetAuthor(author);
                 }
         });
-    juce::LookAndFeel::setDefaultLookAndFeel(previousDefaultLaf);
 }
 
 void VisualCompEditor::loadUserPreset(const juce::File& file)
@@ -3066,7 +2548,9 @@ void VisualCompEditor::showLogoMenu()
                     zoomMenu);
 
     menu.addSeparator();
-    menu.addSectionHeader("AZAZEL AUDIO   v" + juce::String(JucePlugin_VersionString));
+    // PRODUCT_NAME is derived from CMake's centralized VC2_VERSION_STRING.
+    const auto version = juce::String(JucePlugin_Name).fromLastOccurrenceOf(" ", false, false);
+    menu.addSectionHeader("AZAZEL AUDIO  " + version);
     menu.addItem(1, "Show Help");
     menu.addItem(2, "Visit azazelaudio.com");
 
@@ -3206,7 +2690,9 @@ void VisualCompEditor::rebuildChassisTexture(int w, int h)
 
     const float fw = float(w), fh = float(h);
 
-    g.setColour(Theme::bg);
+    juce::ColourGradient plate(Theme::plateTop, fw * 0.5f, 0.0f,
+                               Theme::plateBottom, fw * 0.5f, fh, false);
+    g.setGradientFill(plate);
     g.fillRect(0, 0, w, h);
 
     // Brushed grain: one horizontal pass per row, its alpha jittered a
@@ -3220,7 +2706,7 @@ void VisualCompEditor::rebuildChassisTexture(int w, int h)
         {
             const float n = rng.nextFloat() - 0.5f;          // -0.5 .. +0.5
             const float a = std::abs(n) * 0.020f;
-            g.setColour(n >= 0.0f ? Theme::text.withAlpha(a)
+            g.setColour(n >= 0.0f ? juce::Colours::white.withAlpha(a)
                                   : juce::Colours::black.withAlpha(a * 1.4f));
             g.drawHorizontalLine(yy, 0.0f, fw);
         }
@@ -3233,7 +2719,7 @@ void VisualCompEditor::rebuildChassisTexture(int w, int h)
             const float y1  = rng.nextFloat() * fh;
             const float x1  = rng.nextFloat() * fw * 0.7f;
             const float len = fw * (0.12f + rng.nextFloat() * 0.30f);
-            g.setColour(rng.nextBool() ? Theme::text.withAlpha(0.016f)
+            g.setColour(rng.nextBool() ? juce::Colours::white.withAlpha(0.016f)
                                        : juce::Colours::black.withAlpha(0.022f));
             g.drawLine(x1, y1, x1 + len, y1, 1.0f);
         }
@@ -3251,7 +2737,7 @@ void VisualCompEditor::rebuildChassisTexture(int w, int h)
             const float px   = rng.nextFloat() * fw;
             const float py   = rng.nextFloat() * fh;
             const bool  lift = rng.nextBool();
-            juce::ColourGradient blob(lift ? Theme::text.withAlpha(0.024f)
+            juce::ColourGradient blob(lift ? juce::Colours::white.withAlpha(0.024f)
                                            : juce::Colours::black.withAlpha(0.042f),
                                       px, py,
                                       juce::Colour(0x00000000), px + r, py, true);
@@ -3267,9 +2753,22 @@ void VisualCompEditor::rebuildChassisTexture(int w, int h)
                                  juce::Colours::white.withAlpha(0.000f), fw * 0.5f, fh * 0.60f, true);
         g.setGradientFill(top); g.fillRect(0, 0, w, h);
     }
-    { juce::ColourGradient v(juce::Colour(0x00000000), 0.f, fh*0.58f, juce::Colour(0x66000000), 0.f, fh, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
-    { juce::ColourGradient v(juce::Colour(0x40000000), 0.f, 0.f, juce::Colour(0x00000000), fw*0.16f, 0.f, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
-    { juce::ColourGradient v(juce::Colour(0x00000000), fw*0.84f, 0.f, juce::Colour(0x40000000), fw, 0.f, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
+    { juce::ColourGradient v(juce::Colour(0x00000000), 0.f, fh*0.58f, juce::Colour(0x26000000), 0.f, fh, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
+    { juce::ColourGradient v(juce::Colour(0x18000000), 0.f, 0.f, juce::Colour(0x00000000), fw*0.16f, 0.f, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
+    { juce::ColourGradient v(juce::Colour(0x00000000), fw*0.84f, 0.f, juce::Colour(0x18000000), fw, 0.f, false); g.setGradientFill(v); g.fillRect(0,0,w,h); }
+
+    // Precision-machined perimeter and socket-head fasteners; static only.
+    g.setColour(juce::Colours::black.withAlpha(0.45f));
+    g.drawRoundedRectangle(1.0f, 1.0f, fw - 2.0f, fh - 2.0f, 12.0f, 2.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.28f));
+    g.drawLine(13.0f, 1.5f, fw - 13.0f, 1.5f, 1.0f);
+    for (const auto& p : { juce::Point<float>(12.0f, 12.0f), juce::Point<float>(fw - 12.0f, 12.0f),
+                           juce::Point<float>(12.0f, fh - 12.0f), juce::Point<float>(fw - 12.0f, fh - 12.0f) })
+    {
+        g.setColour(juce::Colours::black.withAlpha(0.62f)); g.fillEllipse(p.x - 3.0f, p.y - 3.0f, 6.0f, 6.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.24f)); g.drawEllipse(p.x - 2.5f, p.y - 2.5f, 5.0f, 5.0f, 0.8f);
+        g.setColour(juce::Colours::black.withAlpha(0.78f)); g.drawLine(p.x - 1.3f, p.y, p.x + 1.3f, p.y, 0.8f);
+    }
 }
 
 //==============================================================================
@@ -3301,40 +2800,47 @@ void VisualCompEditor::paint(juce::Graphics& g)
 
     // Header
     {
-        juce::ColourGradient hb(juce::Colour(0xff272725), 0.f, 0.f,
-                                juce::Colour(0xff191917), 0.f, float(kTitleH), false);
+        juce::ColourGradient hb(Theme::plateTop, 0.f, 0.f,
+                                Theme::plate, 0.f, float(kTitleH), false);
         g.setGradientFill(hb); g.fillRect(0, 0, kWidth, kTitleH);
     }
-    g.setColour(Theme::text.withAlpha(0.05f)); g.fillRect(0, 0, kWidth, 1);
+    g.setColour(juce::Colours::white.withAlpha(0.28f)); g.fillRect(0, 0, kWidth, 1);
 
     // Wordmark: 2210 x 632 artwork, so 40 px tall renders proportionally wide
     drawLogo(g, juce::Rectangle<float>(12.0f, 10.0f, 120.0f, 40.0f));
 
-    // MIX read-out — cshift mirrors resized()'s mixKnob shift so this stays
-    // aligned with it when Curve/GR is collapsed.
+    // MIX read-out — centred directly beneath the knob. cshift mirrors
+    // resized()'s mixKnob shift so the stack stays aligned when Curve/GR is
+    // collapsed.
     const int cshift = curveGrVisible ? 0 : kCurveGrColW;
     {
-        const int   labelX = kWidth - cshift - kMixSz - 64;
+        const int   knobX  = kWidth - cshift - kMixSz - 8;
+        const int   textX  = knobX - 8;
         const float mixVal = audioProcessor.apvts.getRawParameterValue("mix")->load() * 100.0f;
-        g.setFont(Theme::label(15.0f));
-        g.setColour(Theme::text.withAlpha(0.85f));
-        g.drawText("MIX", labelX, 8, 62, 19, juce::Justification::centred, false);
-        g.setFont(Theme::value(13.0f));
-        g.setColour(Theme::accent);
-        g.drawText(juce::String(int(mixVal)) + "%", labelX, 26, 62, 21,
+        g.setFont(Theme::label(9.5f));
+        g.setColour(Theme::plateText.withAlpha(0.90f));
+        g.drawText("MIX", textX, 39, kMixSz + 16, 10, juce::Justification::centred, false);
+        // Keep the live percentage readable but subordinate to the MIX label:
+        // the knob's neutral grey ramp carries this value, while orange stays
+        // reserved for active signal/state accents.
+        g.setFont(Theme::label(8.5f, juce::Font::bold));
+        g.setColour(Theme::textMid);
+        g.drawText(juce::String(int(mixVal)) + "%", textX, 48, kMixSz + 16, 11,
                    juce::Justification::centred, false);
     }
 
     // Preset strip
     {
-        g.setColour(Theme::bgDeep);
+        juce::ColourGradient strip(Theme::plate.withAlpha(0.96f), 0.f, float(kTitleH),
+                                   Theme::plateBottom.withAlpha(0.96f), 0.f, float(kHeadH), false);
+        g.setGradientFill(strip);
         g.fillRect(0, kTitleH, kWidth, kStripH);
         // A static full-width line has no reason to be accent-coloured — it
         // isn't signal or an active state, it's a section divider, so it
         // takes the neutral hairline like every other structural boundary.
-        g.setColour(Theme::hairline);
+        g.setColour(Theme::plateDivider);
         g.fillRect(0, kTitleH, kWidth, 1);
-        g.setColour(juce::Colours::black.withAlpha(0.5f));
+        g.setColour(juce::Colours::black.withAlpha(0.38f));
         g.fillRect(0, kHeadH - 1, kWidth, 1);
 
         // Cluster dividers: the strip's buttons sit only 4px apart at their
@@ -3346,7 +2852,7 @@ void VisualCompEditor::paint(juce::Graphics& g)
         // reads as grouping without adding a border around anything.
         {
             const int dy0 = kTitleH + 20 + 3, dy1 = kTitleH + 20 + 24 - 3;
-            g.setColour(Theme::hairline);
+            g.setColour(Theme::plateDivider);
             g.drawLine(156.0f, float(dy0), 156.0f, float(dy1), 1.0f);
             g.drawLine(516.0f, float(dy0), 516.0f, float(dy1), 1.0f);
         }
@@ -3357,15 +2863,15 @@ void VisualCompEditor::paint(juce::Graphics& g)
         // a common baseline; each keeps its own left edge (50/182) matched to
         // the control it names (modeButton / presetAuthorEditor).
         g.setFont(Theme::micro());
-        g.setColour(Theme::textMid);
+        g.setColour(Theme::plateTextDim);
         Theme::drawTracked(g, "MODE",   { 50,  kTitleH + 4, 104, 14 }, juce::Justification::left);
         Theme::drawTracked(g, "AUTHOR", { 182, kTitleH + 4, 140, 14 }, juce::Justification::left);
     }
 
     const int gainOutX = kContentW - kFaderM - kFaderW;
 
-    g.setColour(juce::Colours::black.withAlpha(0.35f));
-    g.drawRect(3, kWaveY - 2, kContentW - 6, kWaveH + 4, 1);
+    g.setColour(Theme::plateWell.withAlpha(0.75f));
+    g.fillRoundedRectangle(3.0f, float(kWaveY - 2), float(kContentW - 6), float(kWaveH + 4), 4.0f);
 
     // The Dynamics and Gain Out areas intentionally have no perimeter boxes;
     // their internal dividers and aligned controls provide the structure.
@@ -3382,17 +2888,14 @@ void VisualCompEditor::paint(juce::Graphics& g)
             g.setColour(Theme::edgeBottom);  g.fillRect(x, y,     width, 1);
             g.setColour(Theme::edgeTop);     g.fillRect(x, y + 1, width, 1);
         };
+        g.setColour(Theme::plateWell.withAlpha(0.78f));
+        g.fillRoundedRectangle(3.0f, float(kCtrlY - 1), float(kContentW - 6), float(kCtrlH + 1), 5.0f);
         bevel(3,        kCtrlY - 1,                    kContentW - 6);
         bevel(kFaderM,  kCtrlY + kCtrlTopStripH - 2,   kContentW - 2 * kFaderM);
     }
 
-    // Band-selector row — a colored ring (matching EqPanel::kNodeColours)
-    // frames each enabled node's button, inset within the ring so it reads
-    // as an outline (the button itself is a child component painted after
-    // this and would otherwise cover a same-size frame entirely). Brighter
-    // for the node currently selected for Attack/Release/Q editing;
-    // dimmer-highlighted for whichever linked node is dominant and driving
-    // the compressor's detector.
+    // Band-selector row: retain a tiny node-colour marker outside each clean
+    // button face instead of drawing a coloured rectangular frame behind it.
     {
         const int rowX = kFaderM, rowY = kCtrlY + 4, rowH = kCtrlTopStripH - 8;
         const int rowW = kContentW - 2 * kFaderM, gap = 3;
@@ -3413,13 +2916,8 @@ void VisualCompEditor::paint(juce::Graphics& g)
             ++slot;
             const auto colour = EqPanel::kNodeColours[i];
             const bool sel = (i == selectedBand);
-            if (sel)
-            {
-                g.setColour(colour.withAlpha(0.20f));
-                g.fillRoundedRectangle(b, 3.0f);
-            }
-            g.setColour(colour.withAlpha(sel ? 0.95f : 0.45f));
-            g.drawRoundedRectangle(b.reduced(0.5f), 3.0f, sel ? 1.6f : 1.1f);
+            g.setColour(colour.withAlpha(sel ? 0.95f : 0.55f));
+            g.fillEllipse(b.getCentreX() - 1.5f, b.getY() + 0.5f, 3.0f, 3.0f);
         }
     }
 
@@ -3528,25 +3026,25 @@ void VisualCompEditor::resized()
     // they'd hang off the now-narrower right edge. paint()'s MIX read-out
     // and sample-rate text mirror this with the same `cshift`.
     const int cshift = curveGrVisible ? 0 : kCurveGrColW;
-    mixKnob.setBounds(ox + kWidth - cshift - kMixSz - 8, 6, kMixSz, kMixSz);
-    // 52 x 22 is exactly half the previous 104 x 44 Bypass footprint. Its
-    // bounds are also its tested hit target; no transparent overlay shares it.
-    constexpr int bypassW = 52, bypassH = 22;
-    bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - bypassW,
-                           (kTitleH - bypassH) / 2, bypassW, bypassH);
+    mixKnob.setBounds(ox + kWidth - cshift - kMixSz - 8, -5, kMixSz, kMixSz);
+    bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104, 14, 100, kTitleH - 28);
+    clipModeButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104 - 100 - 8, 14, 96, kTitleH - 28);
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
     if (testDemoUiEnabled)
         demoPlayButton.setBounds(ox + 136, 15, 58, kTitleH - 30);
-    // Keep the live demo/license target clear of Bypass. When licensed its
-    // hitTest() returns false as well, so the invisible component is inert.
-    demoModeIndicator.setBounds(bypassButton.getX() - 208, 8, 200, 24);
+    // Demo mode watermark indicator — positioned in top-right corner, fixed 24px height
+    demoModeIndicator.setBounds(ox + kWidth - cshift - 224, 8, 216, 24);
     // Undo/Redo notification — positioned in top-right, just below the title bar
     undoRedoNotification.setBounds(ox + kWidth - cshift - 220, 12, 208, 32);
-    // Preset name lives between the wordmark and the demo/bypass controls.
+    // Preset name now lives up here, left of SoftClip — same row/height as
+    // bypassButton/clipModeButton. Worst case (Curve/GR collapsed) leaves
+    // 290px between logoZone's right edge and clipModeButton's left edge;
+    // centred in that gap (rather than flush against the logo) so it sits
+    // perfectly between the two, not just clear of both.
     {
         constexpr int presetW = 270;
         const int gapLeft  = logoZone.getRight();
-        const int gapRight = demoModeIndicator.getX();
+        const int gapRight = clipModeButton.getX();
         const int presetX  = gapLeft + (gapRight - gapLeft - presetW) / 2;
         presetButton.setBounds(presetX, 14, presetW, kTitleH - 28);
     }
@@ -3689,26 +3187,22 @@ void VisualCompEditor::resized()
         gainOutFader     .setBounds(fx, knobTop + kKnobTopInset, kFaderW, kModuleH - kKnobTopInset);
     }
 
-    // Utility strip — AUTO GAIN / CLIP / LIM / SC as one centred horizontal group
-    // along the bottom of the pane. Each toggle carries its caption inline to
-    // its right rather than stacked beneath it, which is what let a 114px
-    // vertical cluster become a single 26px row.
+    // Utility strip anchored to Gain Out: SC, LIM, AUTO GAIN left-to-right.
+    // Keep the explanatory captions and the existing utility-row height.
     {
         const int uy = kCtrlY + kUtilRowY, uh = kUtilRowH;
-        constexpr int agW = 116, clipW = 94, limW = 44, scW = 40;
+        constexpr int agW = kFaderW, limW = 44, scW = 40;
         constexpr int limCapW = 84, scCapW = 68;
-        constexpr int capGap = 5, controlGap = 8, groupGap = 18;
+        constexpr int capGap = 5, groupGap = 20;
 
-        const int totalW = agW + groupGap + clipW + controlGap + limW + capGap + limCapW
-                              + groupGap + scW + capGap + scCapW;
-        int gx = ox + kFaderM + (kContentW - 2 * kFaderM - totalW) / 2;
-
-        autoGainButton .setBounds(gx, uy, agW, uh);            gx += agW + groupGap;
-        clipModeButton .setBounds(gx, uy, clipW, uh);          gx += clipW + controlGap;
-        limiterButton  .setBounds(gx, uy, limW, uh);           gx += limW + capGap;
-        limiterLabel   .setBounds(gx, uy, limCapW, uh);        gx += limCapW + groupGap;
-        sidechainButton.setBounds(gx, uy, scW, uh);            gx += scW + capGap;
-        sidechainLabel .setBounds(gx, uy, scCapW, uh);
+        const int agX = ox + gainOutX;
+        const int limX = agX - groupGap - limCapW - capGap - limW;
+        const int scX = limX - groupGap - scCapW - capGap - scW;
+        autoGainButton .setBounds(agX, uy, agW, uh);
+        limiterButton  .setBounds(limX, uy, limW, uh);
+        limiterLabel   .setBounds(limX + limW + capGap, uy, limCapW, uh);
+        sidechainButton.setBounds(scX, uy, scW, uh);
+        sidechainLabel .setBounds(scX + scW + capGap, uy, scCapW, uh);
     }
 
     helpOverlay.setBounds(getLocalBounds());

@@ -302,13 +302,13 @@ void WaveformDisplay::paint(juce::Graphics& g)
         const float yNeg = clampY(cy + amp * hh);
 
         // Grid line
-        g.setColour(Theme::textFaint.withAlpha(m.dB == 0.0f ? 0.18f : 0.08f));
+        g.setColour(Theme::screenTextDim.withAlpha(m.dB == 0.0f ? 0.18f : 0.08f));
         g.drawHorizontalLine(int(yPos), waveX, waveEnd);
         if (m.dB < 0.0f)
             g.drawHorizontalLine(int(yNeg), waveX, waveEnd);
 
         // Tick
-        g.setColour(Theme::textFaint);
+        g.setColour(Theme::screenTextDim);
         g.drawHorizontalLine(int(yPos), waveX - 4.0f, waveX);
         if (m.dB < 0.0f)
             g.drawHorizontalLine(int(yNeg), waveX - 4.0f, waveX);
@@ -316,7 +316,7 @@ void WaveformDisplay::paint(juce::Graphics& g)
         // Label — top half only, and only at the two reference levels.
         if (m.labelled && yPos > scTop + 4.0f && yPos < scBot - 4.0f)
         {
-            g.setColour(Theme::textFaint);
+            g.setColour(Theme::screenTextDim);
             g.drawText(m.dB == 0.0f ? "0" : juce::String(int(m.dB)),
                        screen.getX(), int(yPos) - 9, kLabelW - 6, 18,
                        juce::Justification::centredRight, false);
@@ -324,7 +324,7 @@ void WaveformDisplay::paint(juce::Graphics& g)
     }
 
     // Centre line
-    g.setColour(Theme::textFaint.withAlpha(0.12f));
+    g.setColour(Theme::screenTextDim.withAlpha(0.12f));
     g.drawHorizontalLine(int(cy), waveX, waveEnd);
 
     // === Waveform from pre-computed display buffer ===
@@ -491,7 +491,7 @@ void WaveformDisplay::paint(juce::Graphics& g)
     // and half the opacity of the original top-left badge — a subtle stamp
     // rather than a prominent chip.
     const auto badge = juce::Rectangle<int>(int(waveEnd) - 46 - 4, screen.getBottom() - 11 - 4, 46, 11);
-    g.setColour(Theme::bg.withAlpha(0.5f));
+    g.setColour(Theme::screen.withAlpha(0.78f));
     g.fillRect(badge);
     g.setColour(waveColour.withAlpha(0.5f));
     g.setFont(Theme::label(7.5f));

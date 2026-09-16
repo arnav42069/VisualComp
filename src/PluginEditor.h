@@ -69,33 +69,6 @@ public:
             onUndoEditComplete(startValue, getValue());
     }
 
-    // The rotary renderer has restrained hover/focus accents. Slider does
-    // not guarantee a repaint for those purely visual state transitions, so
-    // request one explicitly without changing any interaction semantics.
-    void mouseEnter(const juce::MouseEvent& e) override
-    {
-        juce::Slider::mouseEnter(e);
-        repaint();
-    }
-
-    void mouseExit(const juce::MouseEvent& e) override
-    {
-        juce::Slider::mouseExit(e);
-        repaint();
-    }
-
-    void focusGained(FocusChangeType cause) override
-    {
-        juce::Slider::focusGained(cause);
-        repaint();
-    }
-
-    void focusLost(FocusChangeType cause) override
-    {
-        juce::Slider::focusLost(cause);
-        repaint();
-    }
-
 public:
     // Callback fired when mouse button is pressed, before any value changes
     std::function<void()> onMouseDownCallback;
@@ -237,13 +210,6 @@ public:
                         bool shouldDrawButtonAsHighlighted,
                         bool shouldDrawButtonAsDown) override;
 
-    void drawAlertBox(juce::Graphics&, juce::AlertWindow&,
-                      const juce::Rectangle<int>& textArea,
-                      juce::TextLayout&) override;
-    juce::Font getAlertWindowTitleFont() override;
-    juce::Font getAlertWindowMessageFont() override;
-    juce::Font getAlertWindowFont() override;
-
     void drawLabel(juce::Graphics&, juce::Label&) override;
     juce::Font getLabelFont(juce::Label&) override;
     juce::Font getTextButtonFont(juce::TextButton&, int height) override;
@@ -376,7 +342,7 @@ private:
     juce::ToggleButton autoGainButton;
 
     // Header controls
-    juce::TextButton   bypassButton;
+    juce::ToggleButton bypassButton;
     juce::TextButton   modeButton;
     juce::TextButton   eqButton;
     juce::TextButton   presetButton, presetPrev, presetNext, presetSave, autoAnalyzeButton;

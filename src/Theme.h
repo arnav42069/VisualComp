@@ -1,15 +1,34 @@
 #pragma once
 #include <JuceHeader.h>
 
-// Azazel Audio house palette — single warm accent on near-black.
-// Change `accent` to re-skin the plugin.
+// VisualComp dark smoked-titanium hardware palette. The 2.43 control set is
+// retained on the near-black 2.59-style chassis, so text colours are split by
+// the surface they sit on rather than shared globally.
 namespace Theme
 {
-    // Chassis
-    const juce::Colour bg        { 0xff1d1d1b };   // Azazel logo black
-    const juce::Colour bgDeep    { 0xff121211 };   // recessed screens
-    const juce::Colour bgRaised  { 0xff262624 };   // raised bars / header
-    const juce::Colour charcoal  { 0xff2b2b28 };   // secondary buttons
+    // 2.59-style near-black brushed faceplate.
+    const juce::Colour plateTop      { 0xff292927 };
+    const juce::Colour plate         { 0xff1d1d1b };
+    const juce::Colour plateBottom   { 0xff141413 };
+    const juce::Colour plateWell     { 0xff10100f };
+    const juce::Colour plateText     { 0xffe8dfd2 };
+    const juce::Colour plateTextDim  { 0xff9a9184 };
+    const juce::Colour plateDivider  { 0xff3a3733 };
+
+    // Dark hardware seated in the faceplate.
+    const juce::Colour screen        { 0xff101010 };
+    const juce::Colour buttonFace    { 0xff262626 };
+    const juce::Colour buttonHover   { 0xff323232 };
+    const juce::Colour buttonPressed { 0xff1b1b1b };
+    const juce::Colour buttonText    { 0xffe8e8e8 };
+    const juce::Colour screenText    { 0xffe8e8e8 };
+    const juce::Colour screenTextDim { 0xffadadad };
+
+    // Compatibility names used throughout the existing component painters.
+    const juce::Colour bg        { plate };       // titanium chassis
+    const juce::Colour bgDeep    { screen };      // recessed screens
+    const juce::Colour bgRaised  { buttonFace };  // dark hardware / overlays
+    const juce::Colour charcoal  { buttonFace };  // secondary buttons
 
     // Accent
     const juce::Colour accent    { 0xffff7a1f };   // Azazel orange
@@ -24,9 +43,9 @@ namespace Theme
     const juce::Colour ice       { 0xffbcd9f5 };
 
     // Text / lines
-    const juce::Colour text      { 0xffe8dfd2 };
-    const juce::Colour textDim   { 0xff9a9184 };
-    const juce::Colour line      { 0xff3a3733 };
+    const juce::Colour text      { buttonText };  // text on dark surfaces
+    const juce::Colour textDim   { screenTextDim };
+    const juce::Colour line      { 0xff303030 };   // screen grid / dark seams
 
     // ---------------------------------------------------------------------
     // Design tokens (added 2026-08-16, "de-slop" pass).
@@ -42,30 +61,30 @@ namespace Theme
     // or nudge these by a few points — the flatness of the old UI came from
     // every panel sitting at the same depth with the same 1px border, and
     // that is only fixed by depths being few and clearly separated.
-    const juce::Colour surfSunk   { 0xff0e0e0d };   // recessed screens: graphs, meters, waveforms
-    const juce::Colour surfChassis{ 0xff1d1d1b };   // the body of the plugin (== bg)
-    const juce::Colour surfRaised { 0xff262624 };   // controls sitting proud of the chassis
-    const juce::Colour surfHover  { 0xff32312e };   // hover / pressed state of a raised control
+    const juce::Colour surfSunk   { screen };      // recessed screens: graphs, meters, waveforms
+    const juce::Colour surfChassis{ plate };       // smoked titanium body
+    const juce::Colour surfRaised { buttonFace };  // dark control face
+    const juce::Colour surfHover  { buttonHover }; // neutral hover
 
     // Edges. Depth reads from a light top edge + dark bottom edge, NOT from
     // an all-round outline. Reserve `hairline` for genuine dividers between
     // sections; a panel that is already a different depth needs no border.
-    const juce::Colour edgeTop    { 0x18ffffff };   // 1px highlight along a raised element's top
-    const juce::Colour edgeBottom { 0x60000000 };   // 1px shadow along its bottom
-    const juce::Colour hairline   { 0xff2a2926 };   // section divider — deliberately dimmer than `line`
+    const juce::Colour edgeTop    { 0x18ffffff };   // soft matte highlight, as in 2.59
+    const juce::Colour edgeBottom { 0x78000000 };   // lower-right metal shadow
+    const juce::Colour hairline   { 0xff303030 };   // screen divider / grid
 
     // Text ramp. Four steps, each with a job:
     //   textHi   values the user is reading right now
     //   text     ordinary legible copy
     //   textMid  parameter names / section titles
     //   textFaint axis ticks, units, hints — present but recessive
-    const juce::Colour textHi     { 0xfff5efe6 };
-    const juce::Colour textMid    { 0xff8a8278 };
-    const juce::Colour textFaint  { 0xff5c574f };
+    const juce::Colour textHi     { 0xfff5f5f5 };
+    const juce::Colour textMid    { 0xffbfbfbf };
+    const juce::Colour textFaint  { 0xff737373 };
 
     // Meter / signal ramp — a real meter changes colour with level. A single
     // flat orange bar is the giveaway of a decorative meter.
-    const juce::Colour meterLow   { 0xff6f8f4a };   // safe
+    const juce::Colour meterLow   { 0xffbd873f };   // muted amber; no olive-green arcs
     const juce::Colour meterMid   { 0xffd9a441 };   // approaching
     const juce::Colour meterHot   { 0xffe63414 };   // over (== warn)
 
@@ -147,41 +166,64 @@ namespace Theme
         }
     }
 
-    // A recessed screen: flat sunk fill + a soft inner shadow along the top
-    // edge. No outline — the depth change alone separates it from the
-    // chassis. Use for anything that displays signal (graphs, meters, scopes).
+    // Flush milled display aperture from the B reference: a narrow titanium
+    // rim, dark inner wall, and near-black screen.  Everything is drawn
+    // inside r so existing graph/hit-test geometry is unchanged.
     inline void drawRecess(juce::Graphics& g, juce::Rectangle<float> r, float radius = 3.0f)
     {
-        g.setColour(surfSunk);
+        g.setColour(juce::Colours::black.withAlpha(0.55f));
+        g.fillRoundedRectangle(r.translated(0.0f, 1.0f), radius);
+
+        juce::ColourGradient rim(plateTop, r.getX(), r.getY(),
+                                 plateBottom, r.getRight(), r.getBottom(), false);
+        g.setGradientFill(rim);
         g.fillRoundedRectangle(r, radius);
 
-        for (int i = 0; i < 4; ++i)
-        {
-            g.setColour(juce::Colour(0xff000000).withAlpha(0.30f - float(i) * 0.07f));
-            g.drawLine(r.getX() + radius, r.getY() + 0.5f + float(i),
-                       r.getRight() - radius, r.getY() + 0.5f + float(i), 1.0f);
-        }
+        auto inner = r.reduced(1.7f);
+        g.setColour(juce::Colour(0xff080808));
+        g.fillRoundedRectangle(inner, juce::jmax(1.0f, radius - 1.0f));
 
-        g.setColour(edgeTop);
-        g.drawLine(r.getX() + radius, r.getBottom() - 0.5f,
-                   r.getRight() - radius, r.getBottom() - 0.5f, 1.0f);
+        auto glass = inner.reduced(1.0f);
+        g.setColour(surfSunk);
+        g.fillRoundedRectangle(glass, juce::jmax(1.0f, radius - 1.8f));
+
+        g.setColour(juce::Colours::black.withAlpha(0.72f));
+        g.drawLine(glass.getX() + radius, glass.getY() + 0.5f,
+                   glass.getRight() - radius, glass.getY() + 0.5f, 1.0f);
+        g.drawLine(glass.getX() + 0.5f, glass.getY() + radius,
+                   glass.getX() + 0.5f, glass.getBottom() - radius, 1.0f);
+
+        g.setColour(juce::Colours::white.withAlpha(0.14f));
+        g.drawLine(glass.getX() + radius, glass.getBottom() - 0.5f,
+                   glass.getRight() - radius, glass.getBottom() - 0.5f, 1.0f);
+        g.drawLine(glass.getRight() - 0.5f, glass.getY() + radius,
+                   glass.getRight() - 0.5f, glass.getBottom() - radius, 1.0f);
     }
 
-    // A control sitting proud of the chassis: fill + top highlight + bottom
-    // shadow. Again no full outline.
+    // One clean dark button face. The restrained lower shadow supplies depth
+    // without exposing a contrasting well or drawing a perimeter outline.
     inline void drawRaised(juce::Graphics& g, juce::Rectangle<float> r,
                            float radius = 3.0f, bool on = false)
     {
-        g.setColour(on ? accentDim : surfRaised);
-        g.fillRoundedRectangle(r, radius);
+        g.setColour(juce::Colours::black.withAlpha(0.48f));
+        g.fillRoundedRectangle(r.translated(0.7f, 1.2f), radius);
 
-        g.setColour(on ? accent.withAlpha(0.55f) : edgeTop);
+        // 2.59-style matte face: quiet grey fill, soft top edge, no green wash.
+        g.setColour(on ? buttonPressed : buttonFace);
+        g.fillRoundedRectangle(r, radius);
+        g.setColour(edgeTop);
         g.drawLine(r.getX() + radius, r.getY() + 0.5f,
                    r.getRight() - radius, r.getY() + 0.5f, 1.0f);
-
         g.setColour(edgeBottom);
         g.drawLine(r.getX() + radius, r.getBottom() - 0.5f,
                    r.getRight() - radius, r.getBottom() - 0.5f, 1.0f);
+
+        if (on)
+        {
+            g.setColour(accent);
+            g.fillRoundedRectangle(r.getX() + 4.0f, r.getBottom() - 3.0f,
+                                   juce::jmax(2.0f, r.getWidth() - 8.0f), 1.5f, 0.7f);
+        }
     }
 
     // Level-dependent meter colour. Use for anything showing signal amplitude

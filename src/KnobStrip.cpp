@@ -131,78 +131,49 @@ static const juce::Image& stripAt (int cell)
     return it->second;   // std::map references are stable across later inserts
 }
 
-static void drawCap (juce::Graphics& g, juce::Rectangle<float> dest, float pos)
-{
-    const auto r = dest.reduced (dest.getWidth() * 0.06f, dest.getHeight() * 0.06f);
-    const auto c = r.getCentre();
-    const float radius = juce::jmin (r.getWidth(), r.getHeight()) * 0.5f;
-
-    g.setColour (juce::Colour (0xff0a0a0a));
-    g.fillEllipse (dest);
-
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xfff3f3f3), c.x - radius * 0.55f, c.y - radius * 0.55f,
-                                             juce::Colour (0xff6d6d6d), c.x + radius * 0.75f, c.y + radius * 0.75f,
-                                             true));
-    g.fillEllipse (r);
-
-    g.setColour (juce::Colour (0xffd8d8d8).withAlpha (0.70f));
-    g.drawEllipse (r, juce::jmax (1.0f, radius * 0.03f));
-
-    const float a = juce::jmap (pos, 0.0f, 1.0f, juce::MathConstants<float>::pi * 1.15f,
-                                juce::MathConstants<float>::pi * 1.85f);
-    const float sa = std::sin (a), ca = -std::cos (a);
-    g.setColour (juce::Colours::black);
-    g.drawLine (c.x + radius * 0.12f * sa, c.y + radius * 0.12f * ca,
-                c.x + radius * 0.86f * sa, c.y + radius * 0.86f * ca,
-                juce::jmax (2.0f, radius * 0.08f));
-}
-
 void drawMetallicFallback (juce::Graphics& g, juce::Rectangle<float> dest, float pos)
 {
     const auto c = dest.getCentre();
     const float outerR = juce::jmin (dest.getWidth(), dest.getHeight()) * 0.5f;
-    g.setColour (juce::Colour (0xff050505));
-    g.fillEllipse (dest);
+    const auto ellipse = [&](float radius, float height)
+    {
+        const float r = outerR * radius / 64.0f;
+        const float centreY = c.y + outerR * (3.0f - height * kTiltSin) / 64.0f;
+        return juce::Rectangle<float> (c.x - r, centreY - r * kTopYScale,
+                                       r * 2.0f, r * 2.0f * kTopYScale);
+    };
+    const auto seat = ellipse (53.0f, 2.0f);
+    juce::ColourGradient seatGrad (juce::Colour (0xffd9dcda), seat.getX(), seat.getY(),
+                                   juce::Colour (0xff8d9290), seat.getRight(), seat.getBottom(), true);
+    g.setGradientFill (seatGrad);
+    g.fillEllipse (seat);
 
-    juce::ColourGradient shellGrad (juce::Colour (0xff303030), c.x - outerR * 0.62f, c.y - outerR * 0.68f,
-                                    juce::Colour (0xff070707), c.x + outerR * 0.70f, c.y + outerR * 0.72f,
-                                    true);
-    shellGrad.addColour (0.18, juce::Colour (0xff676767).withAlpha (0.50f));
-    shellGrad.addColour (0.40, juce::Colour (0xff141414));
-    g.setGradientFill (shellGrad);
-    g.fillEllipse (dest.reduced (outerR * 0.03f));
+    const auto shell = ellipse (50.0f, 5.0f);
+    g.setColour (juce::Colour (0xff050606));
+    g.fillEllipse (shell);
 
-    g.setColour (juce::Colour (0xff000000).withAlpha (0.75f));
-    g.drawEllipse (dest.reduced (outerR * 0.03f), juce::jmax (1.0f, outerR * 0.03f));
+    // The lower shell remains visible below the elevated top: actual height,
+    // rather than nested concentric rings that read as a recess.
+    const auto bevel = ellipse (44.0f, kShoulderHeight);
+    juce::ColourGradient bevelGrad (juce::Colour (0xff35393a), bevel.getX(), bevel.getY(),
+                                    juce::Colour (0xff151718), bevel.getRight(), bevel.getBottom(), true);
+    g.setGradientFill (bevelGrad);
+    g.fillEllipse (bevel);
 
-    const auto ring = dest.reduced (outerR * 0.18f);
-    juce::ColourGradient ringGrad (juce::Colour (0xff3a3a3a), c.x, ring.getY(),
-                                   juce::Colour (0xff101010), c.x, ring.getBottom(), true);
-    g.setGradientFill (ringGrad);
-    g.fillEllipse (ring);
+    const auto face = ellipse (38.0f, kTopHeight);
+    juce::ColourGradient faceGrad (juce::Colour (0xff25292a), face.getX(), face.getY(),
+                                   juce::Colour (0xff191b1c), face.getRight(), face.getBottom(), true);
+    g.setGradientFill (faceGrad);
+    g.fillEllipse (face);
 
-    g.setColour (juce::Colour (0xff8a8a8a).withAlpha (0.35f));
-    g.drawEllipse (ring, juce::jmax (1.0f, outerR * 0.025f));
-
-    const auto cap = dest.reduced (outerR * 0.24f);
-    const auto capC = cap.getCentre();
-    const float capR = juce::jmin (cap.getWidth(), cap.getHeight()) * 0.5f;
-    juce::ColourGradient capGrad (juce::Colour (0xfff0f0f0), capC.x - capR * 0.55f, capC.y - capR * 0.55f,
-                                  juce::Colour (0xff6f6f6f), capC.x + capR * 0.75f, capC.y + capR * 0.70f,
-                                  true);
-    capGrad.addColour (0.48, juce::Colour (0xffcfcfcf));
-    g.setGradientFill (capGrad);
-    g.fillEllipse (cap);
-
-    g.setColour (juce::Colour (0xff4a4a4a).withAlpha (0.60f));
-    g.drawEllipse (cap, juce::jmax (1.0f, capR * 0.035f));
-
-    g.setColour (juce::Colour (0xffffffff).withAlpha (0.45f));
-    g.drawLine (cap.getX() + cap.getWidth() * 0.18f, cap.getY() + cap.getHeight() * 0.12f,
-                cap.getX() + cap.getWidth() * 0.46f, cap.getY() + cap.getHeight() * 0.33f,
-                juce::jmax (1.0f, capR * 0.08f));
-
-    drawCap (g, cap, pos);
+    const float a = juce::jmap (pos, 0.0f, 1.0f, juce::MathConstants<float>::pi * 1.25f,
+                                juce::MathConstants<float>::pi * 2.75f);
+    const float sa = std::sin (a), ca = -std::cos (a);
+    g.setColour (juce::Colour (0xffff7a1f));
+    const float topY = c.y + outerR * kTopOffsetYFrac;
+    g.drawLine (c.x + outerR * (28.0f / 64.0f) * sa, topY + outerR * (28.0f / 64.0f) * ca * kTopYScale,
+                c.x + outerR * (33.5f / 64.0f) * sa, topY + outerR * (33.5f / 64.0f) * ca * kTopYScale,
+                juce::jmax (1.0f, outerR * 0.035f));
 }
 
 //==============================================================================

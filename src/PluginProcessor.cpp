@@ -46,7 +46,7 @@ VisualCompProcessor::createParameterLayout()
         juce::NormalisableRange<float>(1.0f, 2000.0f, 0.1f, 0.3f), 100.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"threshold", 1}, "Threshold",
-        juce::NormalisableRange<float>(-60.0f, 0.0f, 0.1f), -10.0f));
+        juce::NormalisableRange<float>(-90.0f, 0.0f, 0.1f), -10.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"knee", 1}, "Knee",
         juce::NormalisableRange<float>(0.0f, 20.0f, 0.1f), 6.0f));

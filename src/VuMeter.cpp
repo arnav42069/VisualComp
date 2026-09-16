@@ -86,7 +86,7 @@ void VuMeter::paint(juce::Graphics& g)
         arcTrack.addCentredArc(pivX, pivY, tickOuter, tickOuter, 0.0f,
                                juce::degreesToRadians(-35.0f),
                                juce::degreesToRadians(35.0f), true);
-        g.setColour(Theme::textFaint);
+        g.setColour(Theme::screenTextDim);
         g.strokePath(arcTrack, juce::PathStrokeType(1.2f));
     }
 
@@ -115,12 +115,12 @@ void VuMeter::paint(juce::Graphics& g)
         const auto inner = angleToXY(angDeg, tickInner);
         const auto outer = angleToXY(angDeg, tickOuter);
 
-        g.setColour(isMajor ? Theme::textMid : Theme::textFaint);
+        g.setColour(isMajor ? Theme::screenText : Theme::screenTextDim);
         g.drawLine(inner.x, inner.y, outer.x, outer.y, isMajor ? 1.4f : 0.8f);
 
         const auto labelPt = angleToXY(angDeg, labelRadius);
         g.setFont(Theme::mono(fontSize, isMajor ? juce::Font::bold : juce::Font::plain));
-        g.setColour(isMajor ? Theme::textMid : Theme::textFaint);
+        g.setColour(isMajor ? Theme::screenText : Theme::screenTextDim);
         const juce::String lbl = grVal == 0.0f ? "0" : juce::String(int(grVal));
         const float lblW = fontSize * 2.2f;
         const float lblH = fontSize * 1.5f;
@@ -134,7 +134,7 @@ void VuMeter::paint(juce::Graphics& g)
     // clear without drawing another bordered tab on top of the face).
     {
         const juce::Rectangle<int> capArea(int(faceL + 7.0f), int(faceT + 5.0f), 150, 14);
-        g.setColour(Theme::textMid);
+        g.setColour(Theme::screenTextDim);
         g.setFont(Theme::micro(9.5f));
         Theme::drawTracked(g, "Gain Reduction", capArea, juce::Justification::left);
     }
@@ -147,7 +147,7 @@ void VuMeter::paint(juce::Graphics& g)
 
     g.setColour(juce::Colour(0x40000000));
     g.drawLine(pivX + 1.2f, pivY + 1.2f, tipPt.x + 1.2f, tipPt.y + 1.2f, needleW);
-    g.setColour(Theme::text);
+    g.setColour(Theme::screenText);
     g.drawLine(pivX, pivY, tipPt.x, tipPt.y, needleW);
     const auto litStart = angleToXY(needleAngleDeg, needleLen * 0.80f);
     g.setColour(needleCol.withAlpha(0.35f));
@@ -162,27 +162,18 @@ void VuMeter::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff6e6a61));
     g.fillEllipse(pivX - pivR * 0.5f, pivY - pivR * 0.5f, pivR, pivR);
 
-    // Glass glare
-    {
-        juce::ColourGradient glare(
-            juce::Colours::white.withAlpha(0.055f), faceL, faceT,
-            juce::Colours::white.withAlpha(0.000f), faceL, faceT + faceH * 0.45f, false);
-        g.setGradientFill(glare);
-        g.fillRoundedRectangle(faceRect, 3.0f);
-    }
-
     // === Read-out row below the face ===
     const float lbFont = juce::jlimit(15.0f, 21.0f, w * 0.072f);
     const float grNow  = gainReductionDb.load(std::memory_order_relaxed);
 
     g.setFont(Theme::mono(lbFont * 1.45f, juce::Font::bold));
-    g.setColour(Theme::textHi);
+    g.setColour(Theme::plateText);
     g.drawText(juce::String(grNow, 1),
                juce::Rectangle<float>(0.0f, faceB + labelAreaH * 0.10f,
                                       w * 0.62f, labelAreaH * 0.52f).toNearestInt(),
                juce::Justification::centredRight, false);
     g.setFont(Theme::label(lbFont * 0.80f));
-    g.setColour(Theme::textFaint);
+    g.setColour(Theme::plateTextDim);
     g.drawText("dB",
                juce::Rectangle<float>(w * 0.64f, faceB + labelAreaH * 0.10f,
                                       w * 0.12f, labelAreaH * 0.52f).toNearestInt(),
@@ -219,7 +210,7 @@ void VuMeter::paint(juce::Graphics& g)
         }
 
         g.setFont(Theme::label(13.0f));
-        g.setColour(grActive ? Theme::warn.brighter(0.2f) : Theme::textFaint.withAlpha(0.6f));
+        g.setColour(grActive ? Theme::warn.brighter(0.2f) : Theme::plateTextDim.withAlpha(0.7f));
         g.drawText("ACTIVE", juce::Rectangle<float>(ledCX - 30.0f, ledCY + ledR + 4.0f,
                                                     60.0f, 13.0f),
                    juce::Justification::centred, false);

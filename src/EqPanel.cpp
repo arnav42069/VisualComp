@@ -30,7 +30,7 @@ void EqCloseButton::paintButton(juce::Graphics& g, bool isHighlighted, bool isDo
                                           isHighlighted, isDown);
 
     const auto r = getLocalBounds().toFloat().reduced(7.0f);
-    g.setColour(isHighlighted ? Theme::text : Theme::textDim);
+    g.setColour(isHighlighted ? Theme::buttonText : Theme::screenTextDim);
     g.drawLine(r.getX(), r.getY(), r.getRight(), r.getBottom(), 1.6f);
     g.drawLine(r.getX(), r.getBottom(), r.getRight(), r.getY(), 1.6f);
 }
@@ -90,7 +90,7 @@ EqPanel::EqPanel(VisualCompProcessor& proc) : processor(proc), nodeIsland(proc)
     eqMixLabel.setText("MIX", juce::dontSendNotification);
     eqMixLabel.setJustificationType(juce::Justification::centredRight);
     eqMixLabel.setFont(Theme::label(11.0f));
-    eqMixLabel.setColour(juce::Label::textColourId, Theme::textDim);
+    eqMixLabel.setColour(juce::Label::textColourId, Theme::plateTextDim);
     eqMixLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(eqMixLabel);
 
@@ -799,22 +799,21 @@ void EqPanel::resized()
 
 void EqPanel::paint(juce::Graphics& g)
 {
-    g.fillAll(Theme::bg);
+    g.fillAll(Theme::plate);
 
     // Header: title top-left, close top-right.
     const int titleX = kHeaderPad;
     g.setFont(Theme::label(15.0f));
-    g.setColour(Theme::accent);
+    g.setColour(Theme::plateText);
     g.drawText("PARAMETRIC EQ", titleX, 8, getWidth() - titleX - 40, 24,
                juce::Justification::centredLeft, false);
-    g.setColour(Theme::accent.withAlpha(0.55f));
+    g.setColour(Theme::plateDivider);
     g.fillRect(0, int(kHeaderH) - 8, getWidth(), 1);
+    g.setColour(Theme::plateTop.withAlpha(0.55f));
+    g.fillRect(0, int(kHeaderH) - 7, getWidth(), 1);
 
     const auto r = graphArea();
-    g.setColour(Theme::bgDeep);
-    g.fillRect(r);
-    g.setColour(Theme::line);
-    g.drawRect(r, 1.0f);
+    Theme::drawRecess(g, r.toFloat(), 4.0f);
 
     // Live, colour-zoned spectrum behind the response: blue low end, green
     // mids, amber/orange highs. Its restrained opacity preserves node clarity.
@@ -842,15 +841,15 @@ void EqPanel::paint(juce::Graphics& g)
     for (float f : { 50.0f, 200.0f, 500.0f, 2000.0f, 5000.0f, 20000.0f })
     {
         const float x = freqToX(f);
-        g.setColour(Theme::text.withAlpha(0.09f));
+        g.setColour(Theme::screenText.withAlpha(0.09f));
         g.drawVerticalLine(int(x), r.getY(), r.getBottom());
     }
     for (float f : { 20.0f, 100.0f, 1000.0f, 10000.0f })
     {
         const float x = freqToX(f);
-        g.setColour(Theme::text.withAlpha(0.24f));
+        g.setColour(Theme::screenText.withAlpha(0.24f));
         g.drawVerticalLine(int(x), r.getY(), r.getBottom());
-        g.setColour(Theme::textHi.withAlpha(0.92f));
+        g.setColour(Theme::plateText.withAlpha(0.92f));
         const juce::String lbl = f >= 1000.0f ? juce::String(int(f / 1000.0f)) + "kHz" : juce::String(int(f)) + "Hz";
         const auto just = (f <= kFreqLo) ? juce::Justification::centredLeft : juce::Justification::centred;
         const float lblX = (f <= kFreqLo) ? x : x - 22.0f;
@@ -860,9 +859,9 @@ void EqPanel::paint(juce::Graphics& g)
     for (float db : { -12.0f, -6.0f, 0.0f, 6.0f, 12.0f })
     {
         const float y = gainDbToY(db);
-        g.setColour(Theme::text.withAlpha(db == 0.0f ? 0.32f : 0.18f));
+        g.setColour(Theme::screenText.withAlpha(db == 0.0f ? 0.32f : 0.18f));
         g.drawHorizontalLine(int(y), r.getX(), r.getRight());
-        g.setColour(Theme::textHi.withAlpha(0.9f));
+        g.setColour(Theme::plateText.withAlpha(0.9f));
         const juce::String lbl = (db > 0.0f ? "+" : "") + juce::String(int(db)) + "dB";
         g.drawText(lbl, 0.0f, y - 6.0f, kLeftGutter - 4.0f, 12.0f,
                    juce::Justification::centredRight, false);
@@ -1154,7 +1153,7 @@ void EqPanel::paint(juce::Graphics& g)
                    juce::Justification::centred, false);
     }
 
-    g.setColour(Theme::textDim.withAlpha(0.7f));
+    g.setColour(Theme::plateTextDim.withAlpha(0.78f));
     g.setFont(Theme::label(9.0f));
     g.drawText("Double-click: add node   Drag: freq/gain   Ctrl+Click: multi-select   "
                "Wheel: Q   Right-click: type/Q/link/remove",

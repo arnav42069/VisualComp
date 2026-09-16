@@ -28,7 +28,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     qLabel.setText("Q", juce::dontSendNotification);
     qLabel.setJustificationType(juce::Justification::centred);
     qLabel.setFont(Theme::label(11.0f));
-    qLabel.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    qLabel.setColour(juce::Label::textColourId, Theme::screenText.withAlpha(0.86f));
     qLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(qLabel);
 
@@ -57,7 +57,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     thresholdLabel.setText("THR", juce::dontSendNotification);
     thresholdLabel.setJustificationType(juce::Justification::centred);
     thresholdLabel.setFont(Theme::label(11.0f));
-    thresholdLabel.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    thresholdLabel.setColour(juce::Label::textColourId, Theme::screenText.withAlpha(0.86f));
     thresholdLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(thresholdLabel);
 
@@ -98,7 +98,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     rangeLabel.setText("RANGE", juce::dontSendNotification);
     rangeLabel.setJustificationType(juce::Justification::centred);
     rangeLabel.setFont(Theme::label(11.0f));
-    rangeLabel.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    rangeLabel.setColour(juce::Label::textColourId, Theme::screenText.withAlpha(0.86f));
     rangeLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(rangeLabel);
 
@@ -127,7 +127,7 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     freqLabel.setText("FREQ", juce::dontSendNotification);
     freqLabel.setJustificationType(juce::Justification::centred);
     freqLabel.setFont(Theme::label(11.0f));
-    freqLabel.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    freqLabel.setColour(juce::Label::textColourId, Theme::screenText.withAlpha(0.86f));
     freqLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(freqLabel);
 
@@ -159,17 +159,17 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     gainLabel.setText("GAIN", juce::dontSendNotification);
     gainLabel.setJustificationType(juce::Justification::centred);
     gainLabel.setFont(Theme::label(11.0f));
-    gainLabel.setColour(juce::Label::textColourId, Theme::text.withAlpha(0.78f));
+    gainLabel.setColour(juce::Label::textColourId, Theme::screenText.withAlpha(0.86f));
     gainLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(gainLabel);
 
     // Manual override for the direction Range's sign already implies (see
     // EqNodeState::upward).
     directionButton.setClickingTogglesState(true);
-    directionButton.setColour(juce::TextButton::buttonColourId,   Theme::charcoal);
-    directionButton.setColour(juce::TextButton::buttonOnColourId, Theme::accent);
-    directionButton.setColour(juce::TextButton::textColourOffId,  Theme::textDim);
-    directionButton.setColour(juce::TextButton::textColourOnId,   juce::Colours::black);
+    directionButton.setColour(juce::TextButton::buttonColourId,   Theme::buttonFace);
+    directionButton.setColour(juce::TextButton::buttonOnColourId, Theme::buttonPressed);
+    directionButton.setColour(juce::TextButton::textColourOffId,  Theme::screenTextDim);
+    directionButton.setColour(juce::TextButton::textColourOnId,   Theme::buttonText);
     directionButton.onClick = [this]
     {
         if (target < 0) return;
@@ -183,15 +183,13 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
 
     // Toggles EqNodeState::linked — same field the graph's right-click
     // "Link to Compressor" menu item controls. AzazelLookAndFeel's
-    // drawButtonBackground ignores buttonColourId/buttonOnColourId for
-    // ordinary buttons (only the band-select row's "nodeSelect"-tagged
-    // buttons get a solid toggle fill), so — same as directionButton — the
-    // on/off state has to read through text colour alone: dim when
-    // unlinked, bright accent when linked.
+    // drawButtonBackground owns the shared seated-cap treatment.  Keep the
+    // legend light on the dark face in both states; the latched state is
+    // carried by the cap depth and compact accent marker.
     compButton.setClickingTogglesState(true);
     compButton.setButtonText("COMP");
-    compButton.setColour(juce::TextButton::textColourOffId, Theme::textDim);
-    compButton.setColour(juce::TextButton::textColourOnId,  Theme::accent);
+    compButton.setColour(juce::TextButton::textColourOffId, Theme::screenTextDim);
+    compButton.setColour(juce::TextButton::textColourOnId,  Theme::buttonText);
     compButton.onClick = [this]
     {
         if (target < 0) return;
@@ -212,8 +210,8 @@ NodeIsland::NodeIsland(VisualCompProcessor& proc) : processor(proc)
     };
     addAndMakeVisible(compButton);
 
-    typeButton.setColour(juce::TextButton::buttonColourId,  Theme::charcoal);
-    typeButton.setColour(juce::TextButton::textColourOffId, Theme::accent);
+    typeButton.setColour(juce::TextButton::buttonColourId,  Theme::buttonFace);
+    typeButton.setColour(juce::TextButton::textColourOffId, Theme::buttonText);
     typeButton.onClick = [this] { showTypeMenu(); };
     addAndMakeVisible(typeButton);
 
@@ -358,14 +356,28 @@ void NodeIsland::paint(juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced(1.0f);
 
-    g.setColour(juce::Colours::black.withAlpha(0.5f));
+    g.setColour(juce::Colours::black.withAlpha(0.52f));
     g.fillRoundedRectangle(r.translated(0.0f, 2.0f), 10.0f);
 
-    g.setColour(Theme::bgRaised);
+    juce::ColourGradient shell(Theme::buttonHover, r.getX(), r.getY(),
+                                Theme::buttonPressed, r.getRight(), r.getBottom(), false);
+    g.setGradientFill(shell);
     g.fillRoundedRectangle(r, 10.0f);
 
-    g.setColour(Theme::bg);
-    g.drawRoundedRectangle(r, 10.0f, 1.4f);
+    g.setColour(juce::Colours::white.withAlpha(0.24f));
+    g.drawLine(r.getX() + 10.0f, r.getY() + 0.7f,
+               r.getRight() - 10.0f, r.getY() + 0.7f, 1.0f);
+    g.drawLine(r.getX() + 0.7f, r.getY() + 10.0f,
+               r.getX() + 0.7f, r.getBottom() - 10.0f, 1.0f);
+
+    g.setColour(juce::Colours::black.withAlpha(0.46f));
+    g.drawLine(r.getX() + 10.0f, r.getBottom() - 0.7f,
+               r.getRight() - 10.0f, r.getBottom() - 0.7f, 1.0f);
+    g.drawLine(r.getRight() - 0.7f, r.getY() + 10.0f,
+               r.getRight() - 0.7f, r.getBottom() - 10.0f, 1.0f);
+
+    g.setColour(juce::Colours::black.withAlpha(0.82f));
+    g.drawRoundedRectangle(r, 10.0f, 0.8f);
 }
 
 void NodeIsland::saveCurrentNodePosition()
