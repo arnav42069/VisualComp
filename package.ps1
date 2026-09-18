@@ -1,9 +1,9 @@
-# Assembles the VisualComp 2.44 release bundle and zips it into "Build Final".
+# Assembles the VisualComp 2.45 release bundle and zips it into "Build Final".
 # Run after a Release build of VisualComp_VST3 and VisualComp_Standalone.
 
 $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $MyInvocation.MyCommand.Path
-$version = '2.44'
+$version = '2.45'
 
 # ── Code signing (optional) ──────────────────────────────────────────────────
 # Configure via environment variables before running this script:
@@ -124,6 +124,7 @@ $srcOut = Join-Path $mac 'Source'
 New-Item -ItemType Directory -Force -Path $srcOut | Out-Null
 Copy-Item (Join-Path $root 'CMakeLists.txt') $srcOut -Force
 Copy-Item (Join-Path $root 'src')         (Join-Path $srcOut 'src')         -Recurse -Force
+Copy-Item (Join-Path $root 'resources')   (Join-Path $srcOut 'resources')   -Recurse -Force
 Copy-Item (Join-Path $root 'build-macos') (Join-Path $srcOut 'build-macos') -Recurse -Force
 
 # ── Zip ─────────────────────────────────────────────────────────────────────

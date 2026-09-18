@@ -68,4 +68,4 @@ every test build.
   it still refreshes the installed VST3 alongside the runnable test exe.
 - Clear any stale Standalone settings first if a clean UI state is needed to
   test against — see AGENTS.md's screenshot-workflow note about
-  `%APPDATA%\VisualComp 2.44\VisualComp 2.settings`.
+  `%APPDATA%\VisualComp 2.45\VisualComp 2.settings`.

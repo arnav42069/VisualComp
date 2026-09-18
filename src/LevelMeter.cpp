@@ -95,10 +95,7 @@ void LevelMeter::drawChannel(juce::Graphics& g, juce::Rectangle<float> bar, floa
 // fits the meter strip's tight width instead of a horizontal one below.
 void LevelMeter::drawSideLabel(juce::Graphics& g, juce::Rectangle<float> bar, const juce::String& text)
 {
-    // Uses the class's own kLabelPad/kLabelW so the label occupies exactly
-    // the space the group width reserves for it -- these were a separate
-    // 2.0/11.0 pair, which quietly disagreed with the 3.0/13.0 the layout
-    // was budgeting.
+    // Label and layout share the same gutter and width.
     const juce::Rectangle<float> area(bar.getRight() + kLabelPad, bar.getY(),
                                       kLabelW, bar.getHeight());
 
@@ -165,17 +162,14 @@ void LevelMeter::paint(juce::Graphics& g)
 {
     const auto full = getLocalBounds().toFloat();
 
-    // Both states are centred groups derived from the parent bounds -- there
-    // is no tuned X offset anywhere here. Revealed, the pair is centred as
-    // ONE unit, so its left and right outer padding are equal by
-    // construction (each (width - pairW)/2, == kSidePad at kPreferredWidth)
-    // rather than by one side being pinned and the other taking the
-    // remainder. Collapsed, the lone dB group is centred on its own.
-    const float pairW = 2.0f * kGroupW + kMidGap;
-    const float pairX = full.getX() + (full.getWidth() - pairW)   * 0.5f;
-    const float soloX = full.getX() + (full.getWidth() - kGroupW) * 0.5f;
-    const float dbX   = soloX + (pairX - soloX) * revealAmount;
-    const float lufsX = pairX + kGroupW + kMidGap;
+    // Expand one centred group, keeping the full-size columns a fixed pitch
+    // apart throughout the reveal. A clip exposes the LUFS group as space
+    // opens, avoiding the old overlap with the sliding dB label.
+    const float groupPitch = kGroupW + kMidGap;
+    const float visibleW = kGroupW + groupPitch * revealAmount;
+    const float dbX = full.getCentreX() - visibleW * 0.5f;
+    const float lufsX = dbX + groupPitch;
+    const auto visibleGroup = juce::Rectangle<float>(dbX, full.getY(), visibleW, full.getHeight());
 
     // Top strip reserved for the peak-hold readout, bottom strip for each
     // bar's own live-value readout; the bars fill whatever's left. Both are
@@ -203,6 +197,7 @@ void LevelMeter::paint(juce::Graphics& g)
         // The whole LUFS channel fades in as one group rather than threading
         // an alpha parameter through every draw call by hand.
         g.saveState();
+        g.reduceClipRegion(visibleGroup.toNearestInt());
         g.beginTransparencyLayer(revealAmount);
 
         constexpr float kLufsFloor = -36.0f, kLufsCeil = 0.0f;
@@ -231,16 +226,14 @@ void LevelMeter::paint(juce::Graphics& g)
     {
         for (int i = 0; i < peakHistoryPos; ++i) peak3s = juce::jmax(peak3s, peakHistory[size_t(i)]);
     }
-    // Centred over the bars themselves, not over the whole strip: the
-    // chevron owns the top-right corner, so the readout's own area is the
-    // strip minus that corner. Derived from kChevronW rather than the bare
-    // 13 this used to subtract, which was the same number by coincidence.
+    // Follow the bar centres through the reveal rather than subtracting a
+    // chevron width from the strip (which biased the readout to the right).
     constexpr float kChevronW = 12.0f;
+    const float readoutCentreX = dbBar.getCentreX() + groupPitch * revealAmount * 0.5f;
     const juce::String peakText = (peak3s <= -99.5f) ? juce::String("--") : juce::String(peak3s, 1);
     g.setColour(Theme::plateText);
     g.setFont(Theme::mono(9.5f, juce::Font::bold));
-    g.drawText(peakText, int(full.getX()), int(full.getY()),
-               int(full.getWidth() - kChevronW), 11,
+    g.drawText(peakText, readoutCentreX - 20.0f, full.getY(), 40.0f, 11.0f,
                juce::Justification::centred, false);
 
     // Hint chevron showing there is more to reveal -- top-right, clear of

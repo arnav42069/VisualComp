@@ -23,7 +23,7 @@ namespace
     // figure and its equal-outer-padding guarantee only holds if the strip is
     // exactly this wide. It was a hand-written 77 against a meter that needed
     // 86, which is why the revealed LUFS bar used to overhang its right edge.
-    constexpr int kLevelMeterW = LevelMeter::kPreferredWidth;   // 86
+    constexpr int kLevelMeterW = LevelMeter::kPreferredWidth;   // 90
     constexpr int kContentW    = kWidth - kRightColW; // 712
 
     // Curve/GR (transfer curve + gain-reduction meter) column width when
@@ -32,7 +32,7 @@ namespace
     // this width is subtracted from the total window in VisualCompEditor's
     // constructor/resized()/toggleCurveGrPanel(), the same setSize()-delta
     // mechanism the docked EQ panel already uses via kEqPanelW below.
-    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 188
+    constexpr int kCurveGrColW = kRightColW - kLevelMeterW - 6;   // 184
 
     // Smart Master+ trimmed to ~half its original ~43px total side padding
     // around the button text (was 130), and a matching 5px is added past
@@ -980,14 +980,6 @@ VisualCompEditor::VisualCompEditor(VisualCompProcessor& p)
     setupFader(gainOutFader, gainOutFaderLabel, "GAIN OUT", "gainOut");
 
     setupToggle(limiterButton, "LIM");
-    limiterLabel.setText("0 dB CEILING", juce::dontSendNotification);
-    // Left-justified: these captions now sit inline to the RIGHT of their
-    // toggle in the bottom utility strip, not centred beneath it in a column.
-    limiterLabel.setJustificationType(juce::Justification::centredLeft);
-    limiterLabel.setFont(Theme::label(12.0f));
-    limiterLabel.setColour(juce::Label::textColourId, Theme::textDim);
-    limiterLabel.setInterceptsMouseClicks(false, false);
-    addAndMakeVisible(limiterLabel);
 
     setupToggle(sidechainButton, "SC");
     sidechainButton.onClick = [this]
@@ -3187,20 +3179,17 @@ void VisualCompEditor::resized()
         gainOutFader     .setBounds(fx, knobTop + kKnobTopInset, kFaderW, kModuleH - kKnobTopInset);
     }
 
-    // Utility strip anchored to Gain Out: SC, LIM, AUTO GAIN left-to-right.
-    // Keep the explanatory captions and the existing utility-row height.
+    // Utility controls follow their corresponding module centres.
     {
         const int uy = kCtrlY + kUtilRowY, uh = kUtilRowH;
         constexpr int agW = kFaderW, limW = 44, scW = 40;
-        constexpr int limCapW = 84, scCapW = 68;
-        constexpr int capGap = 5, groupGap = 20;
+        constexpr int scCapW = 68, capGap = 5;
 
         const int agX = ox + gainOutX;
-        const int limX = agX - groupGap - limCapW - capGap - limW;
-        const int scX = limX - groupGap - scCapW - capGap - scW;
+        const int limX = ox + kSlotReleaseX + (kSlotReleaseW - limW) / 2;
+        const int scX = ox + kFaderM + (kFaderW - scW) / 2;
         autoGainButton .setBounds(agX, uy, agW, uh);
         limiterButton  .setBounds(limX, uy, limW, uh);
-        limiterLabel   .setBounds(limX + limW + capGap, uy, limCapW, uh);
         sidechainButton.setBounds(scX, uy, scW, uh);
         sidechainLabel .setBounds(scX + scW + capGap, uy, scCapW, uh);
     }

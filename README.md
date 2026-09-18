@@ -1,4 +1,4 @@
-# VisualComp 2.44
+# VisualComp 2.45
 
 **A compressor that sees your mix.** Multiband dynamics, a Visual Parametric EQ, Sidechain Compression from an External Input, and mastering-grade output shaping (Glue Compression) in one plugin — controlled by a live, interactive graph instead of a wall of knobs.
 
@@ -16,11 +16,13 @@
 * **Preset Library:** Curated factory presets for Mastering, Drums, Vocals, Bass, and more.
 * **Smoked-Titanium Interface:** Recessed displays, clean buttons, and raised 3D-rendered knobs with chunky mixer-style sidewall grips.
 
-### Interface refinements in 2.44
+### Interface refinements in 2.45
 
 The transfer curve uses uniform dB spacing and plots its operating point on the
-compression curve. SC, LIM, and AUTO GAIN sit left-to-right beneath the controls,
-with AUTO GAIN aligned below Gain Out. The logo dropdown shows the build version
+compression curve. SC sits below Gain In, LIM is centered below Release without
+the ceiling caption, and AUTO GAIN stays below Gain Out. The dB/LUFS meters use
+matching label gutters and centered spacing throughout their reveal animation.
+Knob artwork is 30% darker. The logo dropdown shows the build version
 beside AZAZEL AUDIO. The knob's smooth top and orange pointer are retained, with
 a taller 10.08-degree near-face-on view and baked lighting for efficient rendering.
 Gain In/Out faders use the restored low-profile 2.59-style cap, while controls use
@@ -112,4 +114,4 @@ VisualComp includes a curated factory library designed for real mixing scenarios
 
 ## License & Support
 
-VisualComp 2.44 is available as a free download. For bug reports, feature requests, or contributions, please open an issue or pull request in this repository.
+VisualComp 2.45 is available as a free download. For bug reports, feature requests, or contributions, please open an issue or pull request in this repository.

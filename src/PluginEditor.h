@@ -336,7 +336,6 @@ private:
 
     // Right-column toggles
     juce::ToggleButton limiterButton;
-    juce::Label        limiterLabel;
     juce::ToggleButton sidechainButton;
     juce::Label        sidechainLabel;
     juce::ToggleButton autoGainButton;

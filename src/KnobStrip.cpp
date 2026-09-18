@@ -36,7 +36,26 @@ static const juce::Image& master()
         // black into the silhouette. (The Python renderer downsamples
         // premultiplied for exactly the same reason; doing it right there and
         // wrong here would put the fringe back.)
-        return i.isValid() ? i.convertedToFormat (juce::Image::ARGB) : i;
+        if (! i.isValid())
+            return i;
+
+        i = i.convertedToFormat (juce::Image::ARGB);
+        // Apply the requested 30% darkening once, before all size caches.
+        // Scale premultiplied RGB only: opacity and shadow coverage stay intact.
+        juce::Image::BitmapData pixels (i, juce::Image::BitmapData::readWrite);
+        for (int y = 0; y < i.getHeight(); ++y)
+        {
+            auto* row = reinterpret_cast<juce::PixelARGB*> (pixels.getLinePointer (y));
+            for (int x = 0; x < i.getWidth(); ++x)
+            {
+                auto& p = row[x];
+                p.setARGB (p.getAlpha(),
+                           (juce::uint8) ((unsigned (p.getRed()) * 7 + 5) / 10),
+                           (juce::uint8) ((unsigned (p.getGreen()) * 7 + 5) / 10),
+                           (juce::uint8) ((unsigned (p.getBlue()) * 7 + 5) / 10));
+            }
+        }
+        return i;
     }();
 
     return img;
