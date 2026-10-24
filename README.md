@@ -25,8 +25,9 @@ matching label gutters and centered spacing throughout their reveal animation.
 Knob artwork is 30% darker. The logo dropdown shows the build version
 beside AZAZEL AUDIO. The knob's smooth top and orange pointer are retained, with
 a taller 10.08-degree near-face-on view and baked lighting for efficient rendering.
-Gain In/Out faders use the restored low-profile 2.59-style cap, while controls use
-a neutral matte grey/black palette without the prior green tint.
+Gain In/Out faders retain the 2.59-style design with taller caps, while controls use
+a neutral matte grey/black palette without the prior green tint. An additional subtle
+charcoal wash darkens the knobs, and the Mix knob sits lower for more top padding.
 The darker groove recesses rotate with the pointer under a fixed light source.
 
 ---

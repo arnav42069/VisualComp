@@ -520,6 +520,12 @@ void AzazelLookAndFeel::drawRotarySlider(juce::Graphics& g,
     if (! KnobStrip::draw(g, knobBounds, sliderPos))
         KnobStrip::drawMetallicFallback(g, knobBounds, sliderPos);
 
+    // Keep the approved hardware silhouette while giving the 2.44 controls
+    // a deeper charcoal finish.  The low-opacity wash sits above the baked
+    // filmstrip, so the grooves, silver bezel and orange index remain legible.
+    g.setColour(juce::Colours::black.withAlpha(0.14f));
+    g.fillEllipse(knobBounds.reduced(knobR * 0.08f));
+
 }
 
 void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
@@ -598,7 +604,9 @@ void AzazelLookAndFeel::drawLinearSlider(juce::Graphics& g,
     // flanks *outside* the cap — drawn at the slot edge it would simply be
     // covered wherever the cap happens to be sitting.
     const float capW = juce::jlimit(28.0f, 72.0f, float(width) * 0.66f);
-    const float capH = juce::jmin(18.0f, trackH * 0.24f);
+    // A taller cap reads as a real fader handle at the compact 2.44 scale,
+    // while staying comfortably inside the slot at every supported size.
+    const float capH = juce::jmin(24.0f, trackH * 0.32f);
     const float capX = cx - capW * 0.5f;
     const float capY = juce::jlimit(trackT - capH * 0.5f, trackB - capH * 0.5f, pos - capH * 0.5f);
     const float capR = 2.2f;
@@ -3018,7 +3026,9 @@ void VisualCompEditor::resized()
     // they'd hang off the now-narrower right edge. paint()'s MIX read-out
     // and sample-rate text mirror this with the same `cshift`.
     const int cshift = curveGrVisible ? 0 : kCurveGrColW;
-    mixKnob.setBounds(ox + kWidth - cshift - kMixSz - 8, -5, kMixSz, kMixSz);
+    // Leave a small but intentional top reveal above the mix control so it
+    // does not feel pressed against the title bar.
+    mixKnob.setBounds(ox + kWidth - cshift - kMixSz - 8, 2, kMixSz, kMixSz);
     bypassButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104, 14, 100, kTitleH - 28);
     clipModeButton.setBounds(ox + kWidth - cshift - kMixSz - 70 - 104 - 100 - 8, 14, 96, kTitleH - 28);
     logoZone.setBounds(ox + 10, 8, 112, kTitleH - 16);   // matches the drawn wordmark
